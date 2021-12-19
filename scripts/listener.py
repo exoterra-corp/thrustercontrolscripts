@@ -4,6 +4,17 @@ from queue import Queue
 from HSIExcelWindow import HSIExcelWindow
 from thruster_command import ThrusterCommand
 
+"""
+ExoTerra Resource Listener Script.
+description:
+The listener.py script allows for viewing and capturing of raw serial messages, trace, and telemetry messages.
+Thruster Command forwards msg traffic over UDP to the listener script on 3 ports, one for raw serial msgs, 
+one for debug messages, and one for telemetry messages.  The UDP ports are 4000, 4002, 4001 respectively.
+
+contact:
+joshua.meyers@exoterracorp.com 
+jeremy.mitchell@exoterracorp.com
+"""
 
 class Listener():
     """

@@ -3,6 +3,16 @@ import sys,canopen, argparse
 import serial.tools.list_ports
 import struct, datetime
 
+"""
+ExoTerra Resource Version Script.
+description:
+Allows reading of the versions of the System Controller over can or serial.
+
+contact:
+joshua.meyers@exoterracorp.com 
+jeremy.mitchell@exoterracorp.com
+"""
+
 class versions():
     def __init__(self, device):
         network = canopen.Network()
