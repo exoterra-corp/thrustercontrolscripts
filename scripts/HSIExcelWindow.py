@@ -100,7 +100,8 @@ class HSIExcelWindow(HSIExcelFrame):
         self.grid.SetCellValue(row, 9, "CAN_ERR")
 
         row += 3
-        self.grid.SetRowLabelValue(row, "HKM")
+        self.grid.SetRowLabelValue(row, "HK")
+        self.grid.SetRowLabelValue(row+1, "HK-Data")
         self.grid.SetCellValue(row, 0, "current_28v")
         self.grid.SetCellValue(row, 1, "sense_14v")
         self.grid.SetCellValue(row, 2, "current_14v")
