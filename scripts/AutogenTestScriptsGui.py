@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ###########################################################################
-## Python code generated with wxFormBuilder (version 3.10.1-0-g8feb16b3)
+## Python code generated with wxFormBuilder (version 3.10.1-0-g8feb16b)
 ## http://www.wxformbuilder.org/
 ##
 ## PLEASE DO *NOT* EDIT THIS FILE!
@@ -34,8 +34,8 @@ class HSIExcelFrame ( wx.Frame ):
 		self.m_hsiExcelGrid.SetMargins( 0, 0 )
 
 		# Columns
-		self.m_hsiExcelGrid.EnableDragColMove( False )
-		self.m_hsiExcelGrid.EnableDragColSize( False )
+		self.m_hsiExcelGrid.EnableDragColMove( True )
+		self.m_hsiExcelGrid.EnableDragColSize( True )
 		self.m_hsiExcelGrid.SetColLabelSize( 30 )
 		self.m_hsiExcelGrid.SetColLabelAlignment( wx.ALIGN_CENTER, wx.ALIGN_CENTER )
 
