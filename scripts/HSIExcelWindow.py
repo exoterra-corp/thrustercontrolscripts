@@ -1,19 +1,21 @@
-import sys
-from threading import Thread
-import wx, struct, time, traceback
 from AutogenTestScriptsGui import *
+
+"""
+ExoTerra Resource HSIExcelWindow.
+description:
+This is a helper class for the gui portion of the listener script.
+
+contact:
+joshua.meyers@exoterracorp.com 
+jeremy.mitchell@exoterracorp.com
+"""
+
 
 class HSIExcelWindow(HSIExcelFrame):
     def __init__(self, parent):
         super().__init__(parent)
-        # self.Bind(wx.EVT_CLOSE, self.OnClose)
-
         self.grid = self.m_hsiExcelGrid
         self.setupView()
-        self.request_thread = None
-        self.running = False
-        self.hex_en = False
-
         self.Show(True)
         self.anode_row = 4
         self.keeper_row = 1
@@ -22,18 +24,11 @@ class HSIExcelWindow(HSIExcelFrame):
         self.valves_row = 13
         self.hkm_row = 15
 
-    def handleHexEnable(self, ev):
-        if ev.GetEventObject().GetValue():
-            self.hex_en = True
-        else:
-            self.hex_en = False
-
     def setupView(self):
         """
         setupView, formats the grid into a specific format
         """
         self.grid.ClearGrid()
-
         # setup keeper labels
         row = 0
         self.grid.SetRowLabelValue(row, "Keeper")
@@ -105,191 +100,12 @@ class HSIExcelWindow(HSIExcelFrame):
         self.grid.SetCellValue(row, 9, "CAN_ERR")
 
         row += 3
-        self.grid.SetRowLabelValue(row, "HK")
-        self.grid.SetRowLabelValue(row + 1, "HK-Data")
-        self.grid.SetRowLabelValue(row + 2, "")
+        self.grid.SetRowLabelValue(row, "HKM")
         self.grid.SetCellValue(row, 0, "current_28v")
         self.grid.SetCellValue(row, 1, "sense_14v")
         self.grid.SetCellValue(row, 2, "current_14v")
         self.grid.SetCellValue(row, 3, "sense_7a")
         self.grid.SetCellValue(row, 4, "current_7a")
-
-    def OnDestroy(self, event):
-        self.running = False
-
-    def postInit(self, loaded_classes=None):
-        self.funcs = [
-            #anode functions
-            {"get_func": self.anode_diag.getVX, "data_row": self.anode_row, "data_col": 0,
-             "on_failure": self.writeDisplayFailure},
-            {"get_func": self.anode_diag.getVY, "data_row": self.anode_row, "data_col": 1,
-             "on_failure": self.writeDisplayFailure},
-            {"get_func": self.anode_diag.getVOUT, "data_row": self.anode_row, "data_col": 2,
-             "on_failure": self.writeDisplayFailure},
-            {"get_func": self.anode_diag.getIOUT, "data_row": self.anode_row, "data_col": 3,
-             "on_failure": self.writeDisplayFailure},
-            {"get_func": self.anode_diag.getDAC, "data_row": self.anode_row, "data_col": 4,
-             "on_failure": self.writeDisplayFailure},
-            {"get_func": self.anode_diag.getLASTERR, "data_row": self.anode_row, "data_col": 5,
-             "on_failure": self.writeDisplayFailure},
-            {"get_func": self.anode_diag.getHSTEMP, "data_row": self.anode_row, "data_col": 6,
-             "on_failure": self.writeDisplayFailure},
-            {"get_func": self.anode_diag.getCURRENTOFT, "data_row": self.anode_row, "data_col": 7,
-             "on_failure": self.writeDisplayFailure},
-            {"get_func": self.anode_diag.getCAN_CNT, "data_row": self.anode_row, "data_col": 8,
-             "on_failure": self.writeDisplayFailure},
-            {"get_func": self.anode_diag.getCAN_ERR_CNT, "data_row": self.anode_row, "data_col": 9,
-             "on_failure": self.writeDisplayFailure},
-
-            #keeper functions
-            {"get_func": self.keeper_diag.getSEPICV, "data_row": self.keeper_row, "data_col": 0,
-             "on_failure": self.writeDisplayFailure},
-            {"get_func": self.keeper_diag.getHSIV, "data_row": self.keeper_row, "data_col": 1,
-             "on_failure": self.writeDisplayFailure},
-            {"get_func": self.keeper_diag.getIOUT, "data_row": self.keeper_row, "data_col": 2,
-             "on_failure": self.writeDisplayFailure},
-            {"get_func": self.keeper_diag.getDACOUT, "data_row": self.keeper_row, "data_col": 3,
-             "on_failure": self.writeDisplayFailure},
-            {"get_func": self.keeper_diag.getLASTERROR, "data_row": self.keeper_row, "data_col": 4,
-             "on_failure": self.writeDisplayFailure},
-            {"get_func": self.keeper_diag.getCURRENTOFT, "data_row": self.keeper_row, "data_col": 5,
-             "on_failure": self.writeDisplayFailure},
-            {"get_func": self.keeper_diag.getCAN_CNT, "data_row": self.keeper_row, "data_col": 6,
-             "on_failure": self.writeDisplayFailure},
-            {"get_func": self.keeper_diag.getCAN_ERR_CNT, "data_row": self.keeper_row, "data_col": 7,
-             "on_failure": self.writeDisplayFailure},
-
-            # magnet inner functions
-            {"get_func": self.inner_magnet_diag.getVOUT, "data_row": self.magnets_inner_row, "data_col": 0,
-             "on_failure": self.writeDisplayFailure},
-            {"get_func": self.inner_magnet_diag.getIOUT, "data_row": self.magnets_inner_row, "data_col": 1,
-             "on_failure": self.writeDisplayFailure},
-            {"get_func": self.inner_magnet_diag.getDACOUT, "data_row": self.magnets_inner_row, "data_col": 2,
-             "on_failure": self.writeDisplayFailure},
-            {"get_func": self.inner_magnet_diag.getLASTERR, "data_row": self.magnets_inner_row, "data_col": 3,
-             "on_failure": self.writeDisplayFailure},
-            {"get_func": self.inner_magnet_diag.getCAN_CNT, "data_row": self.magnets_inner_row, "data_col": 4,
-             "on_failure": self.writeDisplayFailure},
-            {"get_func": self.inner_magnet_diag.getCAN_ERR_CNT, "data_row": self.magnets_inner_row, "data_col": 5,
-             "on_failure": self.writeDisplayFailure},
-
-            # magnet outer functions
-            {"get_func": self.outer_magnet_diag.getVOUT, "data_row": self.magnets_outer_row, "data_col": 0,
-             "on_failure": self.writeDisplayFailure},
-            {"get_func": self.outer_magnet_diag.getIOUT, "data_row": self.magnets_outer_row, "data_col": 1,
-             "on_failure": self.writeDisplayFailure},
-            {"get_func": self.outer_magnet_diag.getDACOUT, "data_row": self.magnets_outer_row, "data_col": 2,
-             "on_failure": self.writeDisplayFailure},
-            {"get_func": self.outer_magnet_diag.getLASTERR, "data_row": self.magnets_outer_row, "data_col": 3,
-             "on_failure": self.writeDisplayFailure},
-            {"get_func": self.outer_magnet_diag.getCAN_CNT, "data_row": self.magnets_outer_row, "data_col": 4,
-             "on_failure": self.writeDisplayFailure},
-            {"get_func": self.outer_magnet_diag.getCAN_ERR_CNT, "data_row": self.magnets_outer_row, "data_col": 5,
-             "on_failure": self.writeDisplayFailure},
-
-            # valves functions
-            {"get_func": self.valves_diag.get_cathode_low_flow, "data_row": self.valves_row, "data_col": 0,
-             "on_failure": self.writeDisplayFailure},
-            {"get_func": self.valves_diag.get_cathode_high_flow, "data_row": self.valves_row, "data_col": 1,
-             "on_failure": self.writeDisplayFailure},
-            {"get_func": self.valves_diag.get_anode_voltage, "data_row": self.valves_row, "data_col": 2,
-             "on_failure": self.writeDisplayFailure},
-            {"get_func": self.valves_diag.get_temperature, "data_row": self.valves_row, "data_col": 3,
-             "on_failure": self.writeDisplayFailure},
-            {"get_func": self.valves_diag.get_regulator_pressure, "data_row": self.valves_row, "data_col": 4,
-             "on_failure": self.writeDisplayFailure},
-            {"get_func": self.valves_diag.get_anode_pressure, "data_row": self.valves_row, "data_col": 5,
-             "on_failure": self.writeDisplayFailure, "args":{"bold":True}},
-            {"get_func": self.valves_diag.get_cathode_pressure, "data_row": self.valves_row, "data_col": 6,
-             "on_failure": self.writeDisplayFailure, "args":{"bold":True}},
-            {"get_func": self.valves_diag.get_tank_pressure, "data_row": self.valves_row, "data_col": 7,
-             "on_failure": self.writeDisplayFailure},
-            {"get_func": self.valves_diag.get_can_cnt, "data_row": self.valves_row, "data_col": 8,
-             "on_failure": self.writeDisplayFailure},
-            {"get_func": self.valves_diag.getCAN_ERR_CNT, "data_row": self.valves_row, "data_col": 9,
-             "on_failure": self.writeDisplayFailure},
-
-            # hkm functions
-            {"get_func": self.valves_diag.get_cathode_low_flow, "data_row": self.hkm_row, "data_col": 0,
-             "on_failure": self.writeDisplayFailure},
-            {"get_func": self.valves_diag.get_cathode_high_flow, "data_row": self.hkm_row, "data_col": 1,
-             "on_failure": self.writeDisplayFailure},
-            {"get_func": self.valves_diag.get_anode_voltage, "data_row": self.hkm_row, "data_col": 2,
-             "on_failure": self.writeDisplayFailure},
-            {"get_func": self.valves_diag.get_temperature, "data_row": self.hkm_row, "data_col": 3,
-             "on_failure": self.writeDisplayFailure},
-            {"get_func": self.valves_diag.get_regulator_pressure, "data_row": self.hkm_row, "data_col": 4,
-             "on_failure": self.writeDisplayFailure},
-        ]
-        self.m_hsiEnable.SetValue(False)
-        # self.request_thread = Thread(target=self.readHsi)
-        # self.running = True
-        # self.request_thread.start()
-
-    def handleThreadInit(self, event):
-        if event.GetEventObject().GetValue():
-            self.request_thread = Thread(target=self.readHsi)
-            self.running = True
-            self.request_thread.start()
-        else:
-            #kill the thread
-            self.running = False
-
-    def readHsi(self):
-        """
-        readHsi, rolls through the hsi, calling the callback on success
-        """
-        while self.running:
-            for el in self.funcs:
-                try:
-                    self.try_read(el)
-                    cb = el.get("on_success")
-                    if cb != None:
-                        cb(el)
-                except Exception as e:
-                    # print(traceback.format_exc())
-                    invalid_callback = el.get("on_failure")
-                    if invalid_callback != None:
-                        invalid_callback(el, e)
-                    # print(e)
-            time.sleep(1)
-
-    def try_read(self, func):
-        """
-        try_read, tries to get the value and then will write it to the this display.
-        calls a callback if there.
-        """
-        val = func.get("get_func")()
-        if self.hex_en:
-            val = hex(val)
-        data_row = func.get("data_row")
-        data_col = func.get("data_col")
-        callback = func.get("on_success")
-        if data_row != None and data_col !=None:
-            self.unpack_and_display(func, val)
-        if callback != None:
-            callback(val)
-
-    def unpack_and_display(self, func, val):
-        """
-        """
-        # print(f"val:{val}")
-        # unpacked = struct.unpack("H", val)[0]  # ushort16
-        data_row = func.get("data_row")
-        data_col = func.get("data_col")
-        args = func.get("args")
-
-        if data_row != None and data_col !=None:
-            if args != None:
-                if args.get("bold"):
-                    wx.CallAfter(self.grid.SetCellTextColour, data_row, data_col, wx.Colour( 255, 0, 0 ))
-            wx.CallAfter(self.grid.SetCellValue, data_row, data_col, f"{val}")
-
-    def writeDisplayFailure(self, element, e):
-        data_row = element.get("data_row")
-        data_col = element.get("data_col")
-        if data_row != None and data_col !=None:
-            wx.CallAfter(self.grid.SetCellValue,data_row, data_col, f"{e}")
 
     def write_display(self, row, col, val):
         self.grid.SetCellValue(row, col, val)

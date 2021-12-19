@@ -95,11 +95,11 @@ class ThrusterCommand:
         "vo_msg_cnt": {"index": VALVES_INDEX, "subindex": 0x9,"row": 13, "col": 0x8},
         "vo_can_err": {"index": VALVES_INDEX, "subindex": 0xA,"row": 13, "col": 0x9},
 
-        # "current_28v": {"index": HKM_INDEX, "subindex": 0x1, "row": 15, "col": 0x0},
-        # "sense_14v": {"index": HKM_INDEX, "subindex": 0x2, "row": 15, "col": 0x1},
-        # "current_14v": {"index": HKM_INDEX, "subindex": 0x3, "row": 15, "col": 0x2},
-        # "sense_7a": {"index": HKM_INDEX, "subindex": 0x4, "row": 15, "col": 0x3},
-        # "current_7a": {"index": HKM_INDEX, "subindex": 0x5, "row": 15, "col": 0x4},
+        "current_28v": {"index": HK_INDEX, "subindex": 0x1, "row": 16, "col": 0x0},
+        "sense_14v": {"index": HK_INDEX, "subindex": 0x2, "row": 16, "col": 0x1},
+        "current_14v": {"index": HK_INDEX, "subindex": 0x3, "row": 16, "col": 0x2},
+        "sense_7a": {"index": HK_INDEX, "subindex": 0x4, "row": 16, "col": 0x3},
+        "current_7a": {"index": HK_INDEX, "subindex": 0x5, "row": 16, "col": 0x4},
     }
 
     def __init__(self, ecp_id, ser_port, listen_mode, debug):
@@ -107,7 +107,7 @@ class ThrusterCommand:
         __init__, sets up serial port and cmds definitions and launches the help menu.
         """
         self.debug = debug
-        self.version = "0.0.4"
+        self.version = "0.0.5"
         self.serial_port = ser_port
         #main loop control
         self.running = True
