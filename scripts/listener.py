@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-import socket, argparse, datetime, struct, os, sys, threading, wx
+import socket, argparse, datetime, struct, os, sys, threading, wx, time
 from queue import Queue
 from HSIExcelWindow import HSIExcelWindow
 from thruster_command import ThrusterCommand
@@ -53,6 +53,8 @@ class Listener():
                     if not self.q.empty():
                         m = self.q.get()
                         self.log(m)
+                    else:
+                        time.sleep(0.1)
             except KeyboardInterrupt:
                 self.running = False
                 self.sock.sendto(bytes("", "ascii"), (self.udp_ip, self.udp_port))
