@@ -2,12 +2,28 @@
 
 ## Installation and Setup
 - Tested on Ubuntu 20.04.2 Python 3.8.5
-  
+
+## Installing git and python3
 ```
-  #Ensure python3 and python pip are installed installed on the system.
-  sudo apt update
-  sudo apt install python3 python3-pip
-  
+#For ubuntu 20.04 
+sudo apt update && sudo apt install -y git python3 python3-pip
+
+#for windows based platforms https://git-scm.com/download/win
+#download and follow the installer.
+```
+
+## Cloning the Repository
+Clone the Repository using the provided customer user name and token.
+```
+git clone https://gitlab.com/e2259/thruster-control-scripts.git
+Username for 'https://gitlab.com': "<username>"
+Password for 'https://user1-token@gitlab.com': "<token>"
+```
+
+```
+  #navigate into the folder
+  cd thruster-control-scripts
+
   #Install the other packages wheel.
   python3 -m pip install ./packages/python_can-4.0.11-py3-none-any.whl
   python3 -m pip install ./packages/canopen-1.2.4-py3-none-any.whl
