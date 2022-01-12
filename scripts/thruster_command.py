@@ -134,6 +134,8 @@ class ThrusterCommand:
         self.bit_status = 0
         self.cond_status = 0
         self.thrust_point = 0
+
+        self.bootup_msg = False
         self.hsi_cmds = {
             "0": {"name": "Exit", "func": self.exit, "help": "Exits the Program"},
             "1": {"name": "Help", "func": self.help, "help": "Displays the help Menu"},
@@ -172,7 +174,6 @@ class ThrusterCommand:
         self.hsi_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # hsi port
         self.help(None)
         self.connect_to_ecp()
-        # self.load_eds_file()
 
     def connect_to_ecp(self):
         """
@@ -192,8 +193,15 @@ class ThrusterCommand:
             self.network.add_node(self.node)
             self.node.sdo.RESPONSE_TIMEOUT = 2
             self.node.emcy.add_callback(self.handle_emcy)
+            self.network.subscribe(0x722, self.notify_bootup)
             # check to see if device is connected
             self.nmt_state = self.read(self.th_command_index, THRUSTER_STATUS_SUBINDEX, "<I")  # nmt_state
+            #check to see if msg was recieved
+            if self.nmt_state is None:
+                print("System Controller Failed to Connect.  Waiting for bootup msg.")
+                while not self.bootup_msg:
+                    time.sleep(0.01)
+                print("System Controller Connected!")
             # read the state on bootup
             self.get_status(self.th_command_index)
             cur_state = ""
@@ -209,10 +217,12 @@ class ThrusterCommand:
                     cur_state = "Bootup - Init"
                 self.nmt_state_str = cur_state
                 print("System Controller Connected!")
-            else:
-                sys.exit(1)
+
         except Exception as a:
             print(traceback.print_exc())
+
+    def notify_bootup(self, can_id, data, timestamp):
+        self.bootup_msg = True
 
     def load_eds_file(self):
         """
