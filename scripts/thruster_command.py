@@ -149,25 +149,25 @@ class ThrusterCommand:
                   "args": {"nmt_state": "OPERATIONAL"},
                   "help": "Changes NMT STATE to OPERATIONAL."},
             "5": {"name": "Run Ready Mode", "func": self.get_write_value,
-                  "args": {"index": self.th_command_index, "subindex": 0x1, "type": "<I", "default": "0x1"},
+                  "args": {"index": self.th_command_index, "subindex": "ReadyMode", "type": "<I", "default": "0x1"},
                   "help": "Writes a UINT-32 to the Thruster Ready Mode."},
             "6": {"name": "Run Steady State", "func": self.get_write_value,
-                  "args": {"index": self.th_command_index, "subindex": 0x2, "type": "<I"},
+                  "args": {"index": self.th_command_index, "subindex": "SteadyState", "type": "<I"},
                   "help": "Writes a UINT-32 to the Thruster Steady State."},
             "7": {"name": "Thruster Shutdown", "func": self.get_write_value,
-                  "args": {"index": self.th_command_index, "subindex": 0x3, "type": "<B", "default": "0x1"},
+                  "args": {"index": self.th_command_index, "subindex": "Shutdown", "type": "<B", "default": "0x1"},
                   "help": "Shutdown down the thruster."},
             "8": {"name": "Status", "func": self.get_status_index,
                   "args": {"index": self.th_command_index},
                   "help": "Prints Status of Ready Mode, Steady State, and ThrusterStatus continuously."},
             "9": {"name": "Write Set Thrust", "func": self.get_write_value,
-                  "args": {"index": self.th_command_index, "subindex": 0x4, "type": "<I"},
+                  "args": {"index": self.th_command_index, "subindex": "Thrust", "type": "<I"},
                   "help": "Writes a throttle set point to the System Controller."},
             "10": {"name": "Condition", "func": self.get_write_value,
-                   "args": {"index": self.th_command_index, "subindex": 0x6, "type": "<I"},
+                   "args": {"index": self.th_command_index, "subindex": "Condition", "type": "<I"},
                    "help": "Run the conditioning sequence."},
             "11": {"name": "Test", "func": self.get_write_value,
-                   "args": {"index": self.th_command_index, "subindex": 0x7, "type": "<I"},
+                   "args": {"index": self.th_command_index, "subindex": "BIT", "type": "<I"},
                    "help": "Run the BIT sequence."},
         }
         self.trace_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # trace port
@@ -425,10 +425,18 @@ class ThrusterCommand:
         get_write_value, looks for a default value and if one is found just writes it, otherwise its prompts the user
         for a hex value to write.
         """
+
         index = args.get("index")
         subindex = args.get("subindex")
         python_type = args.get("type")
         default = args.get("default")
+
+        if type(index) is str and type(subindex) is str:
+            var = self.get_var(index, subindex)
+            index = var.get("index")
+            subindex = var.get("subindex")
+
+
         valid = False
         if index != None and subindex != None and python_type != None:
             if default is not None:  # if we have a default value just write it and dont prompt user.
