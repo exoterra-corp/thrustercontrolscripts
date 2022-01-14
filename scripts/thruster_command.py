@@ -69,56 +69,59 @@ class ThrusterCommand:
         self.eds = {}
 
         self.hsi = {
-            "k_vsepic": {"index": self.keeper_index, "subindex": "ADC0", "row": 1, "col": 0x0},
-            "k_vin": {"index": self.keeper_index, "subindex": "ADC1", "row": 1, "col": 0x1},
-            "k_iout": {"index": self.keeper_index, "subindex": "ADC2", "row": 1, "col": 0x2},
-            "k_dacout": {"index": self.keeper_index, "subindex": "ADC3", "row": 1, "col": 0x3},
-            "k_lasterr": {"index": self.keeper_index, "subindex": "ADC4", "row": 1, "col": 0x4},
-            "k_cur_oft": {"index": self.keeper_index, "subindex": "ADC5", "row": 1, "col": 0x5},
-            "k_msg_cnt": {"index": self.keeper_index, "subindex": "ADC6", "row": 1, "col": 0x6},
-            "k_can_err": {"index": self.keeper_index, "subindex": "ADC7", "row": 1, "col": 0x7},
+            "k_vsepic": {"index": self.keeper_index, "subindex": "ADC0", "type":"<H", "row": 1, "col": 0x0},
+            "k_vin": {"index": self.keeper_index, "subindex": "ADC1","type":"<H", "row": 1, "col": 0x1},
+            "k_iout": {"index": self.keeper_index, "subindex": "ADC2","type":"<H", "row": 1, "col": 0x2},
+            "k_dacout": {"index": self.keeper_index, "subindex": "ADC3","type":"<H", "row": 1, "col": 0x3},
+            "k_lasterr": {"index": self.keeper_index, "subindex": "ADC4","type":"<H", "row": 1, "col": 0x4},
+            "k_cur_oft": {"index": self.keeper_index, "subindex": "ADC5","type":"<H", "row": 1, "col": 0x5},
+            "k_msg_cnt": {"index": self.keeper_index, "subindex": "ADC6","type":"<H", "row": 1, "col": 0x6},
+            "k_can_err": {"index": self.keeper_index, "subindex": "ADC7","type":"<H", "row": 1, "col": 0x7},
 
-            "a_vx": {"index": self.anode_index, "subindex": "ADC0", "row": 4, "col": 0x0},
-            "a_vy": {"index": self.anode_index, "subindex": "ADC1", "row": 4, "col": 0x1},
-            "a_vout": {"index": self.anode_index, "subindex": "ADC2", "row": 4, "col": 0x2},
-            "a_iout": {"index": self.anode_index, "subindex": "ADC3", "row": 4, "col": 0x3},
-            "a_dac": {"index": self.anode_index, "subindex": "ADC4", "row": 4, "col": 0x4},
-            "a_last_err": {"index": self.anode_index, "subindex": "ADC5", "row": 4, "col": 0x5},
-            "a_cur_oft": {"index": self.anode_index, "subindex": "ADC6", "row": 4, "col": 0x6},
-            "a_hs_temp": {"index": self.anode_index, "subindex": "ADC7", "row": 4, "col": 0x7},
-            "a_msg_cnt": {"index": self.anode_index, "subindex": "ADC8", "row": 4, "col": 0x8},
-            "a_can_err": {"index": self.anode_index, "subindex": "ADC9", "row": 4, "col": 0x9},
+            "a_vx": {"index": self.anode_index, "subindex": "ADC0","type":"<H", "row": 4, "col": 0x0},
+            "a_vy": {"index": self.anode_index, "subindex": "ADC1","type":"<H", "row": 4, "col": 0x1},
+            "a_vout": {"index": self.anode_index, "subindex": "ADC2","type":"<H", "row": 4, "col": 0x2},
+            "a_iout": {"index": self.anode_index, "subindex": "ADC3","type":"<H", "row": 4, "col": 0x3},
+            "a_dac": {"index": self.anode_index, "subindex": "ADC4","type":"<H", "row": 4, "col": 0x4},
+            "a_last_err": {"index": self.anode_index, "subindex": "ADC5","type":"<H", "row": 4, "col": 0x5},
+            "a_cur_oft": {"index": self.anode_index, "subindex": "ADC6","type":"<H", "row": 4, "col": 0x6},
+            "a_hs_temp": {"index": self.anode_index, "subindex": "ADC7","type":"<H", "row": 4, "col": 0x7},
+            "a_msg_cnt": {"index": self.anode_index, "subindex": "ADC8","type":"<H", "row": 4, "col": 0x8},
+            "a_can_err": {"index": self.anode_index, "subindex": "ADC9", "type":"<H","row": 4, "col": 0x9},
 
-            "mo_vout": {"index": self.mag_inner_index, "subindex": "ADC0", "row": 7, "col": 0},
-            "mo_iout": {"index": self.mag_inner_index, "subindex": "ADC1", "row": 7, "col": 1},
-            "mo_dac_out": {"index": self.mag_inner_index, "subindex": "ADC2", "row": 7, "col": 2},
-            "mo_last_err": {"index": self.mag_inner_index, "subindex": "ADC3", "row": 7, "col": 3},
-            "mo_msg_cnt": {"index": self.mag_inner_index, "subindex": "ADC4", "row": 7, "col": 4},
-            "mo_can_err": {"index": self.mag_inner_index, "subindex": "ADC5", "row": 7, "col": 5},
+            "mo_vout": {"index": self.mag_inner_index, "subindex": "ADC0","type":"<H", "row": 7, "col": 0},
+            "mo_iout": {"index": self.mag_inner_index, "subindex": "ADC1","type":"<H", "row": 7, "col": 1},
+            "mo_dac_out": {"index": self.mag_inner_index, "subindex": "ADC2","type":"<H", "row": 7, "col": 2},
+            "mo_last_err": {"index": self.mag_inner_index, "subindex": "ADC3","type":"<H", "row": 7, "col": 3},
+            "mo_msg_cnt": {"index": self.mag_inner_index, "subindex": "ADC4", "type":"<H","row": 7, "col": 4},
+            "mo_can_err": {"index": self.mag_inner_index, "subindex": "ADC5","type":"<H", "row": 7, "col": 5},
 
-            "mi_vout": {"index": self.mag_outer_index, "subindex": "ADC0", "row": 10, "col": 0},
-            "mi_iout": {"index": self.mag_outer_index, "subindex": "ADC1", "row": 10, "col": 1},
-            "mi_dac_out": {"index": self.mag_outer_index, "subindex": "ADC2", "row": 10, "col": 2},
-            "mi_last_err": {"index": self.mag_outer_index, "subindex": "ADC3", "row": 10, "col": 3},
-            "mi_msg_cnt": {"index": self.mag_outer_index, "subindex": "ADC4", "row": 10, "col": 4},
-            "mi_can_err": {"index": self.mag_outer_index, "subindex": "ADC5", "row": 10, "col": 5},
+            "mi_vout": {"index": self.mag_outer_index, "subindex": "ADC0", "type":"<H","row": 10, "col": 0},
+            "mi_iout": {"index": self.mag_outer_index, "subindex": "ADC1", "type":"<H","row": 10, "col": 1},
+            "mi_dac_out": {"index": self.mag_outer_index, "subindex": "ADC2", "type":"<H","row": 10, "col": 2},
+            "mi_last_err": {"index": self.mag_outer_index, "subindex": "ADC3", "type":"<H","row": 10, "col": 3},
+            "mi_msg_cnt": {"index": self.mag_outer_index, "subindex": "ADC4","type":"<H", "row": 10, "col": 4},
+            "mi_can_err": {"index": self.mag_outer_index, "subindex": "ADC5","type":"<H", "row": 10, "col": 5},
 
-            "vo_anode_v": {"index": self.valves_index, "subindex": "ADC0", "row": 13, "col": 0x0},
-            "vo_cath_hf_v": {"index": self.valves_index, "subindex": "ADC1", "row": 13, "col": 0x1},
-            "vo_cath_lf_v": {"index": self.valves_index, "subindex": "ADC2", "row": 13, "col": 0x2},
-            "vo_temp": {"index": self.valves_index, "subindex": "ADC3", "row": 13, "col": 0x3},
-            "vo_tank_pressure": {"index": self.valves_index, "subindex": "ADC4", "row": 13, "col": 0x4},
-            "vo_cathode_pressure": {"index": self.valves_index, "subindex": "ADC5", "row": 13, "col": 0x5},
-            "vo_anode_pressure": {"index": self.valves_index, "subindex": "ADC6", "row": 13, "col": 0x6},
-            "vo_reg_pressure": {"index": self.valves_index, "subindex": "ADC7", "row": 13, "col": 0x7},
-            "vo_msg_cnt": {"index": self.valves_index, "subindex": "ADC8", "row": 13, "col": 0x8},
-            "vo_can_err": {"index": self.valves_index, "subindex": "ADC9", "row": 13, "col": 0x9},
+            "vo_anode_v": {"index": self.valves_index, "subindex": "ADC0", "type":"<H","row": 13, "col": 0x0},
+            "vo_cath_hf_v": {"index": self.valves_index, "subindex": "ADC1", "type":"<H","row": 13, "col": 0x1},
+            "vo_cath_lf_v": {"index": self.valves_index, "subindex": "ADC2","type":"<H", "row": 13, "col": 0x2},
+            "vo_temp": {"index": self.valves_index, "subindex": "ADC3","type":"<H", "row": 13, "col": 0x3},
+            "vo_tank_pressure": {"index": self.valves_index, "subindex": "ADC4", "type":"<H","row": 13, "col": 0x4},
+            "vo_cathode_pressure": {"index": self.valves_index, "subindex": "ADC5","type":"<H", "row": 13, "col": 0x5},
+            "vo_anode_pressure": {"index": self.valves_index, "subindex": "ADC6", "type":"<H","row": 13, "col": 0x6},
+            "vo_reg_pressure": {"index": self.valves_index, "subindex": "ADC7","type":"<H", "row": 13, "col": 0x7},
+            "vo_msg_cnt": {"index": self.valves_index, "subindex": "ADC8", "type":"<H","row": 13, "col": 0x8},
+            "vo_can_err": {"index": self.valves_index, "subindex": "ADC9", "type":"<H","row": 13, "col": 0x9},
 
-            "hk_current_28v": {"index": self.hk_index, "subindex": "ADC0", "row": 16, "col": 0x0},
-            "hk_sense_14v": {"index": self.hk_index, "subindex": "ADC1", "row": 16, "col": 0x1},
-            "hk_current_14v": {"index": self.hk_index, "subindex": "ADC2", "row": 16, "col": 0x2},
-            "hk_sense_7a": {"index": self.hk_index, "subindex": "ADC3", "row": 16, "col": 0x3},
-            "hk_current_7a": {"index": self.hk_index, "subindex": "ADC4", "row": 16, "col": 0x4},
+            "count_meccemsb": {"index": self.hk_index, "subindex": "ADC0","type":"<H", "row": 16, "col": 0x0},
+            "count_ueccemsb": {"index": self.hk_index, "subindex": "ADC1", "type":"<H","row": 16, "col": 0x1},
+            "count_meccelsb": {"index": self.hk_index, "subindex": "ADC2", "type":"<H","row": 16, "col": 0x2},
+            "count_ueccelsb": {"index": self.hk_index, "subindex": "ADC3","type":"<H", "row": 16, "col": 0x3},
+
+            "region_stat": {"index": self.hk_index, "subindex": "ADC0", "type": "<I", "row": 16, "col": 0x0},
+            "failed_repairs": {"index": self.hk_index, "subindex": "ADC1", "type": "<I", "row": 16, "col": 0x1},
+            "repair_stat": {"index": self.hk_index, "subindex": "ADC2", "type": "<I", "row": 16, "col": 0x2},
         }
 
         self.system_id = ecp_id
@@ -394,19 +397,26 @@ class ThrusterCommand:
         """
         gather_hsi_msgs, this gathers hsi messages and sends it over udp, runs in thread.
         """
+        #get the hsi message block
+        val = self.node.sdo.upload(0x3100, 0x1)
+
+        #then loop over decoding it one by one
+        cnt = 0
         for a in self.hsi.items():
             #if in pre-op ignore other hsi messages
             item_name = a[0]
-            if self.state_status == '0x0' and "hk" not in item_name:
-                continue
-            item_name = a[0]
-            index = a[1].get("index")
-            subindex = a[1].get("subindex")
-            val = self.read(index, subindex, "<H")
-            var = self.get_var(index, subindex)
-            if val is not None:
-                msg = f"{item_name.ljust(10, ' ')}:index:{hex(var.get('index'))}:subindex:{hex(var.get('subindex'))}:val:{val}"
-                self.send_udp_packet(msg, HSI_UDP_IP, UDP_HSI_PORT)
+            item_type = a[1].get("type")
+            size = 0
+            if item_type == "<H":
+                size = 2
+            elif item_type == "<I":
+                size = 4
+            if item_type is not None:
+                item_val = struct.unpack(item_type, val[cnt:cnt+size])[0]
+                if item_val is not None:
+                    msg = f"{item_name.ljust(10, ' ')}:index:{a[1].get('index')}:subindex:{a[1].get('subindex')}:val:{item_val}"
+                    self.send_udp_packet(msg, HSI_UDP_IP, UDP_HSI_PORT)
+            cnt+=size#move the start
         time.sleep(HSI_SLEEP_TIME)
 
     def start_threads(self):
