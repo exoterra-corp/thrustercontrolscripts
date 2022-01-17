@@ -108,5 +108,20 @@ class HSIExcelWindow(HSIExcelFrame):
         self.grid.SetCellValue(row, 3, "sense_7a")
         self.grid.SetCellValue(row, 4, "current_7a")
 
+        row += 3
+        self.grid.SetRowLabelValue(row, "EFC")
+        self.grid.SetRowLabelValue(row+1, "EFC-Data")
+        self.grid.SetCellValue(row, 0, "cnt_meccemsb")
+        self.grid.SetCellValue(row, 1, "cnt_ueccemsb")
+        self.grid.SetCellValue(row, 2, "cnt_meccelsb")
+        self.grid.SetCellValue(row, 3, "cnt_ueccelsb")
+
+        row += 3
+        self.grid.SetRowLabelValue(row, "SYS-MEM")
+        self.grid.SetRowLabelValue(row+1, "SYS-MEM-Data")
+        self.grid.SetCellValue(row, 0, "region_stat")
+        self.grid.SetCellValue(row, 1, "failed_repairs")
+        self.grid.SetCellValue(row, 2, "repair_stat")
+
     def write_display(self, row, col, val):
         self.grid.SetCellValue(row, col, val)

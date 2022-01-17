@@ -95,14 +95,14 @@ class HSIDefs:
             "sense_7a": {"index": self.hk_index, "subindex": "ADC3", "type": "<H", "row": 16, "col": 0x3},
             "current_7a": {"index": self.hk_index, "subindex": "ADC4", "type": "<H", "row": 16, "col": 0x4},
 
-            "count_meccemsb": {"index": self.hk_index, "subindex": "ADC0", "type": "<H", "row": 18, "col": 0x0},
-            "count_ueccemsb": {"index": self.hk_index, "subindex": "ADC1", "type": "<H", "row": 18, "col": 0x1},
-            "count_meccelsb": {"index": self.hk_index, "subindex": "ADC2", "type": "<H", "row": 18, "col": 0x2},
-            "count_ueccelsb": {"index": self.hk_index, "subindex": "ADC3", "type": "<H", "row": 18, "col": 0x3},
+            "count_meccemsb": {"index": self.hk_index, "subindex": "ADC0", "type": "<H", "row": 19, "col": 0x0},
+            "count_ueccemsb": {"index": self.hk_index, "subindex": "ADC1", "type": "<H", "row": 19, "col": 0x1},
+            "count_meccelsb": {"index": self.hk_index, "subindex": "ADC2", "type": "<H", "row": 19, "col": 0x2},
+            "count_ueccelsb": {"index": self.hk_index, "subindex": "ADC3", "type": "<H", "row": 19, "col": 0x3},
 
-            "region_stat": {"index": self.hk_index, "subindex": "ADC0", "type": "<I", "row": 20, "col": 0x0},
-            "failed_repairs": {"index": self.hk_index, "subindex": "ADC1", "type": "<I", "row": 20, "col": 0x1},
-            "repair_stat": {"index": self.hk_index, "subindex": "ADC2", "type": "<I", "row": 20, "col": 0x2},
+            "region_stat": {"index": self.hk_index, "subindex": "ADC0", "type": "<I", "row": 22, "col": 0x0},
+            "failed_repairs": {"index": self.hk_index, "subindex": "ADC1", "type": "<I", "row": 22, "col": 0x1},
+            "repair_stat": {"index": self.hk_index, "subindex": "ADC2", "type": "<I", "row": 22, "col": 0x2},
         }
 
 
