@@ -2,7 +2,7 @@
 import socket, argparse, datetime, struct, os, sys, threading, wx, time
 from queue import Queue
 from HSIExcelWindow import HSIExcelWindow
-from thruster_command import ThrusterCommand
+from thruster_command import HSIDefs
 
 """
 ExoTerra Resource Listener Script.
@@ -140,7 +140,7 @@ class Listener():
                     if len(data_split) == 8:
                         name = data_split[1].strip()
                         val = data_split[-1]
-                        el = ThrusterCommand.hsi.get(name)
+                        el = HSIDefs().hsi.get(name)
                         if el is not None:
                             r = el.get("row")
                             c = el.get("col")
