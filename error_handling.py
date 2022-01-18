@@ -3,6 +3,7 @@ import canopen, argparse, struct, time, sys, socket, traceback, datetime, wx
 from canopen.nmt import NmtError, NMT_STATES
 from serial.tools import list_ports
 from threading import Thread, Lock
+from tabulate import tabulate
 
 class ErrorHandling:
     """
@@ -25,27 +26,97 @@ class ErrorHandling:
                     print('  %d: %s' % (subobj.subindex, subobj.name))
 
         self.err_detail_cmds = {
-                "0": {"name": "Dump Error Log", "func":self.error_log_dump, "help": "Dump a submodules error log", "args":"submodule"},
-                "1": {"name": "Change Fault Handler", "func": self.self.fault_handler_change, "help": "Change a fault reaction for a fault type", "args":{}},
-            "2": {"name": "NMT STATE INIT", "func": self.change_nmt_state,
-                  "args": {"nmt_state": "INIT"},
-                  "help": "Changes NMT STATE to INIT."},
-            "3": {"name": "NMT STATE PRE-OP", "func": self.change_nmt_state,
-                  "args": {"nmt_state": "PREOPERATIONAL"},
-                  "help": "Changes NMT STATE to PRE-OP."}
+            "0": {"name": "Dump Error Log", "func":self.error_log_dump, "help": "Dump a submodules error log", "args":"submodule"},
+            "1": {"name": "Change Fault Handler", "func": self.fault_handler_change, "help": "Change a fault reaction for a fault type"},
+            "2": {"name": "Dump Fault Handler Configs", "func": self.fault_handler_config_dump, "help": "Dumps fault handler configured for each error code"},
+            "3": {"name": "Dump Fault Reaction Status", "func": self.fault_reaction_status_dump, "help": "Dump fault reaction status variable"}
         }
 
-    def error_log_dump(self, submodule): 
-        val = self.node.sdo.upload(index, subindex)
+        self.submodules = {
+                "0" : {"name":"Serial", "index": self.node.object_dictionary['ErrorDetail'].index, "subindex": self.node.object_dictionary['ErrorDetail']['SerialSubmodule'].subindex},
+                "1" : {"name":"client control", "index": self.node.object_dictionary['ErrorDetail'].index, "subindex": self.node.object_dictionary['ErrorDetail']['ClientControlSubmodule'].subindex},
+                "2" : {"name":"ICM", "index": self.node.object_dictionary['ErrorDetail'].index, "subindex": self.node.object_dictionary['ErrorDetail']['ICMSubmodule'].subindex},
+        }
 
-    def fault_handler_change(self, error_type, error_code, new_fault_handler):
-        val = self.node.sdo.download(index, subindex, bytes(error_type, error_code, new_fault_handler))
+    def pretty_text(self, data, heading, formatting):
+        if len(data)%2 == 0:
+            parsed_vals = []
+            if formatting == "<I":
+                bites = 4
+            elif formatting == "<c":
+                bites = 1
+            elif formatting == "<h":
+                bites = 2
+            vals = [data[i:i + bites] for i in range(0, len(data), bites)]
+            for i,v in enumerate(vals):
+                h = struct.unpack(formatting, v)[0]
+                name =''
+                if formatting == "<c":
+                    h = int.from_bytes(h, "little")
+                val = (f"{str(i).zfill(2)}: 0x{hex(h)[2:].zfill(bites*2)}")
+                parsed_vals.append([name,val])
+            print(tabulate(parsed_vals, [heading]))
+
+
+    def error_log_dump(self): 
+        inp = ""
+        while inp != 'b':
+            print("Enter submodule to dump error log or 'b' to go back:")
+            for it in self.submodules.keys():
+                print(it, self.submodules[it]["name"])
+
+            inp = input(">> ")
+            if inp in self.submodules.keys():
+                print(self.submodules[inp]["name"])
+                index = self.submodules[inp]["index"]
+                subindex = self.submodules[inp]["subindex"]
+                print(hex(index), hex(subindex))
+                data = self.node.sdo.upload(index, subindex)
+                print(data)
+                self.pretty_text(data, "ERROR", "<I")
+
+    def fault_handler_change(self):
+        inp = ""
+        while inp != 'b':
+            print("Enter Error Code and New Fault Handler, 'd' to dump current fault configurations or 'b' to go back:")
+            inp = input(">>" )
+            print(inp)
+            if(inp != 'b'):
+                if(inp == 'd'):
+                    self.fault_handler_config_dump()
+                else:
+                    index = self.node.object_dictionary['FaultReactionType'].index,
+                    subindex = self.node.object_dictionary['FaultReactionType']['FaultReactionSet'].subindex,
+                    inp = inp.split(',')
+                    data = bytearray([0, int(inp[0]), int(inp[1]),0 ])
+                    print(index[0],subindex[0])
+                    val = self.node.sdo.download(index[0], subindex[0], data)
 
     def fault_handler_config_dump(self):
-        val = self.node.sdo.upload(index, subindex)
+        print("Dumping Fault Configurations...")
+        index = self.node.object_dictionary['FaultReactionType'].index,
+        subindex = self.node.object_dictionary['FaultReactionType']['FaultReactionType'].subindex,
+        print(index[0], subindex[0])
+        val = self.node.sdo.upload(index[0], subindex[0])
+        val = val[1:len(val):2]
+        self.pretty_text(val, "FAULT_CONFIG", "<c") 
 
     def fault_reaction_status_dump(self):
-        val = self.node.sdo.upload(index, subindex)
+        print("Dumping Fault Status...")
+        index = self.node.object_dictionary['FaultStatus'].index,
+        subindex = self.node.object_dictionary['FaultStatus']['FaultStatus'].subindex,
+        val = self.node.sdo.upload(index[0], subindex[0])
+        print(val)
+        self.pretty_text(val, "Fault Status", "<I")
+
+    def help(self):
+        """
+        help, reads the predefined cmds and prints them in a table.
+        """
+        print("============= ExoTerra Thruster Command Help Menu =============")
+        for v in self.err_detail_cmds:
+            x = self.err_detail_cmds.get(v)
+            print(f"{v} - {x.get('name')} : [{x.get('help')}]")
 
     def console(self):
         """
@@ -53,17 +124,16 @@ class ErrorHandling:
         """
         while self.running:
             try:
-                var_str = f"[rm:{self.mode_status}:ss:{self.state_status}:ts:{self.thruster_status}]".zfill(10)
-                inp = input(f"{var_str}> ").lower().strip()
-                if inp in self.hsi_cmds.keys():
-                    cmd = self.hsi_cmds.get(inp)
+                self.help()
+                inp = input(f"> ").lower().strip()
+                if inp in self.err_detail_cmds.keys():
+                    cmd = self.err_detail_cmds.get(inp)
                     func = cmd.get("func")
-                    args = cmd.get("args")
                     name = cmd.get("name")
                     if func != None:
                         print(f"{name}")
                         try:
-                            func(args)
+                            func()
                         except Exception as e:
                             print(e)
             except KeyboardInterrupt as e:
