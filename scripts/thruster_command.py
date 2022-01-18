@@ -605,7 +605,6 @@ class ThrusterCommand:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description='Controls and Queries the Thruster Command on the Engine System Control Processor.')
-    parser.add_argument('--listen', action='store', type=str, help='sends requests to udp port.')
     parser.add_argument('serial_port', action='store', type=str,
                         help='The Serial Port to use for RS485, or use can to select the pcan',
                         default="/dev/ttyUSB0")
@@ -613,6 +612,7 @@ if __name__ == "__main__":
                         default=0x22)
     parser.add_argument('eds_file', action='store', type=str, help='The eds file used for communication.',
                         default="eds_file.eds")
+    parser.add_argument('--listen', action='store', type=str, help='sends requests to udp port.')
     parser.add_argument('--debug', action='store_true', help='enable debug mode.')
     parser.add_argument('--hsi', action='store', help='Overrides localhost hsi target.', default="127.0.0.1")
     args = parser.parse_args()
