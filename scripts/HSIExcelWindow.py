@@ -103,9 +103,9 @@ class HSIExcelWindow(HSIExcelFrame):
         self.grid.SetRowLabelValue(row, "HK")
         self.grid.SetRowLabelValue(row+1, "HK-Data")
         self.grid.SetCellValue(row, 0, "current_28v")
-        self.grid.SetCellValue(row, 1, "sense_14v")
+        self.grid.SetCellValue(row, 1, "voltage_14v")
         self.grid.SetCellValue(row, 2, "current_14v")
-        self.grid.SetCellValue(row, 3, "sense_7a")
+        self.grid.SetCellValue(row, 3, "voltage_7a")
         self.grid.SetCellValue(row, 4, "current_7a")
 
         row += 3
