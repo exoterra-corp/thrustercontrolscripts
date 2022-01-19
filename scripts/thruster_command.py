@@ -1,9 +1,10 @@
 #!/usr/bin/python3
-import canopen, argparse, struct, time, sys, socket, traceback, datetime, wx
+import canopen, argparse, struct, time, sys, socket, traceback, datetime, os
 from canopen.nmt import NmtError, NMT_STATES
 from os.path import exists
 from serial.tools import list_ports
 from threading import Thread, Lock
+from configparser import *
 
 """
 ExoTerra Resource Thruster Command Script.
@@ -43,6 +44,17 @@ class HSIDefs:
         self.valves_index = "ValveDiag"
         self.hk_index = "HKDiag"
         self.hsi = {
+            "a_vx": {"index": self.anode_index, "subindex": "ADC0", "type": "<I", "row": 4, "col": 0x0},
+            "a_vy": {"index": self.anode_index, "subindex": "ADC1", "type": "<I", "row": 4, "col": 0x1},
+            "a_vout": {"index": self.anode_index, "subindex": "ADC2", "type": "<I", "row": 4, "col": 0x2},
+            "a_iout": {"index": self.anode_index, "subindex": "ADC3", "type": "<H", "row": 4, "col": 0x3},
+            "a_dac": {"index": self.anode_index, "subindex": "ADC4", "type": "<H", "row": 4, "col": 0x4},
+            "a_hs_temp": {"index": self.anode_index, "subindex": "ADC7", "type": "<H", "row": 4, "col": 0x7},
+            "a_last_err": {"index": self.anode_index, "subindex": "ADC5", "type": "<H", "row": 4, "col": 0x5},
+            "a_cur_oft": {"index": self.anode_index, "subindex": "ADC6", "type": "<H", "row": 4, "col": 0x6},
+            "a_msg_cnt": {"index": self.anode_index, "subindex": "ADC8", "type": "<H", "row": 4, "col": 0x8},
+            "a_can_err": {"index": self.anode_index, "subindex": "ADC9", "type": "<H", "row": 4, "col": 0x9},
+
             "k_vsepic": {"index": self.keeper_index, "subindex": "ADC0", "type": "<H", "row": 1, "col": 0x0},
             "k_vin": {"index": self.keeper_index, "subindex": "ADC1", "type": "<H", "row": 1, "col": 0x1},
             "k_iout": {"index": self.keeper_index, "subindex": "ADC2", "type": "<H", "row": 1, "col": 0x2},
@@ -51,17 +63,6 @@ class HSIDefs:
             "k_cur_oft": {"index": self.keeper_index, "subindex": "ADC5", "type": "<H", "row": 1, "col": 0x5},
             "k_msg_cnt": {"index": self.keeper_index, "subindex": "ADC6", "type": "<H", "row": 1, "col": 0x6},
             "k_can_err": {"index": self.keeper_index, "subindex": "ADC7", "type": "<H", "row": 1, "col": 0x7},
-
-            "a_vx": {"index": self.anode_index, "subindex": "ADC0", "type": "<H", "row": 4, "col": 0x0},
-            "a_vy": {"index": self.anode_index, "subindex": "ADC1", "type": "<H", "row": 4, "col": 0x1},
-            "a_vout": {"index": self.anode_index, "subindex": "ADC2", "type": "<H", "row": 4, "col": 0x2},
-            "a_iout": {"index": self.anode_index, "subindex": "ADC3", "type": "<H", "row": 4, "col": 0x3},
-            "a_dac": {"index": self.anode_index, "subindex": "ADC4", "type": "<H", "row": 4, "col": 0x4},
-            "a_last_err": {"index": self.anode_index, "subindex": "ADC5", "type": "<H", "row": 4, "col": 0x5},
-            "a_cur_oft": {"index": self.anode_index, "subindex": "ADC6", "type": "<H", "row": 4, "col": 0x6},
-            "a_hs_temp": {"index": self.anode_index, "subindex": "ADC7", "type": "<H", "row": 4, "col": 0x7},
-            "a_msg_cnt": {"index": self.anode_index, "subindex": "ADC8", "type": "<H", "row": 4, "col": 0x8},
-            "a_can_err": {"index": self.anode_index, "subindex": "ADC9", "type": "<H", "row": 4, "col": 0x9},
 
             "mo_vout": {"index": self.mag_inner_index, "subindex": "ADC0", "type": "<H", "row": 7, "col": 0},
             "mo_iout": {"index": self.mag_inner_index, "subindex": "ADC1", "type": "<H", "row": 7, "col": 1},
@@ -105,6 +106,21 @@ class HSIDefs:
             "repair_stat": {"index": self.hk_index, "subindex": "ADC2", "type": "<I", "row": 22, "col": 0x2},
         }
 
+class MrLogger():
+    def __init__(self, root_dir, folder_name):
+        #check the root_dir
+        self.create_folder(root_dir)
+        #look for active folders
+
+    def create_folder(self, folder_name):
+        if not exists(folder_name):
+            print(f"Creating {folder_name}.")
+            try:
+                os.mkdir(folder_name)
+                return True
+            except OSError as e:
+                print(f"Error {folder_name} could not be created. {e}")
+        return False
 
 class ThrusterCommand:
     """
@@ -113,14 +129,16 @@ class ThrusterCommand:
     communicate with.
     """
 
-    def __init__(self, ecp_id, ser_port, eds_file, listen_mode, debug):
+    def __init__(self, ecp_id, ser_port, eds_file, listen_mode, debug, test_name):
         """
         __init__, sets up serial port and cmds definitions and launches the help menu.
         """
         self.th_command_index = "ThrusterCommand"
         self.trace_msg_index = "Trace"
         self.debug = debug
-        self.version = "0.0.6"
+        self.test_name = test_name
+        # self.mr_logger = MrLogger("LogDir")
+        self.version = "0.0.7"
         self.serial_port = ser_port
         self.eds_file = eds_file
         # main loop control
@@ -427,7 +445,7 @@ class ThrusterCommand:
             if item_type is not None:
                 item_val = struct.unpack(item_type, val[cnt:cnt + size])[0]
                 if item_val is not None:
-                    msg = f"{item_name.ljust(10, ' ')}:index:{a[1].get('index')}:subindex:{a[1].get('subindex')}:val:{item_val}"
+                    msg = f"{item_name.ljust(10, ' ')}:index:{a[1].get('index')}:subindex:{a[1].get('subindex')}:val:{hex(item_val)}"
                     self.send_udp_packet(msg, HSI_UDP_IP, UDP_HSI_PORT)
             cnt += size  # move the start
         time.sleep(HSI_SLEEP_TIME)
@@ -615,6 +633,7 @@ if __name__ == "__main__":
     parser.add_argument('--listen', action='store', type=str, help='sends requests to udp port.')
     parser.add_argument('--debug', action='store_true', help='enable debug mode.')
     parser.add_argument('--hsi', action='store', help='Overrides localhost hsi target.', default="127.0.0.1")
+    parser.add_argument('--testname', action='store', help='Overwrites the default log file name and puts the log data in its own folder.')
     args = parser.parse_args()
 
     print("============= ExoTerra Thruster Command & Control =============")
@@ -651,7 +670,7 @@ if __name__ == "__main__":
             debug = True
         if args.hsi:
             HSI_UDP_IP = args.hsi
-        thrus_cmd = ThrusterCommand(id, args.serial_port, args.eds_file, listen_mode, debug)
+        thrus_cmd = ThrusterCommand(id, args.serial_port, args.eds_file, listen_mode, debug, args.testname)
         try:
             thrus_cmd.console()
         except Exception as e:
