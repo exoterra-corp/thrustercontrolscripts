@@ -5,6 +5,7 @@ from os.path import exists
 from serial.tools import list_ports
 from threading import Thread, Lock
 from configparser import *
+from queue import Queue
 
 """
 ExoTerra Resource Thruster Command Script.
@@ -15,25 +16,6 @@ contact:
 joshua.meyers@exoterracorp.com 
 jeremy.mitchell@exoterracorp.com
 """
-
-# TUNEABLES
-STATUS_UDP_IP = "127.0.0.1"
-HSI_UDP_IP = "127.0.0.1"
-STATUS_UDP_PORT = 4002
-UDP_HSI_PORT = 4001
-TRACE_SLEEP_TIME = 0
-HSI_SLEEP_TIME = 0
-TRACE_MSG_GATHER_CNT = 10
-STATUS_CONSOLE_PRINT_DELAY = 1
-
-MODE_STATUS_SUBINDEX = "ReadyMode"
-STATE_STATUS_SUBINDEX = "SteadyState"
-THRUSTER_STATUS_SUBINDEX = "Status"
-CONDITION_STATUS_SUBINDEX = "Condition"
-THRUST_POINT_SUBINDEX = "Thrust"
-TRACE_MSG_SUBINDEX = "TraceMessageTail"
-BIT_STATUS_SUBINDEX = "BIT"
-
 
 class HSIDefs:
     def __init__(self):
@@ -107,10 +89,29 @@ class HSIDefs:
         }
 
 class MrLogger():
+    """
+    Log Folder Format
+
+
+
+    """
+
     def __init__(self, root_dir, folder_name):
-        #check the root_dir
-        self.create_folder(root_dir)
-        #look for active folders
+        #log types
+        self.RAW = 0
+        self.TRACE = 1
+        self.HSI = 2
+        self.q = Queue(10)
+        if self.create_folder(root_dir):
+            print("Failed to create logging folder.  Logging Disabled!.")
+        else:
+            #look for most recent log folder and increase the number
+
+
+            #create a thread to handle incoming messages.
+            self.run = True
+            self.handle_thread = Thread(target=self.handle_q)
+            self.handle_thread.start()
 
     def create_folder(self, folder_name):
         if not exists(folder_name):
@@ -121,6 +122,30 @@ class MrLogger():
             except OSError as e:
                 print(f"Error {folder_name} could not be created. {e}")
         return False
+
+    def log(self, log_type, msg):
+        if log_type > 0 and log_type <= 2: #valid log mesage
+            self.q.put({"type":log_type, "msg":msg})
+            return True
+        else:
+            return False
+
+    def handle_q(self):
+        while self.run:
+            if not self.q.empty():
+                msg = self.q.get()
+            else:
+                time.sleep(0.1)
+
+    def __del__(self):
+        self.run = False
+        self.
+
+class ConfigLoader():
+    def __init__(self, config_file):
+        if not exists(config_file):
+            print("")
+
 
 class ThrusterCommand:
     """
