@@ -17,6 +17,30 @@ joshua.meyers@exoterracorp.com
 jeremy.mitchell@exoterracorp.com
 """
 
+STATUS_CONSOLE_PRINT_DELAY = 1
+THRUSTER_COMMAND_INDEX = "ThrusterCommand"
+TRACE_MSG_INDEX = "Trace"
+MODE_STATUS_SUBINDEX = "ReadyMode"
+STATE_STATUS_SUBINDEX = "SteadyState"
+THRUSTER_STATUS_SUBINDEX = "Status"
+CONDITION_STATUS_SUBINDEX = "Condition"
+THRUST_POINT_SUBINDEX = "Thrust"
+TRACE_MSG_SUBINDEX = "TraceMessageTail"
+BIT_STATUS_SUBINDEX = "BIT"
+
+TRACE_UDP_IP = "127.0.0.1"
+TRACE_UDP_PORT = 4002
+TRACE_SLEEP_TIME = 0
+TRACE_MSG_MAX_GATHER = 10
+
+HSI_STATUS_IP = "127.0.0.1"
+HSI_UDP_PORT = 4001
+HSI_SLEEP_TIME = 0
+
+RAW_UDP_IP = "127.0.0.1"
+RAW_UDP_PORT = 4000
+
+
 class HSIDefs:
     def __init__(self):
         self.keeper_index = "KeeperDiag"
@@ -26,9 +50,9 @@ class HSIDefs:
         self.valves_index = "ValveDiag"
         self.hk_index = "HKDiag"
         self.hsi = {
-            "a_vx": {"index": self.anode_index, "subindex": "ADC0", "type": "<I", "row": 4, "col": 0x0},
-            "a_vy": {"index": self.anode_index, "subindex": "ADC1", "type": "<I", "row": 4, "col": 0x1},
-            "a_vout": {"index": self.anode_index, "subindex": "ADC2", "type": "<I", "row": 4, "col": 0x2},
+            "a_vx": {"index": self.anode_index, "subindex": "ADC0", "type": "<H", "row": 4, "col": 0x0},
+            "a_vy": {"index": self.anode_index, "subindex": "ADC1", "type": "<H", "row": 4, "col": 0x1},
+            "a_vout": {"index": self.anode_index, "subindex": "ADC2", "type": "<H", "row": 4, "col": 0x2},
             "a_iout": {"index": self.anode_index, "subindex": "ADC3", "type": "<H", "row": 4, "col": 0x3},
             "a_dac": {"index": self.anode_index, "subindex": "ADC4", "type": "<H", "row": 4, "col": 0x4},
             "a_hs_temp": {"index": self.anode_index, "subindex": "ADC7", "type": "<H", "row": 4, "col": 0x7},
@@ -91,27 +115,35 @@ class HSIDefs:
 class MrLogger():
     """
     Log Folder Format
-
-
-
     """
-
-    def __init__(self, root_dir, folder_name):
+    def __init__(self, root_dir, log_name):
         #log types
         self.RAW = 0
         self.TRACE = 1
         self.HSI = 2
+        self.SYS = 3
         self.q = Queue(10)
-        if self.create_folder(root_dir):
-            print("Failed to create logging folder.  Logging Disabled!.")
-        else:
-            #look for most recent log folder and increase the number
+        #create logging dir
+        self.create_folder(root_dir)
+        now = datetime.datetime.now()
+        time_string = now.strftime("%Y_%m_%d_%H_%M_%S")
+        self.log_dir = root_dir+f"/unnamed_{time_string}"
+        if len(log_name) > 0: #create a custom test folder
+            self.log_dir = root_dir+f"/{log_name}_{time_string}"
+        self.create_folder(self.log_dir)
+        self.hsi_log = open(self.log_dir+f"/{time_string}_{log_name}_hsi_log.txt", "w+")
+        self.trace_log = open(self.log_dir+f"/{time_string}_{log_name}_trace_log.txt", "w+")
+        self.raw_log = open(self.log_dir+f"/{time_string}_{log_name}_raw_serial_log.txt", "w+")
+        self.sys_log = open(self.log_dir+f"/{time_string}_{log_name}_sys_log.txt", "w+")
+        #create a thread to handle incoming messages.
+        self.run = True
+        self.handle_thread = Thread(target=self.handle_q)
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.sock.bind((RAW_UDP_IP, RAW_UDP_PORT))
+        self.network_handle_thread = Thread(target=self.handle_raw)
 
-
-            #create a thread to handle incoming messages.
-            self.run = True
-            self.handle_thread = Thread(target=self.handle_q)
-            self.handle_thread.start()
+        self.handle_thread.start()
+        self.network_handle_thread.start()
 
     def create_folder(self, folder_name):
         if not exists(folder_name):
@@ -124,7 +156,7 @@ class MrLogger():
         return False
 
     def log(self, log_type, msg):
-        if log_type > 0 and log_type <= 2: #valid log mesage
+        if log_type >= 0 and log_type <= 3: #valid log mesage
             self.q.put({"type":log_type, "msg":msg})
             return True
         else:
@@ -132,14 +164,82 @@ class MrLogger():
 
     def handle_q(self):
         while self.run:
-            if not self.q.empty():
-                msg = self.q.get()
-            else:
-                time.sleep(0.1)
+            try:
+                if not self.q.empty():
+                    m = self.q.get()
+                    try:
+                        type = m.get("type")
+                        msg = m.get("msg")+"\n"
+                        if type == self.RAW:
+                            self.raw_log.write(msg)
+                        elif type == self.HSI:
+                            self.hsi_log.write(msg)
+                        elif type == self.TRACE:
+                            self.trace_log.write(msg)
+                        elif type == self.SYS:
+                            self.sys_log.write(msg)
+                    except KeyError:
+                        None
+                        #failed to parse log message
+                else:
+                    time.sleep(0.1)
+            except Exception as e:
+                print({e})
 
-    def __del__(self):
+    def handle_raw(self):
+        while self.run:
+            data, addr = self.sock.recvfrom(1024)  # buffer size is 1024 bytes
+            now = datetime.datetime.now()
+            time_string = now.strftime("%Y_%m_%d_%H_%M_%S.%f")
+            time_string_disp = now.strftime("%M:%S.%f")
+            if data[0] == 0xA:
+                # sent from the gui
+                tx_bytes = data[1:]  # remove the first byte
+                # rx_cnt = data[2]
+                header = (tx_bytes[0] & 0xF8)
+                if (header) == 0xa8:
+                    # get the cob id
+                    cob_id = (tx_bytes[0] & 0x7) << 8  # move the 3bits up to the top
+                    cob_id |= (tx_bytes[1] & 0xFF)  # append the bottom 8 bits
+                    remote_frame = (tx_bytes[2] & 0x80) >> 7
+                    extended_id = (tx_bytes[2] & 0x40) >> 6
+                    data_length = (tx_bytes[2] & 0xF)
+                    data = tx_bytes[3:11]
+                    msg = f" id:{hex(cob_id)}: dl:{data_length}: d:{data.hex()}"
+                    self.raw_log.write(f"[S:{time_string}]:{tx_bytes.hex()}:{msg}\n")
+
+            elif data[0] == 0xB:
+                # recv from sam
+                rx_bytes = data[1:]  # remove the first byte
+                # rx_cnt = hex(data[2])
+                header = (rx_bytes[0] & 0xF8)
+                if (header) == 0xa8:
+                    # get the cob id
+                    cob_id = (rx_bytes[0] & 0x7) << 8  # move the 3bits up to the top
+                    cob_id |= (rx_bytes[1] & 0xFF)  # append the bottom 8 bits
+                    data_length = (rx_bytes[2] & 0xF)
+                    data = rx_bytes[3:11]
+
+                    index = struct.unpack("<H", rx_bytes[4:6])[0]
+                    subindex = rx_bytes[6]
+                    if index == 0x5001 and subindex == 0x3:
+                        self.sock.sendto(data, (self.udp_ip, self.udp_port + 1))
+                    msg = f" id:{hex(cob_id)}: dl:{data_length}: d:{data.hex()}"
+                    self.raw_log.write(f"[R:{time_string}]:{rx_bytes.hex()}:{msg}\n")
+            else:
+                # garbage
+                None
+            time.sleep(0.01)
+
+    def close(self):
         self.run = False
-        self.
+        if self.handle_thread.is_alive():
+            self.handle_thread.join()
+        if self.network_handle_thread.is_alive():
+            self.network_handle_thread.join()
+        self.hsi_log.close()
+        self.trace_log.close()
+        self.raw_log.close()
 
 class ConfigLoader():
     def __init__(self, config_file):
@@ -162,7 +262,7 @@ class ThrusterCommand:
         self.trace_msg_index = "Trace"
         self.debug = debug
         self.test_name = test_name
-        # self.mr_logger = MrLogger("LogDir")
+        self.mr_logger = MrLogger("logs", test_name)
         self.version = "0.0.7"
         self.serial_port = ser_port
         self.eds_file = eds_file
@@ -359,7 +459,8 @@ class ThrusterCommand:
         """
         message = f"EMCYTimestamp: {error.timestamp}, EMCYCode: {error.code}," \
                   f" EMCYData: {error.data}"
-        self.send_udp_packet(message, STATUS_UDP_IP, STATUS_UDP_PORT)
+
+        self.send_udp_packet(message, TRACE_UDP_IP, TRACE_UDP_PORT)
         print(message)
 
     def get_status_index(self, args):
@@ -459,19 +560,25 @@ class ThrusterCommand:
         cnt = 0
         hsi_defs = HSIDefs()
         for a in hsi_defs.hsi.items():
-            # if in pre-op ignore other hsi messages
-            item_name = a[0]
-            item_type = a[1].get("type")
-            size = 0
-            if item_type == "<H":
-                size = 2
-            elif item_type == "<I":
-                size = 4
-            if item_type is not None:
-                item_val = struct.unpack(item_type, val[cnt:cnt + size])[0]
-                if item_val is not None:
-                    msg = f"{item_name.ljust(10, ' ')}:index:{a[1].get('index')}:subindex:{a[1].get('subindex')}:val:{hex(item_val)}"
-                    self.send_udp_packet(msg, HSI_UDP_IP, UDP_HSI_PORT)
+            try:
+                # if in pre-op ignore other hsi messages
+                item_name = a[0]
+                item_type = a[1].get("type")
+                size = 0
+                if item_type == "<H":
+                    size = 2
+                elif item_type == "<I":
+                    size = 4
+                if item_type is not None:
+                    item_val = struct.unpack(item_type, val[cnt:cnt + size])[0]
+                    if item_val is not None:
+                        msg = f"{item_name.ljust(10, ' ')}:index:{a[1].get('index')}:subindex:{a[1].get('subindex')}:val:{hex(item_val)}"
+                        self.mr_logger.log(self.mr_logger.HSI, msg)
+                        self.send_udp_packet(msg, HSI_UDP_IP, HSI_UDP_PORT)
+            except struct.error as e:
+                #log this instead
+                None
+                # print(f"Error Parsing HSI. {e}")
             cnt += size  # move the start
         time.sleep(HSI_SLEEP_TIME)
 
@@ -481,7 +588,7 @@ class ThrusterCommand:
         """
         if not self.thread_run:
             if self.debug:
-                print(f"Starting Trace / Status thread. Sending HSI to {HSI_UDP_IP}:{UDP_HSI_PORT}.")
+                print(f"Starting Trace / Status thread. Sending HSI to {HSI_UDP_IP}:{HSI_UDP_PORT}.")
             self.thread_run = True
             self.listen_thread = Thread(target=self.gather_status_and_trace, daemon=True)
             self.listen_thread.start()
@@ -589,10 +696,11 @@ class ThrusterCommand:
             if the head and the tail are == then there are no messages just return.
         """
         try:
-            for i in range(0, TRACE_MSG_GATHER_CNT):
+            for i in range(0, TRACE_MSG_MAX_GATHER):
                 msg = self.read(self.trace_msg_index, TRACE_MSG_SUBINDEX, "noparse", False)
                 if msg is not None:
-                    self.send_udp_packet(msg, STATUS_UDP_IP, STATUS_UDP_PORT)
+                    self.mr_logger.log(self.mr_logger.TRACE, msg)
+                    self.send_udp_packet(msg, TRACE_UDP_IP, TRACE_UDP_PORT)
         except Exception as e:
             # ran out of msgs to get
             None
@@ -641,6 +749,7 @@ class ThrusterCommand:
         """
         exit, exits the program.
         """
+        self.mr_logger.close()
         self.thread_run = False
         self.running = False
 
