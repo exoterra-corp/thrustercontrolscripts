@@ -2,9 +2,12 @@
 import sys,canopen, argparse
 import serial.tools.list_ports
 import struct, datetime
+from os.path import exists
+from os import mkdir
 
 class Versions():
     def __init__(self, sys_id, device):
+        self.storage_path = "logs/versions/"
         network = canopen.Network()
         self.sys_id = sys_id
         if device == "pcan":
@@ -22,36 +25,50 @@ class Versions():
 
         self.version_info_str = ["Thruster Control", "Keeper", "Anode", "Outer Magnet", "Inner Magnet", "Valves", "Thruster Control Bootloader"]
 
+    def create_folder(self, folder_name):
+        if not exists(folder_name):
+            print(f"Creating {folder_name}.")
+            try:
+                mkdir(folder_name)
+                return True
+            except OSError as e:
+                print(f"Error {folder_name} could not be created. {e}")
+        return False
+
     def read_sw_version(self):
-        now = datetime.datetime.now()
-        time_string = now.strftime("%Y_%m_%d_%H_%M_%S")
-        version_file = open(f"sw_version_{time_string}.txt", "w")
-        version_file.write(f"========== Version Test Time {time_string} ==========\n")
+        try:
+            self.create_folder(self.storage_path)
+            now = datetime.datetime.now()
+            time_string = now.strftime("%Y_%m_%d_%H_%M_%S")
+            version_file = open(f"{self.storage_path}sw_version_{time_string}.txt", "w")
+            version_file.write(f"========== Version Read Time {time_string} ==========\n")
 
-        num_components = 7
-        num_subindices = self.node.sdo.upload(0x5000, 0) 
-        
-        version_line = "Id: Version  : gitsha   : git sha 1 : Exec V 1  : git sha 2 : Exec V 2  : git sha 3 : Exec V 3 : Device Name "
-        print(version_line)
-        version_file.write(version_line + "\n")
+            num_components = 7
+            num_subindices = self.node.sdo.upload(0x5000, 0)
 
-        for i in range(num_components):
-            device_name = ""
-            if i < len(self.version_info_str):
-                device_name = self.version_info_str[i]
-            version_line = ""
-            self.node.sdo.download(0x5000, 1, struct.pack("B", i))
-            for j in range(2,num_subindices[0]):
-                v_g = bytearray(self.node.sdo.upload(0x5000, j))
-                # endian swap
-                v_g[0], v_g[1] = v_g[1], v_g[0] 
-                v_g[2], v_g[3] = v_g[3], v_g[2]
-                v_g[0:2], v_g[2:4] = v_g[2:4], v_g[0:2]
-                version_line += " : " + str(v_g.hex())
-            line = f"{i}{version_line} : {device_name}"
-            print(line)
-            version_file.write(line+"\n")
-        version_file.close()
+            version_line = "Id: Version  : gitsha   : git sha 1 : Exec V 1  : git sha 2 : Exec V 2  : git sha 3 : Exec V 3 : Device Name "
+            print(version_line)
+            version_file.write(version_line + "\n")
+
+            for i in range(num_components):
+                device_name = ""
+                if i < len(self.version_info_str):
+                    device_name = self.version_info_str[i]
+                version_line = ""
+                self.node.sdo.download(0x5000, 1, struct.pack("B", i))
+                for j in range(2,num_subindices[0]):
+                    v_g = bytearray(self.node.sdo.upload(0x5000, j))
+                    # endian swap
+                    v_g[0], v_g[1] = v_g[1], v_g[0]
+                    v_g[2], v_g[3] = v_g[3], v_g[2]
+                    v_g[0:2], v_g[2:4] = v_g[2:4], v_g[0:2]
+                    version_line += " : " + str(v_g.hex())
+                line = f"{i}{version_line} : {device_name}"
+                print(line)
+                version_file.write(line+"\n")
+            version_file.close()
+        except canopen.sdo.exceptions.SdoCommunicationError as e:
+            print(f"Device failed to respond. {e}")
 
     def read_hw_version(self):
         return self.node.sdo.upload(0x1009, 0)

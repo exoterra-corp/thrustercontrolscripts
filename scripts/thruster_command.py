@@ -795,6 +795,8 @@ if __name__ == "__main__":
             debug = True
         if args.hsi:
             HSI_UDP_IP = args.hsi
+        if args.testname is None:
+            args.testname = "unnamed_test_"
         thrus_cmd = ThrusterCommand(id, args.serial_port, args.eds_file, listen_mode, debug, args.testname)
         try:
             thrus_cmd.console()
