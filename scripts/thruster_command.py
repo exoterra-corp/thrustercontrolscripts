@@ -50,9 +50,9 @@ class HSIDefs:
         self.valves_index = "ValveDiag"
         self.hk_index = "HKDiag"
         self.hsi = {
-            "a_vx": {"index": self.anode_index, "subindex": "ADC0", "type": "<H", "row": 4, "col": 0x0},
-            "a_vy": {"index": self.anode_index, "subindex": "ADC1", "type": "<H", "row": 4, "col": 0x1},
-            "a_vout": {"index": self.anode_index, "subindex": "ADC2", "type": "<H", "row": 4, "col": 0x2},
+            "a_vx": {"index": self.anode_index, "subindex": "ADC0", "type": "<H", "row": 4, "col": 0x0}, #32bit
+            "a_vy": {"index": self.anode_index, "subindex": "ADC1", "type": "<H", "row": 4, "col": 0x1}, #32bit
+            "a_vout": {"index": self.anode_index, "subindex": "ADC2", "type": "<H", "row": 4, "col": 0x2}, #32bit
             "a_iout": {"index": self.anode_index, "subindex": "ADC3", "type": "<H", "row": 4, "col": 0x3},
             "a_dac": {"index": self.anode_index, "subindex": "ADC4", "type": "<H", "row": 4, "col": 0x4},
             "a_hs_temp": {"index": self.anode_index, "subindex": "ADC7", "type": "<H", "row": 4, "col": 0x7},
@@ -61,8 +61,8 @@ class HSIDefs:
             "a_msg_cnt": {"index": self.anode_index, "subindex": "ADC8", "type": "<H", "row": 4, "col": 0x8},
             "a_can_err": {"index": self.anode_index, "subindex": "ADC9", "type": "<H", "row": 4, "col": 0x9},
 
-            "k_vsepic": {"index": self.keeper_index, "subindex": "ADC0", "type": "<H", "row": 1, "col": 0x0},
-            "k_vin": {"index": self.keeper_index, "subindex": "ADC1", "type": "<H", "row": 1, "col": 0x1},
+            "k_vsepic": {"index": self.keeper_index, "subindex": "ADC0", "type": "<H", "row": 1, "col": 0x0}, #32bit
+            "k_vin": {"index": self.keeper_index, "subindex": "ADC1", "type": "<H", "row": 1, "col": 0x1}, #32bit
             "k_iout": {"index": self.keeper_index, "subindex": "ADC2", "type": "<H", "row": 1, "col": 0x2},
             "k_dacout": {"index": self.keeper_index, "subindex": "ADC3", "type": "<H", "row": 1, "col": 0x3},
             "k_lasterr": {"index": self.keeper_index, "subindex": "ADC4", "type": "<H", "row": 1, "col": 0x4},
@@ -87,10 +87,9 @@ class HSIDefs:
             "vo_anode_v": {"index": self.valves_index, "subindex": "ADC0", "type": "<H", "row": 13, "col": 0x0},
             "vo_cath_hf_v": {"index": self.valves_index, "subindex": "ADC1", "type": "<H", "row": 13, "col": 0x1},
             "vo_cath_lf_v": {"index": self.valves_index, "subindex": "ADC2", "type": "<H", "row": 13, "col": 0x2},
-            "vo_temp": {"index": self.valves_index, "subindex": "ADC3", "type": "<H", "row": 13, "col": 0x3},
-            "vo_tank_pressure": {"index": self.valves_index, "subindex": "ADC4", "type": "<H", "row": 13, "col": 0x4},
-            "vo_cathode_pressure": {"index": self.valves_index, "subindex": "ADC5", "type": "<H", "row": 13,
-                                    "col": 0x5},
+            "vo_temp": {"index": self.valves_index, "subindex": "ADC3", "type": "<H", "row": 13, "col": 0x3}, # signed 32bit
+            "vo_tank_pressure": {"index": self.valves_index, "subindex": "ADC4", "type": "<H", "row": 13, "col": 0x4}, # 32bit
+            "vo_cathode_pressure": {"index": self.valves_index, "subindex": "ADC5", "type": "<H", "row": 13, "col": 0x5},
             "vo_anode_pressure": {"index": self.valves_index, "subindex": "ADC6", "type": "<H", "row": 13, "col": 0x6},
             "vo_reg_pressure": {"index": self.valves_index, "subindex": "ADC7", "type": "<H", "row": 13, "col": 0x7},
             "vo_msg_cnt": {"index": self.valves_index, "subindex": "ADC8", "type": "<H", "row": 13, "col": 0x8},
@@ -137,10 +136,10 @@ class MrLogger():
         self.sys_log = open(self.log_dir+f"/{time_string}_{log_name}_sys_log.txt", "w+")
         #create a thread to handle incoming messages.
         self.run = True
-        self.handle_thread = Thread(target=self.handle_q)
+        self.handle_thread = Thread(target=self.handle_q, daemon=True)
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.bind((RAW_UDP_IP, RAW_UDP_PORT))
-        self.network_handle_thread = Thread(target=self.handle_raw)
+        self.network_handle_thread = Thread(target=self.handle_raw, daemon=True)
 
         self.handle_thread.start()
         self.network_handle_thread.start()
@@ -158,33 +157,34 @@ class MrLogger():
     def log(self, log_type, msg):
         if log_type >= 0 and log_type <= 3: #valid log mesage
             self.q.put({"type":log_type, "msg":msg})
+            if log_type == self.SYS:
+                print(msg)
             return True
         else:
             return False
 
     def handle_q(self):
         while self.run:
-            try:
+            # try:
                 if not self.q.empty():
                     m = self.q.get()
                     try:
                         type = m.get("type")
-                        msg = m.get("msg")+"\n"
-                        if type == self.RAW:
-                            self.raw_log.write(msg)
-                        elif type == self.HSI:
-                            self.hsi_log.write(msg)
+                        msg = m.get("msg")
+                        if type == self.HSI:
+                            self.hsi_log.write(f"{msg}\n")
                         elif type == self.TRACE:
-                            self.trace_log.write(msg)
+                            self.trace_log.write(f"{msg.decode('ascii')}\n")
                         elif type == self.SYS:
-                            self.sys_log.write(msg)
+                            self.sys_log.write(f"{msg}\n")
                     except KeyError:
                         None
                         #failed to parse log message
                 else:
                     time.sleep(0.1)
-            except Exception as e:
-                print({e})
+            # except Exception as e:
+            #     None
+                # print(e)
 
     def handle_raw(self):
         while self.run:
@@ -236,6 +236,7 @@ class MrLogger():
         if self.handle_thread.is_alive():
             self.handle_thread.join()
         if self.network_handle_thread.is_alive():
+            self.sock.sendto(bytes(" ", "ascii"), (RAW_UDP_IP, RAW_UDP_PORT)) #send a packet to get out of waiting
             self.network_handle_thread.join()
         self.hsi_log.close()
         self.trace_log.close()
@@ -339,11 +340,11 @@ class ThrusterCommand:
             self.network = canopen.Network()
             if self.serial_port == "can":
                 if self.debug:
-                    print("Selected can network type")
+                    self.mr_logger.log(self.mr_logger.SYS, "Selected can network type")
                 self.network.connect(bustype='pcan', channel='PCAN_USBBUS1', bitrate=1000000)  # 1MHZ
             else:
                 if self.debug:
-                    print("Selected serial network type")
+                    self.mr_logger.log(self.mr_logger.SYS, "Selected serial network type")
                 self.network.connect(bustype="exoserial", channel=self.serial_port, baudrate=115200)
             self.node = self.network.add_node(self.system_id, self.eds_file)
             self.network.add_node(self.node)
@@ -354,10 +355,10 @@ class ThrusterCommand:
             self.nmt_state = self.read(self.th_command_index, THRUSTER_STATUS_SUBINDEX, "<I")
             # check to see if msg was recieved
             if self.nmt_state is None:
-                print("System Controller Failed to Connect.  Waiting for bootup msg.")
+                self.mr_logger.log(self.mr_logger.SYS,"System Controller Failed to Connect.  Waiting for bootup msg.")
                 while not self.bootup_msg:
                     time.sleep(0.01)
-                print("System Controller Connected!")
+                self.mr_logger.log(self.mr_logger.SYS,"System Controller Connected!")
                 # when connected read the state
                 self.nmt_state = self.read(self.th_command_index, THRUSTER_STATUS_SUBINDEX, "<I")
             # read the state on bootup
@@ -374,23 +375,13 @@ class ThrusterCommand:
                 elif self.nmt_state == 0x1:
                     cur_state = "Bootup - Init"
                 self.nmt_state_str = cur_state
-                print("System Controller Connected!")
+                self.mr_logger.log(self.mr_logger.SYS,"System Controller Connected!")
 
         except Exception as a:
-            print(traceback.print_exc())
+            self.mr_logger.log(self.mr_logger.SYS,traceback.print_exc())
 
     def notify_bootup(self, can_id, data, timestamp):
         self.bootup_msg = True
-
-    def load_eds_file(self):
-        """
-        load_eds_file, gathers all of the eds objects
-        """
-        for obj in self.node.object_dictionary.values():
-            print('0x%X: %s' % (obj.index, obj.name))
-            if isinstance(obj, canopen.objectdictionary.Record):
-                for subobj in obj.values():
-                    print('  %d: %s' % (subobj.subindex, subobj.name))
 
     def get_var(self, index_str, subindex_str) -> {}:
         """
