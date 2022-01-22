@@ -1,2 +1,3 @@
 listener_*
 __pycache__/
+**logs/
