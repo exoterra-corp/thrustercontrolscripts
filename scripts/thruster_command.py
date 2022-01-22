@@ -179,7 +179,9 @@ class MrLogger():
                         if type == self.HSI:
                             self.hsi_log.write(f"{msg}\n")
                         elif type == self.TRACE:
-                            self.trace_log.write(f"{msg.decode('ascii')}\n")
+                            decoded_msg = f"{msg.decode('ascii')}\n"
+                            self.trace_log.write(decoded_msg)
+                            self.trace_log.flush()
                         elif type == self.SYS:
                             self.sys_log.write(f"{msg}\n")
                     except KeyError:
@@ -694,7 +696,8 @@ class ThrusterCommand:
         """
         try:
             for i in range(0, TRACE_MSG_MAX_GATHER):
-                msg = self.read(self.trace_msg_index, TRACE_MSG_SUBINDEX, "noparse", False)
+                # msg = self.read(self.trace_msg_index, TRACE_MSG_SUBINDEX, "noparse", False)
+                msg = self.node.sdo.upload(0x5001, 0x6)
                 if msg is not None:
                     self.mr_logger.log(self.mr_logger.TRACE, msg)
                     self.send_udp_packet(msg, TRACE_UDP_IP, TRACE_UDP_PORT)
