@@ -50,9 +50,9 @@ class HSIDefs:
         self.valves_index = "ValveDiag"
         self.hk_index = "HKDiag"
         self.hsi = {
-            "a_vx": {"index": self.anode_index, "subindex": "ADC0", "type": "<H", "row": 4, "col": 0x0}, #32bit
-            "a_vy": {"index": self.anode_index, "subindex": "ADC1", "type": "<H", "row": 4, "col": 0x1}, #32bit
-            "a_vout": {"index": self.anode_index, "subindex": "ADC2", "type": "<H", "row": 4, "col": 0x2}, #32bit
+            "a_vx": {"index": self.anode_index, "subindex": "ADC0", "type": "<H", "row": 4, "col": 0x0},  # 32bit
+            "a_vy": {"index": self.anode_index, "subindex": "ADC1", "type": "<H", "row": 4, "col": 0x1},  # 32bit
+            "a_vout": {"index": self.anode_index, "subindex": "ADC2", "type": "<H", "row": 4, "col": 0x2},  # 32bit
             "a_iout": {"index": self.anode_index, "subindex": "ADC3", "type": "<H", "row": 4, "col": 0x3},
             "a_dac": {"index": self.anode_index, "subindex": "ADC4", "type": "<H", "row": 4, "col": 0x4},
             "a_hs_temp": {"index": self.anode_index, "subindex": "ADC7", "type": "<H", "row": 4, "col": 0x7},
@@ -61,8 +61,8 @@ class HSIDefs:
             "a_msg_cnt": {"index": self.anode_index, "subindex": "ADC8", "type": "<H", "row": 4, "col": 0x8},
             "a_can_err": {"index": self.anode_index, "subindex": "ADC9", "type": "<H", "row": 4, "col": 0x9},
 
-            "k_vsepic": {"index": self.keeper_index, "subindex": "ADC0", "type": "<H", "row": 1, "col": 0x0}, #32bit
-            "k_vin": {"index": self.keeper_index, "subindex": "ADC1", "type": "<H", "row": 1, "col": 0x1}, #32bit
+            "k_vsepic": {"index": self.keeper_index, "subindex": "ADC0", "type": "<H", "row": 1, "col": 0x0},  # 32bit
+            "k_vin": {"index": self.keeper_index, "subindex": "ADC1", "type": "<H", "row": 1, "col": 0x1},  # 32bit
             "k_iout": {"index": self.keeper_index, "subindex": "ADC2", "type": "<H", "row": 1, "col": 0x2},
             "k_dacout": {"index": self.keeper_index, "subindex": "ADC3", "type": "<H", "row": 1, "col": 0x3},
             "k_lasterr": {"index": self.keeper_index, "subindex": "ADC4", "type": "<H", "row": 1, "col": 0x4},
@@ -87,9 +87,12 @@ class HSIDefs:
             "vo_anode_v": {"index": self.valves_index, "subindex": "ADC0", "type": "<H", "row": 13, "col": 0x0},
             "vo_cath_hf_v": {"index": self.valves_index, "subindex": "ADC1", "type": "<H", "row": 13, "col": 0x1},
             "vo_cath_lf_v": {"index": self.valves_index, "subindex": "ADC2", "type": "<H", "row": 13, "col": 0x2},
-            "vo_temp": {"index": self.valves_index, "subindex": "ADC3", "type": "<H", "row": 13, "col": 0x3}, # signed 32bit
-            "vo_tank_pressure": {"index": self.valves_index, "subindex": "ADC4", "type": "<H", "row": 13, "col": 0x4}, # 32bit
-            "vo_cathode_pressure": {"index": self.valves_index, "subindex": "ADC5", "type": "<H", "row": 13, "col": 0x5},
+            "vo_temp": {"index": self.valves_index, "subindex": "ADC3", "type": "<H", "row": 13, "col": 0x3},
+            # signed 32bit
+            "vo_tank_pressure": {"index": self.valves_index, "subindex": "ADC4", "type": "<H", "row": 13, "col": 0x4},
+            # 32bit
+            "vo_cathode_pressure": {"index": self.valves_index, "subindex": "ADC5", "type": "<H", "row": 13,
+                                    "col": 0x5},
             "vo_anode_pressure": {"index": self.valves_index, "subindex": "ADC6", "type": "<H", "row": 13, "col": 0x6},
             "vo_reg_pressure": {"index": self.valves_index, "subindex": "ADC7", "type": "<H", "row": 13, "col": 0x7},
             "vo_msg_cnt": {"index": self.valves_index, "subindex": "ADC8", "type": "<H", "row": 13, "col": 0x8},
@@ -111,30 +114,32 @@ class HSIDefs:
             "repair_stat": {"index": self.hk_index, "subindex": "ADC2", "type": "<I", "row": 22, "col": 0x2},
         }
 
+
 class MrLogger():
     """
     Log Folder Format
     """
+
     def __init__(self, root_dir, log_name):
-        #log types
+        # log types
         self.RAW = 0
         self.TRACE = 1
         self.HSI = 2
         self.SYS = 3
         self.q = Queue(10)
-        #create logging dir
+        # create logging dir
         self.create_folder(root_dir)
         now = datetime.datetime.now()
         time_string = now.strftime("%Y_%m_%d_%H_%M_%S")
-        self.log_dir = root_dir+f"/unnamed_{time_string}"
-        if len(log_name) > 0: #create a custom test folder
-            self.log_dir = root_dir+f"/{log_name}_{time_string}"
+        self.log_dir = root_dir + f"/unnamed_{time_string}"
+        if len(log_name) > 0:  # create a custom test folder
+            self.log_dir = root_dir + f"/{log_name}_{time_string}"
         self.create_folder(self.log_dir)
-        self.hsi_log = open(self.log_dir+f"/{time_string}_{log_name}_hsi_log.txt", "w+")
-        self.trace_log = open(self.log_dir+f"/{time_string}_{log_name}_trace_log.txt", "w+")
-        self.raw_log = open(self.log_dir+f"/{time_string}_{log_name}_raw_serial_log.txt", "w+")
-        self.sys_log = open(self.log_dir+f"/{time_string}_{log_name}_sys_log.txt", "w+")
-        #create a thread to handle incoming messages.
+        self.hsi_log = open(self.log_dir + f"/{time_string}_{log_name}_hsi_log.txt", "w+")
+        self.trace_log = open(self.log_dir + f"/{time_string}_{log_name}_trace_log.txt", "w+")
+        self.raw_log = open(self.log_dir + f"/{time_string}_{log_name}_raw_serial_log.txt", "w+")
+        self.sys_log = open(self.log_dir + f"/{time_string}_{log_name}_sys_log.txt", "w+")
+        # create a thread to handle incoming messages.
         self.run = True
         self.handle_thread = Thread(target=self.handle_q, daemon=True)
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -155,8 +160,8 @@ class MrLogger():
         return False
 
     def log(self, log_type, msg):
-        if log_type >= 0 and log_type <= 3: #valid log mesage
-            self.q.put({"type":log_type, "msg":msg})
+        if log_type >= 0 and log_type <= 3:  # valid log mesage
+            self.q.put({"type": log_type, "msg": msg})
             if log_type == self.SYS:
                 print(msg)
             return True
@@ -165,7 +170,7 @@ class MrLogger():
 
     def handle_q(self):
         while self.run:
-            # try:
+            try:
                 if not self.q.empty():
                     m = self.q.get()
                     try:
@@ -179,12 +184,12 @@ class MrLogger():
                             self.sys_log.write(f"{msg}\n")
                     except KeyError:
                         None
-                        #failed to parse log message
+                        # failed to parse log message
                 else:
                     time.sleep(0.1)
-            # except Exception as e:
-            #     None
-                # print(e)
+            except Exception as e:
+                print(e)
+                print(traceback.extract_tb())
 
     def handle_raw(self):
         while self.run:
@@ -236,11 +241,12 @@ class MrLogger():
         if self.handle_thread.is_alive():
             self.handle_thread.join()
         if self.network_handle_thread.is_alive():
-            self.sock.sendto(bytes(" ", "ascii"), (RAW_UDP_IP, RAW_UDP_PORT)) #send a packet to get out of waiting
+            self.sock.sendto(bytes(" ", "ascii"), (RAW_UDP_IP, RAW_UDP_PORT))  # send a packet to get out of waiting
             self.network_handle_thread.join()
         self.hsi_log.close()
         self.trace_log.close()
         self.raw_log.close()
+
 
 class ConfigLoader():
     def __init__(self, config_file):
@@ -355,10 +361,10 @@ class ThrusterCommand:
             self.nmt_state = self.read(self.th_command_index, THRUSTER_STATUS_SUBINDEX, "<I")
             # check to see if msg was recieved
             if self.nmt_state is None:
-                self.mr_logger.log(self.mr_logger.SYS,"System Controller Failed to Connect.  Waiting for bootup msg.")
+                self.mr_logger.log(self.mr_logger.SYS, "System Controller Failed to Connect.  Waiting for bootup msg.")
                 while not self.bootup_msg:
                     time.sleep(0.01)
-                self.mr_logger.log(self.mr_logger.SYS,"System Controller Connected!")
+                self.mr_logger.log(self.mr_logger.SYS, "System Controller Connected!")
                 # when connected read the state
                 self.nmt_state = self.read(self.th_command_index, THRUSTER_STATUS_SUBINDEX, "<I")
             # read the state on bootup
@@ -375,10 +381,10 @@ class ThrusterCommand:
                 elif self.nmt_state == 0x1:
                     cur_state = "Bootup - Init"
                 self.nmt_state_str = cur_state
-                self.mr_logger.log(self.mr_logger.SYS,"System Controller Connected!")
+                self.mr_logger.log(self.mr_logger.SYS, "System Controller Connected!")
 
         except Exception as a:
-            self.mr_logger.log(self.mr_logger.SYS,traceback.print_exc())
+            self.mr_logger.log(self.mr_logger.SYS, traceback.print_exc())
 
     def notify_bootup(self, can_id, data, timestamp):
         self.bootup_msg = True
@@ -567,7 +573,7 @@ class ThrusterCommand:
                         self.mr_logger.log(self.mr_logger.HSI, msg)
                         self.send_udp_packet(msg, HSI_UDP_IP, HSI_UDP_PORT)
             except struct.error as e:
-                #log this instead
+                # log this instead
                 None
                 # print(f"Error Parsing HSI. {e}")
             cnt += size  # move the start
@@ -758,7 +764,8 @@ if __name__ == "__main__":
     parser.add_argument('--listen', action='store', type=str, help='sends requests to udp port.')
     parser.add_argument('--debug', action='store_true', help='enable debug mode.')
     parser.add_argument('--hsi', action='store', help='Overrides localhost hsi target.', default="127.0.0.1")
-    parser.add_argument('--testname', action='store', help='Overwrites the default log file name and puts the log data in its own folder.')
+    parser.add_argument('--testname', action='store',
+                        help='Overwrites the default log file name and puts the log data in its own folder.')
     args = parser.parse_args()
 
     print("============= ExoTerra Thruster Command & Control =============")
