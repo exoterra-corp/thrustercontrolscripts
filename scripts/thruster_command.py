@@ -545,12 +545,12 @@ class ThrusterCommand:
                 if statuses[2] is not None:
                     self.notify_updated_state(int(statuses[2], 16))
                     self.get_trace_msg()
-                    self.gather_hsi_msgs()
+                    self.get_hsi_msgs()
             time.sleep(TRACE_SLEEP_TIME)
 
-    def gather_hsi_msgs(self):
+    def get_hsi_msgs(self):
         """
-        gather_hsi_msgs, this gathers hsi messages and sends it over udp, runs in thread.
+        get_hsi_msgs, this gathers hsi messages and sends it over udp, runs in thread.
         """
         # get the hsi message block
         val = self.node.sdo.upload(0x3100, 0x1)
@@ -571,7 +571,7 @@ class ThrusterCommand:
                 if item_type is not None:
                     item_val = struct.unpack(item_type, val[cnt:cnt + size])[0]
                     if item_val is not None:
-                        msg = f"{item_name.ljust(10, ' ')}:index:{a[1].get('index')}:subindex:{a[1].get('subindex')}:val:{hex(item_val)}"
+                        msg = f"{item_name.ljust(10, ' ')}:index:{a[1].get('index')}:subindex:{a[1].get('subindex')}:val:{item_val}"
                         self.mr_logger.log(self.mr_logger.HSI, msg)
                         self.send_udp_packet(msg, HSI_UDP_IP, HSI_UDP_PORT)
             except struct.error as e:
