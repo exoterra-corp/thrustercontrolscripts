@@ -109,9 +109,9 @@ class ThrusterCommand:
         "count_ueccelsb": {"index": HK_INDEX, "subindex": 0x8, "type": "<I", "row": 22, "col": 0x2},
         "count_ueccemsb": {"index": HK_INDEX, "subindex": 0x9, "type": "<I", "row": 22, "col": 0x2},
 
-        "failed_repairs": {"index": HK_INDEX, "subindex": 0x10, "type": "<I", "row": 22, "col": 0x1},
-        "region_stat": {"index": HK_INDEX, "subindex": 0x11, "type": "<I", "row": 22, "col": 0x0},
-        "repair_stat": {"index": HK_INDEX, "subindex": 0x12, "type": "<I", "row": 22, "col": 0x2},
+        "failed_repairs": {"index": HK_INDEX, "subindex": 0xA, "type": "<I", "row": 22, "col": 0x1},
+        "region_stat": {"index": HK_INDEX, "subindex": 0xB, "type": "<I", "row": 22, "col": 0x0},
+        "repair_stat": {"index": HK_INDEX, "subindex": 0xC, "type": "<I", "row": 22, "col": 0x2},
     }
 
     def __init__(self, ecp_id, ser_port, listen_mode, debug):
