@@ -102,11 +102,16 @@ class ThrusterCommand:
         "sense_7a": {"index": HK_INDEX, "subindex": 0x4, "row": 16, "col": 0x3},
         "current_7a": {"index": HK_INDEX, "subindex": 0x5, "row": 16, "col": 0x4},
 
-        "iacm_dump":{"index": IACM_INDEX, "subindex": 0x5, "type":"noparse", "row": 25, "col": 0x0},
+        # "iacm_dump":{"index": IACM_INDEX, "subindex": 0x5, "type":"noparse", "row": 25, "col": 0x0},
 
-        "region_stat": {"index": HK_INDEX, "subindex": 0x6, "type": "<I", "row": 22, "col": 0x0},
-        "failed_repairs": {"index": HK_INDEX, "subindex": 0x7, "type": "<I", "row": 22, "col": 0x1},
-        "repair_stat": {"index": HK_INDEX, "subindex": 0x8, "type": "<I", "row": 22, "col": 0x2},
+        "count_meccelsb": {"index": HK_INDEX, "subindex": 0x6, "type": "<I", "row": 22, "col": 0x0},
+        "count_meccemsb": {"index": HK_INDEX, "subindex": 0x7, "type": "<I", "row": 22, "col": 0x1},
+        "count_ueccelsb": {"index": HK_INDEX, "subindex": 0x8, "type": "<I", "row": 22, "col": 0x2},
+        "count_ueccemsb": {"index": HK_INDEX, "subindex": 0x9, "type": "<I", "row": 22, "col": 0x2},
+
+        "failed_repairs": {"index": HK_INDEX, "subindex": 0x10, "type": "<I", "row": 22, "col": 0x1},
+        "region_stat": {"index": HK_INDEX, "subindex": 0x11, "type": "<I", "row": 22, "col": 0x0},
+        "repair_stat": {"index": HK_INDEX, "subindex": 0x12, "type": "<I", "row": 22, "col": 0x2},
     }
 
     def __init__(self, ecp_id, ser_port, listen_mode, debug):
