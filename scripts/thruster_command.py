@@ -22,7 +22,7 @@ STATUS_UDP_PORT = 4002
 UDP_HSI_PORT = 4001
 TRACE_SLEEP_TIME = 0
 HSI_SLEEP_TIME = 0
-TRACE_MSG_GATHER_CNT = 100
+TRACE_MSG_GATHER_CNT = 2
 STATUS_CONSOLE_PRINT_DELAY = 1
 
 #Static indexes
@@ -34,6 +34,7 @@ VALVES_INDEX = 0x3005
 HK_INDEX = 0x3000
 TH_COMMAND_INDEX = 0x4000
 TRACE_MSG_INDEX = 0x5001
+IACM_INDEX = 0x5005
 
 MODE_STATUS_SUBINDEX = 0x1
 STATE_STATUS_SUBINDEX = 0x2
@@ -94,12 +95,23 @@ class ThrusterCommand:
         "vo_reg_pressure": {"index": VALVES_INDEX, "subindex": 0x8,"row": 13, "col": 0x7},
         "vo_msg_cnt": {"index": VALVES_INDEX, "subindex": 0x9,"row": 13, "col": 0x8},
         "vo_can_err": {"index": VALVES_INDEX, "subindex": 0xA,"row": 13, "col": 0x9},
-	#not used in version 1.4.0
-        #"current_28v": {"index": HK_INDEX, "subindex": 0x1, "row": 16, "col": 0x0},
-        #"sense_14v": {"index": HK_INDEX, "subindex": 0x2, "row": 16, "col": 0x1},
-        #"current_14v": {"index": HK_INDEX, "subindex": 0x3, "row": 16, "col": 0x2},
-        #"sense_7a": {"index": HK_INDEX, "subindex": 0x4, "row": 16, "col": 0x3},
-        #"current_7a": {"index": HK_INDEX, "subindex": 0x5, "row": 16, "col": 0x4},
+
+        "current_28v": {"index": HK_INDEX, "subindex": 0x1, "row": 16, "col": 0x0},
+        "sense_14v": {"index": HK_INDEX, "subindex": 0x2, "row": 16, "col": 0x1},
+        "current_14v": {"index": HK_INDEX, "subindex": 0x3, "row": 16, "col": 0x2},
+        "sense_7a": {"index": HK_INDEX, "subindex": 0x4, "row": 16, "col": 0x3},
+        "current_7a": {"index": HK_INDEX, "subindex": 0x5, "row": 16, "col": 0x4},
+
+        # "iacm_dump":{"index": IACM_INDEX, "subindex": 0x5, "type":"noparse", "row": 25, "col": 0x0},
+
+        "count_meccelsb": {"index": HK_INDEX, "subindex": 0x6, "type": "<H", "row": 19, "col": 0x0},
+        "count_meccemsb": {"index": HK_INDEX, "subindex": 0x7, "type": "<H", "row": 19, "col": 0x1},
+        "count_ueccelsb": {"index": HK_INDEX, "subindex": 0x8, "type": "<H", "row": 19, "col": 0x2},
+        "count_ueccemsb": {"index": HK_INDEX, "subindex": 0x9, "type": "<H", "row": 19, "col": 0x3},
+
+        "failed_repairs": {"index": HK_INDEX, "subindex": 0xA, "type": "<I", "row": 22, "col": 0x0},
+        "region_stat": {"index": HK_INDEX, "subindex": 0xB, "type": "<I", "row": 22, "col": 0x1},
+        "repair_stat": {"index": HK_INDEX, "subindex": 0xC, "type": "<I", "row": 22, "col": 0x2},
     }
 
     def __init__(self, ecp_id, ser_port, listen_mode, debug):
@@ -107,7 +119,7 @@ class ThrusterCommand:
         __init__, sets up serial port and cmds definitions and launches the help menu.
         """
         self.debug = debug
-        self.version = "0.0.5"
+        self.version = "0.0.8_ion"
         self.serial_port = ser_port
         #main loop control
         self.running = True
@@ -346,18 +358,20 @@ class ThrusterCommand:
                 if statuses[2] is not None:
                     self.notify_updated_state(int(statuses[2], 16))
                     self.get_trace_msg()
-                    self.gather_hsi_msgs()
-            time.sleep(TRACE_SLEEP_TIME)
+                    self.get_hsi_msgs()
 
-    def gather_hsi_msgs(self):
+    def get_hsi_msgs(self):
         """
-        gather_hsi_msgs, this gathers hsi messages and sends it over udp, runs in thread.
+        get_hsi_msgs, this gathers hsi messages and sends it over udp, runs in thread.
         """
         for a in self.hsi.items():
             item_name = a[0]
             index = a[1].get("index")
             subindex = a[1].get("subindex")
-            val = self.read(index, subindex, "<H")
+            type = a[1].get("type")
+            if type is None:
+                type = "<H"
+            val = self.read(index, subindex, type)
             if val is not None:
                 msg = f"{item_name.ljust(10, ' ')}:index:{hex(index)}:subindex:{hex(subindex)}:val:{val}"
                 self.send_udp_packet(msg, HSI_UDP_IP, UDP_HSI_PORT)
@@ -522,10 +536,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description='Controls and Queries the Thruster Command on the Engine System Control Processor.')
     parser.add_argument('--listen', action='store', type=str, help='sends requests to udp port.')
-    parser.add_argument('system_id', action='store', type=str, help='The System Id for the connection usually 0x22.',
-                        default=0x22)
     parser.add_argument('serial_port', action='store', type=str, help='The Serial Port to use for RS485, or use can to select the pcan',
                         default="/dev/ttyUSB0")
+    parser.add_argument('system_id', action='store', type=str, help='The System Id for the connection usually 0x22.',
+                        default=0x22)
     parser.add_argument('--debug', action='store_true', help='enable debug mode.')
     parser.add_argument('--hsi', action='store', help='Overrides localhost hsi target.', default="127.0.0.1")
     args = parser.parse_args()

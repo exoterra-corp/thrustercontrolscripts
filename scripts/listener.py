@@ -137,6 +137,9 @@ class Listener():
 
                 elif self.mode == "gui":
                     data_split = str(data, "utf-8").split(":")
+                    #log the data
+                    str_msg = data.decode("ascii")
+                    self.log(str_msg)
                     if len(data_split) == 8:
                         name = data_split[1].strip()
                         val = data_split[-1]
