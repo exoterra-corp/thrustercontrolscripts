@@ -104,13 +104,13 @@ class ThrusterCommand:
 
         # "iacm_dump":{"index": IACM_INDEX, "subindex": 0x5, "type":"noparse", "row": 25, "col": 0x0},
 
-        "count_meccelsb": {"index": HK_INDEX, "subindex": 0x6, "type": "<I", "row": 22, "col": 0x0},
-        "count_meccemsb": {"index": HK_INDEX, "subindex": 0x7, "type": "<I", "row": 22, "col": 0x1},
-        "count_ueccelsb": {"index": HK_INDEX, "subindex": 0x8, "type": "<I", "row": 22, "col": 0x2},
-        "count_ueccemsb": {"index": HK_INDEX, "subindex": 0x9, "type": "<I", "row": 22, "col": 0x2},
+        "count_meccelsb": {"index": HK_INDEX, "subindex": 0x6, "type": "<H", "row": 19, "col": 0x0},
+        "count_meccemsb": {"index": HK_INDEX, "subindex": 0x7, "type": "<H", "row": 19, "col": 0x1},
+        "count_ueccelsb": {"index": HK_INDEX, "subindex": 0x8, "type": "<H", "row": 19, "col": 0x2},
+        "count_ueccemsb": {"index": HK_INDEX, "subindex": 0x9, "type": "<H", "row": 19, "col": 0x3},
 
-        "failed_repairs": {"index": HK_INDEX, "subindex": 0xA, "type": "<I", "row": 22, "col": 0x1},
-        "region_stat": {"index": HK_INDEX, "subindex": 0xB, "type": "<I", "row": 22, "col": 0x0},
+        "failed_repairs": {"index": HK_INDEX, "subindex": 0xA, "type": "<I", "row": 22, "col": 0x0},
+        "region_stat": {"index": HK_INDEX, "subindex": 0xB, "type": "<I", "row": 22, "col": 0x1},
         "repair_stat": {"index": HK_INDEX, "subindex": 0xC, "type": "<I", "row": 22, "col": 0x2},
     }
 
