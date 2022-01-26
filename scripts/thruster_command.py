@@ -7,6 +7,8 @@ from threading import Thread, Lock
 from configparser import *
 from queue import Queue
 
+from tabulate import tabulate #todo remove this
+
 """
 ExoTerra Resource Thruster Command Script.
 description:
@@ -335,6 +337,9 @@ class ThrusterCommand:
             "11": {"name": "Test", "func": self.get_write_value,
                    "args": {"index": self.th_command_index, "subindex": "BIT", "type": "<I"},
                    "help": "Run the BIT sequence."},
+            "12": {"name": "Test", "func": self.query_block_hsi,
+                   "args": {"index": 0x3100, "subindex": 0x1, "type": "<I"},
+                   "help": "Run the BIT sequence."},
         }
         self.trace_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # trace port
         self.hsi_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # hsi port
@@ -585,6 +590,38 @@ class ThrusterCommand:
                 # print(f"Error Parsing HSI. {e}")
             cnt += size  # move the start
         time.sleep(HSI_SLEEP_TIME)
+
+    def query_block_hsi(self, args):
+        index = args.get("index")
+        subindex = args.get("subindex")
+        iacm = [
+            # fill this in with the names
+        ]
+        try:
+            data = self.node.sdo.upload(index, subindex)
+            if len(data)%2 == 0:
+                parsed_vals = []
+                iacm_vals = [data[i:i + 2] for i in range(0, len(data), 2)]
+                for i,v in enumerate(iacm_vals):
+                    h = struct.unpack("<H", v)[0]
+                    val = (f"{str(i).zfill(2)}: 0x{hex(h)[2:].zfill(8)}")
+                    name = ""
+                    try:
+                        name = iacm[i]
+                    except IndexError:
+                        None
+                    parsed_vals.append([name,val])
+                #compare the len of the iacm and how many values we parsed
+                print(tabulate(parsed_vals, ["IACM KEY", "IACM VALUE"]))
+            else:
+                print("Cant parse the bytearray")
+        except canopen.sdo.exceptions.SdoCommunicationError as comms_err:\
+                print(f"Query Failed: {comms_err}")
+        except canopen.sdo.exceptions.SdoAbortedError as aborted_err:\
+                print(f"Query Failed: {aborted_err}")
+        except Exception as e:
+                print(f"Query Failed: {e}")
+
 
     def start_threads(self):
         """
