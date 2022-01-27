@@ -337,7 +337,7 @@ class ThrusterCommand:
             "11": {"name": "Test", "func": self.get_write_value,
                    "args": {"index": self.th_command_index, "subindex": "BIT", "type": "<I"},
                    "help": "Run the BIT sequence."},
-            "12": {"name": "Test", "func": self.query_block_hsi,
+            "12": {"name": "Query Block HSI", "func": self.query_block_hsi,
                    "args": {"index": 0x3100, "subindex": 0x1, "type": "<I"},
                    "help": "Run the BIT sequence."},
         }
@@ -594,34 +594,91 @@ class ThrusterCommand:
     def query_block_hsi(self, args):
         index = args.get("index")
         subindex = args.get("subindex")
-        iacm = [
-            # fill this in with the names
+        block_hsi = [
+            # anode
+            {"name": "anode_vx", "type": "<I", "hex": False},
+            {"name": "anode_vy", "type": "<I", "hex": False},
+            {"name": "anode_vout", "type": "<I", "hex": False},
+            {"name": "anode_iout", "type": "<H", "hex": False},
+            {"name": "anode_dac", "type": "<H", "hex": False},
+            {"name": "anode_hstemp", "type": "<H", "hex": False},
+            {"name": "anode_lasterr", "type": "<H", "hex": False},
+            {"name": "anode_current_oft", "type": "<H", "hex": False},
+            {"name": "anode_msg_cnt", "type": "<H", "hex": False},
+            {"name": "anode_can_err", "type": "<H", "hex": False},
+
+            # keeper
+            {"name": "keeper_sepic_v", "type": "<H", "hex": False},
+            {"name": "keeper_v_in", "type": "<H", "hex": False},
+            {"name": "keeper_i_out", "type": "<H", "hex": False},
+            {"name": "keeper_dac_out", "type": "<H", "hex": False},
+            {"name": "keeper_last_error", "type": "<H", "hex": False},
+            {"name": "keeper_current_oft", "type": "<H", "hex": False},
+            {"name": "keeper_msg_cnt", "type": "<H", "hex": False},
+            {"name": "keeper_can_err", "type": "<H", "hex": False},
+
+            # magnet
+            {"name": "magnet_v_out", "type": "<H", "hex": False},
+            {"name": "magnet_i_out", "type": "<H", "hex": False},
+            {"name": "magnet_dac_out", "type": "<H", "hex": False},
+            {"name": "magnet_last_err", "type": "<H", "hex": False},
+            {"name": "magnet_msg_cnt", "type": "<H", "hex": False},
+            {"name": "magnet_can_err", "type": "<H", "hex": False},
+
+            # valves
+            {"name": "valves_anode_v", "type": "<H", "hex": False},
+            {"name": "valves_cathode_hf_v", "type": "<H", "hex": False},
+            {"name": "valves_cathode_lf_v", "type": "<H", "hex": False},
+            {"name": "valves_temperature", "type": "<H", "hex": False},
+            {"name": "valves_tank_pressure", "type": "<H", "hex": False},
+            {"name": "valves_cathode_pressure", "type": "<H", "hex": False},
+            {"name": "valves_anode_pressure", "type": "<H", "hex": False},
+            {"name": "valves_regulator_pressure", "type": "<H", "hex": False},
+            {"name": "valves_msg_cnt", "type": "<H", "hex": False},
+            {"name": "valves_can_errr", "type": "<H", "hex": False},
+
+            # hk mem
+            {"name": "hk_mA_28V", "type": "<H", "hex": False},
+            {"name": "hk_mV_14V", "type": "<H", "hex": False},
+            {"name": "hk_mA_14V", "type": "<H", "hex": False},
+            {"name": "hk_mV_7VA", "type": "<H", "hex": False},
+            {"name": "hk_mA_7VA", "type": "<H", "hex": False},
+
+            # efc
+            {"name": "count_meccemsb", "type": "<H", "hex": True},
+            {"name": "count_ueccemsb", "type": "<H", "hex": True},
+            {"name": "count_meccelsb", "type": "<H", "hex": True},
+            {"name": "count_ueccelsb", "type": "<H", "hex": True},
+
+            # sysmem
+            {"name": "region_stat", "type": "<I", "hex": True},
+            {"name": "failed_repairs", "type": "<I", "hex": True},
+            {"name": "repair_stat", "type": "<I", "hex": True},
         ]
         try:
+            # loop through it once generate the string and then loop over it again to print it out
+            parse_str = "<"
+            for v in block_hsi:
+                parse_str += v.get("type").replace("<", "")
             data = self.node.sdo.upload(index, subindex)
-            if len(data)%2 == 0:
-                parsed_vals = []
-                iacm_vals = [data[i:i + 2] for i in range(0, len(data), 2)]
-                for i,v in enumerate(iacm_vals):
-                    h = struct.unpack("<H", v)[0]
-                    val = (f"{str(i).zfill(2)}: 0x{hex(h)[2:].zfill(8)}")
-                    name = ""
-                    try:
-                        name = iacm[i]
-                    except IndexError:
-                        None
-                    parsed_vals.append([name,val])
-                #compare the len of the iacm and how many values we parsed
-                print(tabulate(parsed_vals, ["IACM KEY", "IACM VALUE"]))
+            if len(data) % 2 == 0:
+                raw_vals = struct.unpack_from(parse_str, data)
+                # "<IIIH HHHH HH HHH HHH HH HH HH HH HHHH HHHH HH HHHHH HHHH III", data)
+                for i,value in enumerate(block_hsi):
+                    name = value.get("name")
+                    hex_en = value.get("hex")
+                    parsed_val = raw_vals[i]
+                    if hex_en:
+                        parsed_val = hex(parsed_val)
+                    self.mr_logger.log(self.mr_logger.SYS,f"{name} - {parsed_val}")
             else:
-                print("Cant parse the bytearray")
-        except canopen.sdo.exceptions.SdoCommunicationError as comms_err:\
-                print(f"Query Failed: {comms_err}")
-        except canopen.sdo.exceptions.SdoAbortedError as aborted_err:\
-                print(f"Query Failed: {aborted_err}")
+                self.mr_logger.log(self.mr_logger.SYS, f"Cant parse the bytearray because its not divisable by 2.  Len Data: {len(data)}")
+        except canopen.sdo.exceptions.SdoCommunicationError as comms_err: \
+                self.mr_logger.log(self.mr_logger.SYS,f"Query Failed: {comms_err}")
+        except canopen.sdo.exceptions.SdoAbortedError as aborted_err: \
+                self.mr_logger.log(self.mr_logger.SYS,f"Query Failed: {aborted_err}")
         except Exception as e:
-                print(f"Query Failed: {e}")
-
+            self.mr_logger.log(self.mr_logger.SYS,f"Query Failed: {e}")
 
     def start_threads(self):
         """
