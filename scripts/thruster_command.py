@@ -551,7 +551,7 @@ class ThrusterCommand:
                 if statuses[2] is not None:
                     self.notify_updated_state(int(statuses[2], 16))
                     self.get_trace_msg()
-                    self.get_hsi_msgs()
+                    #self.get_hsi_msgs()
             time.sleep(TRACE_SLEEP_TIME)
 
     def get_hsi_msgs(self):
@@ -608,7 +608,7 @@ class ThrusterCommand:
             {"name": "anode_can_err", "type": "<H", "hex": False},
 
             # keeper
-            {"name": "keeper_sepic_v", "type": "<H", "hex": False},
+            {"name": "keeper_sepic_v", "type": "<I", "hex": False},
             {"name": "keeper_v_in", "type": "<H", "hex": False},
             {"name": "keeper_i_out", "type": "<H", "hex": False},
             {"name": "keeper_dac_out", "type": "<H", "hex": False},
@@ -618,19 +618,27 @@ class ThrusterCommand:
             {"name": "keeper_can_err", "type": "<H", "hex": False},
 
             # magnet
-            {"name": "magnet_v_out", "type": "<H", "hex": False},
-            {"name": "magnet_i_out", "type": "<H", "hex": False},
-            {"name": "magnet_dac_out", "type": "<H", "hex": False},
-            {"name": "magnet_last_err", "type": "<H", "hex": False},
-            {"name": "magnet_msg_cnt", "type": "<H", "hex": False},
-            {"name": "magnet_can_err", "type": "<H", "hex": False},
+            {"name": "magnet_o_v_out", "type": "<H", "hex": False},
+            {"name": "magnet_o_i_out", "type": "<H", "hex": False},
+            {"name": "magnet_o_dac_out", "type": "<H", "hex": False},
+            {"name": "magnet_o_last_err", "type": "<H", "hex": False},
+            {"name": "magnet_o_msg_cnt", "type": "<H", "hex": False},
+            {"name": "magnet_o_can_err", "type": "<H", "hex": False},
+
+            #magnet inner
+            {"name": "magnet_i_v_out", "type": "<H", "hex": False},
+            {"name": "magnet_i_i_out", "type": "<H", "hex": False},
+            {"name": "magnet_i_dac_out", "type": "<H", "hex": False},
+            {"name": "magnet_i_last_err", "type": "<H", "hex": False},
+            {"name": "magnet_i_msg_cnt", "type": "<H", "hex": False},
+            {"name": "magnet_i_can_err", "type": "<H", "hex": False},
 
             # valves
             {"name": "valves_anode_v", "type": "<H", "hex": False},
             {"name": "valves_cathode_hf_v", "type": "<H", "hex": False},
             {"name": "valves_cathode_lf_v", "type": "<H", "hex": False},
-            {"name": "valves_temperature", "type": "<H", "hex": False},
-            {"name": "valves_tank_pressure", "type": "<H", "hex": False},
+            {"name": "valves_temperature", "type": "<I", "hex": False},
+            {"name": "valves_tank_pressure", "type": "<I", "hex": False},
             {"name": "valves_cathode_pressure", "type": "<H", "hex": False},
             {"name": "valves_anode_pressure", "type": "<H", "hex": False},
             {"name": "valves_regulator_pressure", "type": "<H", "hex": False},
@@ -666,7 +674,8 @@ class ThrusterCommand:
                 # "<IIIH HHHH HH HHH HHH HH HH HH HH HHHH HHHH HH HHHHH HHHH III", data)
                 for i,value in enumerate(block_hsi):
                     name = value.get("name")
-                    hex_en = value.get("hex")
+                    # hex_en = value.get("hex")
+                    hex_en = True
                     parsed_val = raw_vals[i]
                     if hex_en:
                         parsed_val = hex(parsed_val)
