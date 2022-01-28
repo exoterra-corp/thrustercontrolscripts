@@ -664,8 +664,7 @@ class ThrusterCommand:
                 # "<IIIH HHHH HH HHH HHH HH HH HH HH HHHH HHHH HH HHHHH HHHH III", data)
                 for i,value in enumerate(block_hsi):
                     name = value.get("name")
-                    # hex_en = value.get("hex")
-                    hex_en = True
+                    hex_en = value.get("hex")
                     parsed_val = raw_vals[i]
                     if hex_en:
                         parsed_val = hex(parsed_val)
