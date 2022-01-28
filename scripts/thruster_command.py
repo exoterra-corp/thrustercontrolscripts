@@ -33,10 +33,11 @@ BIT_STATUS_SUBINDEX = "BIT"
 TRACE_UDP_IP = "127.0.0.1"
 TRACE_UDP_PORT = 4002
 TRACE_SLEEP_TIME = 0
-TRACE_MSG_MAX_GATHER = 10
+TRACE_MSG_MAX_GATHER = 2
 
 HSI_STATUS_IP = "127.0.0.1"
 HSI_UDP_PORT = 4001
+HSI_BLOCK_UDP_PORT = 4003
 HSI_SLEEP_TIME = 0
 
 RAW_UDP_IP = "127.0.0.1"
@@ -111,9 +112,9 @@ class HSIDefs:
             "count_meccelsb": {"index": self.hk_index, "subindex": "ADC2", "type": "<H", "row": 19, "col": 0x2},
             "count_ueccelsb": {"index": self.hk_index, "subindex": "ADC3", "type": "<H", "row": 19, "col": 0x3},
 
-            "region_stat": {"index": self.hk_index, "subindex": "ADC0", "type": "<I", "row": 22, "col": 0x0},
-            "failed_repairs": {"index": self.hk_index, "subindex": "ADC1", "type": "<I", "row": 22, "col": 0x1},
-            "repair_stat": {"index": self.hk_index, "subindex": "ADC2", "type": "<I", "row": 22, "col": 0x2},
+            # "region_stat": {"index": self.hk_index, "subindex": "ADC0", "type": "<I", "row": 22, "col": 0x0},
+            # "failed_repairs": {"index": self.hk_index, "subindex": "ADC1", "type": "<I", "row": 22, "col": 0x1},
+            # "repair_stat": {"index": self.hk_index, "subindex": "ADC2", "type": "<I", "row": 22, "col": 0x2},
         }
 
 
@@ -551,45 +552,34 @@ class ThrusterCommand:
                 if statuses[2] is not None:
                     self.notify_updated_state(int(statuses[2], 16))
                     self.get_trace_msg()
-                    #self.get_hsi_msgs()
+                    self.get_block_hsi()
+                    self.get_hsi_msgs()
             time.sleep(TRACE_SLEEP_TIME)
 
     def get_hsi_msgs(self):
         """
         get_hsi_msgs, this gathers hsi messages and sends it over udp, runs in thread.
         """
-        # get the hsi message block
-        val = None
-        try:
-            val = self.node.sdo.upload(0x3100, 0x1)
-        except canopen.sdo.exceptions.SdoCommunicationError as e:
-            self.mr_logger.log(self.mr_logger.SYS, "{e}")
-
-        # then loop over decoding it one by one
-        cnt = 0
         hsi_defs = HSIDefs()
         for a in hsi_defs.hsi.items():
-            try:
-                # if in pre-op ignore other hsi messages
-                item_name = a[0]
-                item_type = a[1].get("type")
-                size = 0
-                if item_type == "<H":
-                    size = 2
-                elif item_type == "<I":
-                    size = 4
-                if item_type is not None:
-                    item_val = struct.unpack(item_type, val[cnt:cnt + size])[0]
-                    if item_val is not None:
-                        msg = f"{item_name.ljust(10, ' ')}:index:{a[1].get('index')}:subindex:{a[1].get('subindex')}:val:{item_val}"
-                        self.mr_logger.log(self.mr_logger.HSI, msg)
-                        self.send_udp_packet(msg, HSI_UDP_IP, HSI_UDP_PORT)
-            except struct.error as e:
-                # log this instead
-                None
-                # print(f"Error Parsing HSI. {e}")
-            cnt += size  # move the start
+            item_name = a[0]
+            index = a[1].get("index")
+            subindex = a[1].get("subindex")
+            type = a[1].get("type")
+            parsed_val = self.get_var(index, subindex)
+            index = parsed_val.get("index")
+            subindex = parsed_val.get("subindex")
+            if type is None:
+                type = "<H"
+            val = self.read(index, subindex, type)
+            if val is not None:
+                msg = f"{item_name.ljust(10, ' ')}:index:{hex(index)}:subindex:{hex(subindex)}:val:{val}"
+                self.send_udp_packet(msg, HSI_UDP_IP, HSI_UDP_PORT)
         time.sleep(HSI_SLEEP_TIME)
+
+    def get_block_hsi(self):
+        data = self.node.sdo.upload(0x3100, 0x1)
+        self.send_udp_packet(data, HSI_UDP_IP, HSI_BLOCK_UDP_PORT)
 
     def query_block_hsi(self, args):
         index = args.get("index")

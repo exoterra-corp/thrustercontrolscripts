@@ -27,11 +27,11 @@ class Listener():
         self.udp_port = int(udp_port)
         self.logdir = f"./{logdir}/"
         now = datetime.datetime.now()
-        time_string = now.strftime("%Y_%m_%d_%H_%M_%S")
-        if not os.path.exists("./" + self.logdir):
-            print("Creating log dir " + self.logdir)
-            os.makedirs(self.logdir)
-        self.logf = open(self.logdir + f"listener_log_{time_string}.txt", "a+")
+        # time_string = now.strftime("%Y_%m_%d_%H_%M_%S")
+        # if not os.path.exists("./" + self.logdir):
+        #     print("Creating log dir " + self.logdir)
+        #     os.makedirs(self.logdir)
+        # self.logf = open(self.logdir + f"listener_log_{time_string}.txt", "a+")
         self.running = True
         self.q = Queue()
         self.sock = socket.socket(socket.AF_INET,  # Internet
@@ -66,15 +66,16 @@ class Listener():
         """
         self.running = False
         self.sock.sendto(bytes("", "ascii"), (self.udp_ip, self.udp_port))
-        self.logf.close()
+        # self.logf.close()
         sys.exit(1)
 
     def log(self, msg):
         """
         log, writes a msg to the log file.
         """
-        self.logf.write(msg + "\n")
-        self.logf.flush()
+        None
+        # self.logf.write(msg + "\n")
+        # self.logf.flush()
 
     def listen(self):
         """
