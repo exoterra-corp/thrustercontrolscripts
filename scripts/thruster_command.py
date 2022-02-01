@@ -1,9 +1,9 @@
 #!/usr/bin/python3
 import canopen, argparse, struct, time, sys, socket, traceback, datetime, wx
 from canopen.nmt import NmtError, NMT_STATES
-from os.path import exists
 from serial.tools import list_ports
 from threading import Thread, Lock
+
 
 """
 ExoTerra Resource Thruster Command Script.
@@ -15,23 +15,33 @@ joshua.meyers@exoterracorp.com
 jeremy.mitchell@exoterracorp.com
 """
 
-# TUNEABLES
+#TUNEABLES
 STATUS_UDP_IP = "127.0.0.1"
 HSI_UDP_IP = "127.0.0.1"
 STATUS_UDP_PORT = 4002
 UDP_HSI_PORT = 4001
 TRACE_SLEEP_TIME = 0
 HSI_SLEEP_TIME = 0
-TRACE_MSG_GATHER_CNT = 100
+TRACE_MSG_GATHER_CNT = 2
 STATUS_CONSOLE_PRINT_DELAY = 1
 
-MODE_STATUS_SUBINDEX = "ReadyMode"
-STATE_STATUS_SUBINDEX = "SteadyState"
-THRUSTER_STATUS_SUBINDEX = "Status"
-CONDITION_STATUS_SUBINDEX = "Condition"
-THRUST_POINT_SUBINDEX = "Thrust"
-TRACE_MSG_SUBINDEX = "TraceMessageTail"
-BIT_STATUS_SUBINDEX = "BIT"
+#Static indexes
+KEEPER_INDEX = 0x3001
+ANODE_INDEX = 0x3002
+MAG_OUTER_INDEX = 0x3003
+MAG_INNER_INDEX = 0x3004
+VALVES_INDEX = 0x3005
+HK_INDEX = 0x3000
+TH_COMMAND_INDEX = 0x4000
+TRACE_MSG_INDEX = 0x5001
+
+MODE_STATUS_SUBINDEX = 0x1
+STATE_STATUS_SUBINDEX = 0x2
+THRUSTER_STATUS_SUBINDEX = 0x5
+CONDITION_STATUS_SUBINDEX = 0x6
+THRUST_POINT_SUBINDEX = 0x4
+TRACE_MSG_SUBINDEX = 0x6
+BIT_STATUS_SUBINDEX = 0x7
 
 class ThrusterCommand:
     """
@@ -39,90 +49,77 @@ class ThrusterCommand:
     Contains function definitions for communicating with the ecp, and definitions on what indexes and sub-idxs to
     communicate with.
     """
+    hsi = {
+        "k_vsepic": {"index": KEEPER_INDEX, "subindex": 0x1, "row": 1, "col": 0x0},
+        "k_vin": {"index": KEEPER_INDEX, "subindex": 0x2, "row": 1, "col": 0x1},
+        "k_iout": {"index": KEEPER_INDEX, "subindex": 0x3,"row": 1, "col": 0x2},
+        "k_dacout": {"index": KEEPER_INDEX, "subindex": 0x4,"row": 1, "col": 0x3},
+        "k_lasterr": {"index": KEEPER_INDEX, "subindex": 0x5,"row": 1, "col": 0x4},
+        "k_cur_oft": {"index": KEEPER_INDEX, "subindex": 0x6,"row": 1, "col": 0x5},
+        "k_msg_cnt": {"index": KEEPER_INDEX, "subindex": 0x7,"row": 1, "col": 0x6},
+        "k_can_err": {"index": KEEPER_INDEX, "subindex": 0x8,"row": 1, "col": 0x7},
 
-    def __init__(self, ecp_id, ser_port, eds_file, listen_mode, debug):
+        "a_vx": {"index": ANODE_INDEX, "subindex": 0x1,"row": 4, "col": 0x0},
+        "a_vy": {"index": ANODE_INDEX, "subindex": 0x2,"row": 4, "col": 0x1},
+        "a_vout": {"index": ANODE_INDEX, "subindex": 0x3,"row": 4, "col": 0x2},
+        "a_iout": {"index": ANODE_INDEX, "subindex": 0x4,"row": 4, "col": 0x3},
+        "a_dac": {"index": ANODE_INDEX, "subindex": 0x5,"row": 4, "col": 0x4},
+        "a_last_err": {"index": ANODE_INDEX, "subindex": 0x6,"row": 4, "col": 0x5},
+        "a_cur_oft": {"index": ANODE_INDEX, "subindex": 0x7,"row": 4, "col": 0x6},
+        "a_hs_temp": {"index": ANODE_INDEX, "subindex": 0x8,"row": 4, "col": 0x7},
+        "a_msg_cnt": {"index": ANODE_INDEX, "subindex": 0x9,"row": 4, "col": 0x8},
+        "a_can_err": {"index": ANODE_INDEX, "subindex": 0xA,"row": 4, "col": 0x9},
+
+        "mo_vout": {"index": MAG_INNER_INDEX, "subindex": 0x1,"row": 7, "col": 0},
+        "mo_iout": {"index": MAG_INNER_INDEX, "subindex": 0x2,"row": 7, "col": 1},
+        "mo_dac_out": {"index": MAG_INNER_INDEX, "subindex": 0x3,"row": 7, "col": 2},
+        "mo_last_err": {"index": MAG_INNER_INDEX, "subindex": 0x4,"row": 7, "col": 3},
+        "mo_msg_cnt": {"index": MAG_INNER_INDEX, "subindex": 0x5,"row": 7, "col": 4},
+        "mo_can_err": {"index": MAG_INNER_INDEX, "subindex": 0x6,"row": 7, "col": 5},
+
+        "mi_vout": {"index": MAG_OUTER_INDEX, "subindex": 0x1,"row": 10, "col": 0},
+        "mi_iout": {"index": MAG_OUTER_INDEX, "subindex": 0x2,"row": 10, "col": 1},
+        "mi_dac_out": {"index": MAG_OUTER_INDEX, "subindex": 0x3,"row": 10, "col": 2},
+        "mi_last_err": {"index": MAG_OUTER_INDEX, "subindex": 0x4,"row": 10, "col": 3},
+        "mi_msg_cnt": {"index": MAG_OUTER_INDEX, "subindex": 0x5,"row": 10, "col": 4},
+        "mi_can_err": {"index": MAG_OUTER_INDEX, "subindex": 0x6,"row": 10, "col": 5},
+
+        "vo_anode_v": {"index": VALVES_INDEX, "subindex": 0x1,"row": 13, "col": 0x0},
+        "vo_cath_hf_v": {"index": VALVES_INDEX, "subindex": 0x2,"row": 13, "col": 0x1},
+        "vo_cath_lf_v": {"index": VALVES_INDEX, "subindex": 0x3,"row": 13, "col": 0x2},
+        "vo_temp": {"index": VALVES_INDEX, "subindex": 0x4,"row": 13, "col": 0x3},
+        "vo_tank_pressure": {"index": VALVES_INDEX, "subindex": 0x5,"row": 13, "col": 0x4},
+        "vo_cathode_pressure": {"index": VALVES_INDEX, "subindex": 0x6,"row": 13, "col": 0x5},
+        "vo_anode_pressure": {"index": VALVES_INDEX, "subindex": 0x7,"row": 13, "col": 0x6},
+        "vo_reg_pressure": {"index": VALVES_INDEX, "subindex": 0x8,"row": 13, "col": 0x7},
+        "vo_msg_cnt": {"index": VALVES_INDEX, "subindex": 0x9,"row": 13, "col": 0x8},
+        "vo_can_err": {"index": VALVES_INDEX, "subindex": 0xA,"row": 13, "col": 0x9},
+	#not used in version 1.4.0
+        #"current_28v": {"index": HK_INDEX, "subindex": 0x1, "row": 16, "col": 0x0},
+        #"sense_14v": {"index": HK_INDEX, "subindex": 0x2, "row": 16, "col": 0x1},
+        #"current_14v": {"index": HK_INDEX, "subindex": 0x3, "row": 16, "col": 0x2},
+        #"sense_7a": {"index": HK_INDEX, "subindex": 0x4, "row": 16, "col": 0x3},
+        #"current_7a": {"index": HK_INDEX, "subindex": 0x5, "row": 16, "col": 0x4},
+    }
+
+    def __init__(self, ecp_id, ser_port, listen_mode, debug):
         """
         __init__, sets up serial port and cmds definitions and launches the help menu.
         """
-        self.keeper_index = "KeeperDiag"
-        self.anode_index = "AnodeDiag"
-        self.mag_outer_index = "MagnetOuterDiag"
-        self.mag_inner_index = "MagnetInnerDiag"
-        self.valves_index = "ValveDiag"
-        self.hk_index = "HKDiag"
-        self.th_command_index = "ThrusterCommand"
-        self.trace_msg_index = "Trace"
-
         self.debug = debug
-        self.version = "0.0.6"
+        self.version = "0.0.5"
         self.serial_port = ser_port
-        self.eds_file = eds_file
-        # main loop control
+        #main loop control
         self.running = True
-        # thread control
+        #thread control
         self.thread_run = False
 
-        # status console print vars
+        #status console print vars
         self.status_console_thread = None
         self.status_console_run = False
         self.status_console_lock = Lock()
-        self.eds = {}
-
-        self.hsi = {
-            "k_vsepic": {"index": self.keeper_index, "subindex": "ADC0", "row": 1, "col": 0x0},
-            "k_vin": {"index": self.keeper_index, "subindex": "ADC1", "row": 1, "col": 0x1},
-            "k_iout": {"index": self.keeper_index, "subindex": "ADC2", "row": 1, "col": 0x2},
-            "k_dacout": {"index": self.keeper_index, "subindex": "ADC3", "row": 1, "col": 0x3},
-            "k_lasterr": {"index": self.keeper_index, "subindex": "ADC4", "row": 1, "col": 0x4},
-            "k_cur_oft": {"index": self.keeper_index, "subindex": "ADC5", "row": 1, "col": 0x5},
-            "k_msg_cnt": {"index": self.keeper_index, "subindex": "ADC6", "row": 1, "col": 0x6},
-            "k_can_err": {"index": self.keeper_index, "subindex": "ADC7", "row": 1, "col": 0x7},
-
-            "a_vx": {"index": self.anode_index, "subindex": "ADC0", "row": 4, "col": 0x0},
-            "a_vy": {"index": self.anode_index, "subindex": "ADC1", "row": 4, "col": 0x1},
-            "a_vout": {"index": self.anode_index, "subindex": "ADC2", "row": 4, "col": 0x2},
-            "a_iout": {"index": self.anode_index, "subindex": "ADC3", "row": 4, "col": 0x3},
-            "a_dac": {"index": self.anode_index, "subindex": "ADC4", "row": 4, "col": 0x4},
-            "a_last_err": {"index": self.anode_index, "subindex": "ADC5", "row": 4, "col": 0x5},
-            "a_cur_oft": {"index": self.anode_index, "subindex": "ADC6", "row": 4, "col": 0x6},
-            "a_hs_temp": {"index": self.anode_index, "subindex": "ADC7", "row": 4, "col": 0x7},
-            "a_msg_cnt": {"index": self.anode_index, "subindex": "ADC8", "row": 4, "col": 0x8},
-            "a_can_err": {"index": self.anode_index, "subindex": "ADC9", "row": 4, "col": 0x9},
-
-            "mo_vout": {"index": self.mag_inner_index, "subindex": "ADC0", "row": 7, "col": 0},
-            "mo_iout": {"index": self.mag_inner_index, "subindex": "ADC1", "row": 7, "col": 1},
-            "mo_dac_out": {"index": self.mag_inner_index, "subindex": "ADC2", "row": 7, "col": 2},
-            "mo_last_err": {"index": self.mag_inner_index, "subindex": "ADC3", "row": 7, "col": 3},
-            "mo_msg_cnt": {"index": self.mag_inner_index, "subindex": "ADC4", "row": 7, "col": 4},
-            "mo_can_err": {"index": self.mag_inner_index, "subindex": "ADC5", "row": 7, "col": 5},
-
-            "mi_vout": {"index": self.mag_outer_index, "subindex": "ADC0", "row": 10, "col": 0},
-            "mi_iout": {"index": self.mag_outer_index, "subindex": "ADC1", "row": 10, "col": 1},
-            "mi_dac_out": {"index": self.mag_outer_index, "subindex": "ADC2", "row": 10, "col": 2},
-            "mi_last_err": {"index": self.mag_outer_index, "subindex": "ADC3", "row": 10, "col": 3},
-            "mi_msg_cnt": {"index": self.mag_outer_index, "subindex": "ADC4", "row": 10, "col": 4},
-            "mi_can_err": {"index": self.mag_outer_index, "subindex": "ADC5", "row": 10, "col": 5},
-
-            "vo_anode_v": {"index": self.valves_index, "subindex": "ADC0", "row": 13, "col": 0x0},
-            "vo_cath_hf_v": {"index": self.valves_index, "subindex": "ADC1", "row": 13, "col": 0x1},
-            "vo_cath_lf_v": {"index": self.valves_index, "subindex": "ADC2", "row": 13, "col": 0x2},
-            "vo_temp": {"index": self.valves_index, "subindex": "ADC3", "row": 13, "col": 0x3},
-            "vo_tank_pressure": {"index": self.valves_index, "subindex": "ADC4", "row": 13, "col": 0x4},
-            "vo_cathode_pressure": {"index": self.valves_index, "subindex": "ADC5", "row": 13, "col": 0x5},
-            "vo_anode_pressure": {"index": self.valves_index, "subindex": "ADC6", "row": 13, "col": 0x6},
-            "vo_reg_pressure": {"index": self.valves_index, "subindex": "ADC7", "row": 13, "col": 0x7},
-            "vo_msg_cnt": {"index": self.valves_index, "subindex": "ADC8", "row": 13, "col": 0x8},
-            "vo_can_err": {"index": self.valves_index, "subindex": "ADC9", "row": 13, "col": 0x9},
-
-            "hk_current_28v": {"index": self.hk_index, "subindex": "ADC0", "row": 16, "col": 0x0},
-            "hk_sense_14v": {"index": self.hk_index, "subindex": "ADC1", "row": 16, "col": 0x1},
-            "hk_current_14v": {"index": self.hk_index, "subindex": "ADC2", "row": 16, "col": 0x2},
-            "hk_sense_7a": {"index": self.hk_index, "subindex": "ADC3", "row": 16, "col": 0x3},
-            "hk_current_7a": {"index": self.hk_index, "subindex": "ADC4", "row": 16, "col": 0x4},
-        }
 
         self.system_id = ecp_id
-        self.node = None
         self.nmt_state = None
         self.listen_thread = None
         self.write_mutex = Lock()
@@ -134,8 +131,6 @@ class ThrusterCommand:
         self.bit_status = 0
         self.cond_status = 0
         self.thrust_point = 0
-
-        self.bootup_msg = False
         self.hsi_cmds = {
             "0": {"name": "Exit", "func": self.exit, "help": "Exits the Program"},
             "1": {"name": "Help", "func": self.help, "help": "Displays the help Menu"},
@@ -146,32 +141,32 @@ class ThrusterCommand:
                   "args": {"nmt_state": "PREOPERATIONAL"},
                   "help": "Changes NMT STATE to PRE-OP."},
             "4": {"name": "NMT STATE OPERATIONAL", "func": self.change_nmt_state,
-                  "args": {"nmt_state": "OPERATIONAL"},
-                  "help": "Changes NMT STATE to OPERATIONAL."},
+                   "args": {"nmt_state": "OPERATIONAL"},
+                   "help": "Changes NMT STATE to OPERATIONAL."},
             "5": {"name": "Run Ready Mode", "func": self.get_write_value,
-                  "args": {"index": self.th_command_index, "subindex": "ReadyMode", "type": "<I", "default": "0x1"},
+                  "args": {"index": TH_COMMAND_INDEX, "subindex": 0x1, "type": "<I", "default": "0x1"},
                   "help": "Writes a UINT-32 to the Thruster Ready Mode."},
             "6": {"name": "Run Steady State", "func": self.get_write_value,
-                  "args": {"index": self.th_command_index, "subindex": "SteadyState", "type": "<I"},
+                  "args": {"index": TH_COMMAND_INDEX, "subindex": 0x2, "type": "<I"},
                   "help": "Writes a UINT-32 to the Thruster Steady State."},
             "7": {"name": "Thruster Shutdown", "func": self.get_write_value,
-                  "args": {"index": self.th_command_index, "subindex": "Shutdown", "type": "<B", "default": "0x1"},
+                  "args": {"index": TH_COMMAND_INDEX, "subindex": 0x3, "type": "<B", "default":"0x1"},
                   "help": "Shutdown down the thruster."},
             "8": {"name": "Status", "func": self.get_status_index,
-                  "args": {"index": self.th_command_index},
+                  "args": {"index": TH_COMMAND_INDEX},
                   "help": "Prints Status of Ready Mode, Steady State, and ThrusterStatus continuously."},
             "9": {"name": "Write Set Thrust", "func": self.get_write_value,
-                  "args": {"index": self.th_command_index, "subindex": "Thrust", "type": "<I"},
+                  "args": {"index": TH_COMMAND_INDEX, "subindex": 0x4, "type": "<I"},
                   "help": "Writes a throttle set point to the System Controller."},
             "10": {"name": "Condition", "func": self.get_write_value,
-                   "args": {"index": self.th_command_index, "subindex": "Condition", "type": "<I"},
-                   "help": "Run the conditioning sequence."},
+                  "args": {"index": TH_COMMAND_INDEX, "subindex": 0x6, "type": "<I"},
+                  "help": "Run the conditioning sequence."},
             "11": {"name": "Test", "func": self.get_write_value,
-                   "args": {"index": self.th_command_index, "subindex": "BIT", "type": "<I"},
-                   "help": "Run the BIT sequence."},
+                  "args": {"index": TH_COMMAND_INDEX, "subindex": 0x7, "type": "<I"},
+                  "help": "Run the BIT sequence."},
         }
-        self.trace_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # trace port
-        self.hsi_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # hsi port
+        self.trace_sock = socket.socket(socket.AF_INET,socket.SOCK_DGRAM) #trace port
+        self.hsi_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) #hsi port
         self.help(None)
         self.connect_to_ecp()
 
@@ -189,21 +184,14 @@ class ThrusterCommand:
                 if self.debug:
                     print("Selected serial network type")
                 self.network.connect(bustype="exoserial", channel=self.serial_port, baudrate=115200)
-            self.node = self.network.add_node(self.system_id, self.eds_file)
+            self.node = self.network.add_node(self.system_id)
             self.network.add_node(self.node)
             self.node.sdo.RESPONSE_TIMEOUT = 2
             self.node.emcy.add_callback(self.handle_emcy)
-            self.network.subscribe(0x722, self.notify_bootup)
-            # check to see if device is connected
-            self.nmt_state = self.read(self.th_command_index, THRUSTER_STATUS_SUBINDEX, "<I")  # nmt_state
-            #check to see if msg was recieved
-            if self.nmt_state is None:
-                print("System Controller Failed to Connect.  Waiting for bootup msg.")
-                while not self.bootup_msg:
-                    time.sleep(0.01)
-                print("System Controller Connected!")
-            # read the state on bootup
-            self.get_status(self.th_command_index)
+            #check to see if device is connected
+            self.nmt_state = self.read(TH_COMMAND_INDEX, 0x5, "<I") #nmt_state
+            #read the state on bootup
+            self.get_status(TH_COMMAND_INDEX)
             cur_state = ""
             if self.nmt_state is not None:
                 self.notify_updated_state(self.nmt_state)
@@ -217,39 +205,10 @@ class ThrusterCommand:
                     cur_state = "Bootup - Init"
                 self.nmt_state_str = cur_state
                 print("System Controller Connected!")
-
-        except Exception as a:
-            print(traceback.print_exc())
-
-    def notify_bootup(self, can_id, data, timestamp):
-        self.bootup_msg = True
-
-    def load_eds_file(self):
-        """
-        load_eds_file, gathers all of the eds objects
-        """
-        for obj in self.node.object_dictionary.values():
-            print('0x%X: %s' % (obj.index, obj.name))
-            if isinstance(obj, canopen.objectdictionary.Record):
-                for subobj in obj.values():
-                    print('  %d: %s' % (subobj.subindex, subobj.name))
-
-    def get_var(self, index_str, subindex_str) -> {}:
-        """
-        get_var takes in a str index and subindex and returns an int index and subindex.
-        """
-        index = None
-        subindex = None
-        try:
-            var = self.node.object_dictionary.get_variable(index_str, subindex_str)
-            if var is None:
-                print(f"Error Not found.  Check if {index_str} and {subindex_str} are in the eds file.")
             else:
-                index = var.index
-                subindex = var.subindex
-        except KeyError as e:
-            print(e)
-        return {"index": index, "subindex": subindex}
+                sys.exit(1)
+        except Exception as a:
+            print(a)
 
     def notify_updated_state(self, state):
         """
@@ -299,8 +258,8 @@ class ThrusterCommand:
         """
         handle_emcy, on emcy msg this function prints the error to console and udp port
         """
-        message = f"EMCYTimestamp: {error.timestamp}, EMCYCode: {error.code}," \
-                  f" EMCYData: {error.data}"
+        message = f"EMCYTimestamp: {error.timestamp}, EMCYCode: {error.code},"\
+        f" EMCYData: {error.data}"
         self.send_udp_packet(message, STATUS_UDP_IP, STATUS_UDP_PORT)
         print(message)
 
@@ -371,7 +330,7 @@ class ThrusterCommand:
         """
         while getattr(self, "status_console_run"):
             self.status_console_lock.acquire()
-            status = self.get_status(self.th_command_index, False)
+            status = self.get_status(TH_COMMAND_INDEX, False)
             self.status_console_lock.release()
             time.sleep(STATUS_CONSOLE_PRINT_DELAY)
 
@@ -383,29 +342,26 @@ class ThrusterCommand:
             print("Starting Query Thread")
         while getattr(self, "thread_run"):
             if self.nmt_state != "Stopped":
-                statuses = self.get_status(self.th_command_index, True)
+                statuses = self.get_status(TH_COMMAND_INDEX, True)
                 if statuses[2] is not None:
                     self.notify_updated_state(int(statuses[2], 16))
                     self.get_trace_msg()
-                    self.gather_hsi_msgs()
-            time.sleep(TRACE_SLEEP_TIME)
+                    self.get_hsi_msgs()
 
-    def gather_hsi_msgs(self):
+    def get_hsi_msgs(self):
         """
-        gather_hsi_msgs, this gathers hsi messages and sends it over udp, runs in thread.
+        get_hsi_msgs, this gathers hsi messages and sends it over udp, runs in thread.
         """
         for a in self.hsi.items():
-            #if in pre-op ignore other hsi messages
-            item_name = a[0]
-            if self.state_status == '0x0' and "hk" not in item_name:
-                continue
             item_name = a[0]
             index = a[1].get("index")
             subindex = a[1].get("subindex")
-            val = self.read(index, subindex, "<H")
-            var = self.get_var(index, subindex)
+            type = a[1].get("type")
+            if type is None:
+                type = "<H"
+            val = self.read(index, subindex, type)
             if val is not None:
-                msg = f"{item_name.ljust(10, ' ')}:index:{hex(var.get('index'))}:subindex:{hex(var.get('subindex'))}:val:{val}"
+                msg = f"{item_name.ljust(10, ' ')}:index:{hex(index)}:subindex:{hex(subindex)}:val:{val}"
                 self.send_udp_packet(msg, HSI_UDP_IP, UDP_HSI_PORT)
         time.sleep(HSI_SLEEP_TIME)
 
@@ -425,18 +381,10 @@ class ThrusterCommand:
         get_write_value, looks for a default value and if one is found just writes it, otherwise its prompts the user
         for a hex value to write.
         """
-
         index = args.get("index")
         subindex = args.get("subindex")
         python_type = args.get("type")
         default = args.get("default")
-
-        if type(index) is str and type(subindex) is str:
-            var = self.get_var(index, subindex)
-            index = var.get("index")
-            subindex = var.get("subindex")
-
-
         valid = False
         if index != None and subindex != None and python_type != None:
             if default is not None:  # if we have a default value just write it and dont prompt user.
@@ -458,7 +406,7 @@ class ThrusterCommand:
         """
         try:
             self.write_mutex.acquire()
-            if self.nmt_state != 0x4:  # check to see if stopped
+            if self.nmt_state != 0x4: #check to see if stopped
                 int_val = int(val, 16)
                 val = struct.pack(python_type, int_val)
                 self.node.sdo.download(index, subindex,
@@ -481,17 +429,10 @@ class ThrusterCommand:
         """
         index = args.get("index")
         subindex = args.get("subindex")
-
-        # get var from eds file
-
         in_val = self.read(index, subindex, "<I")
         print({f"Query:{hex(index)}-{hex(subindex)}: {hex(in_val)}"})
 
     def read(self, index, subindex, python_type, show_failure=True):
-        if type(index) is str and type(subindex) is str:
-            var = self.get_var(index, subindex)
-            index = var.get("index")
-            subindex = var.get("subindex")
         inp = ""
         valid = False
         if index != None and subindex != None:
@@ -525,21 +466,21 @@ class ThrusterCommand:
         """
         try:
             for i in range(0, TRACE_MSG_GATHER_CNT):
-                msg = self.read(self.trace_msg_index, TRACE_MSG_SUBINDEX, "noparse", False)
+                msg = self.read(TRACE_MSG_INDEX, TRACE_MSG_SUBINDEX, "noparse", False)
                 if msg is not None:
                     self.send_udp_packet(msg, STATUS_UDP_IP, STATUS_UDP_PORT)
         except Exception as e:
             # ran out of msgs to get
             None
 
-    def send_udp_packet(self, msg, ip, port):
+    def send_udp_packet(self, msg, ip,port):
         """send_udp_packet, sends a packet locally and to a specified other network host as well."""
         now = datetime.datetime.now()
         time_string = now.strftime("%Y_%m_%d_%H_%M_%S.%f")
         msg = f"{time_string}:{msg}".strip()
         if ip != "127.0.0.1":
-            self.trace_sock.sendto(bytes(msg, "ascii"), ("127.0.0.1", port))  # redirect local as well
-        self.trace_sock.sendto(bytes(msg, "ascii"), (ip, port))
+            self.trace_sock.sendto(bytes(msg, "ascii"), ("127.0.0.1",port)) # redirect local as well
+        self.trace_sock.sendto(bytes(msg, "ascii"), (ip,port))
 
     def console(self):
         """
@@ -579,18 +520,14 @@ class ThrusterCommand:
         self.thread_run = False
         self.running = False
 
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description='Controls and Queries the Thruster Command on the Engine System Control Processor.')
     parser.add_argument('--listen', action='store', type=str, help='sends requests to udp port.')
-    parser.add_argument('serial_port', action='store', type=str,
-                        help='The Serial Port to use for RS485, or use can to select the pcan',
-                        default="/dev/ttyUSB0")
     parser.add_argument('system_id', action='store', type=str, help='The System Id for the connection usually 0x22.',
                         default=0x22)
-    parser.add_argument('eds_file', action='store', type=str, help='The eds file used for communication.',
-                        default="eds_file.eds")
+    parser.add_argument('serial_port', action='store', type=str, help='The Serial Port to use for RS485, or use can to select the pcan',
+                        default="/dev/ttyUSB0")
     parser.add_argument('--debug', action='store_true', help='enable debug mode.')
     parser.add_argument('--hsi', action='store', help='Overrides localhost hsi target.', default="127.0.0.1")
     args = parser.parse_args()
@@ -617,9 +554,6 @@ if __name__ == "__main__":
         print("Available Serial Ports:")
         for p in ports:
             print(p.name)
-    # look for eds file
-    elif not exists(args.eds_file):
-        print(f"EDS file {args.eds_file} not found.")
     else:
         listen_mode = False
         debug = False
@@ -629,8 +563,5 @@ if __name__ == "__main__":
             debug = True
         if args.hsi:
             HSI_UDP_IP = args.hsi
-        thrus_cmd = ThrusterCommand(id, args.serial_port, args.eds_file, listen_mode, debug)
-        try:
-            thrus_cmd.console()
-        except Exception as e:
-            print(traceback.print_tb())
+        thrus_cmd = ThrusterCommand(id, args.serial_port, listen_mode, debug)
+        thrus_cmd.console()
