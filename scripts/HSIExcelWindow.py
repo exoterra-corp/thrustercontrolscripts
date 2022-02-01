@@ -124,4 +124,8 @@ class HSIExcelWindow(HSIExcelFrame):
         self.grid.SetCellValue(row, 2, "repair_stat")
 
     def write_display(self, row, col, val):
-        self.grid.SetCellValue(row, col, val)
+        try:
+            self.grid.SetCellValue(row, col, str(val))
+        except Exception as e:
+            print(f"{e}")
+            print(row,col, val)

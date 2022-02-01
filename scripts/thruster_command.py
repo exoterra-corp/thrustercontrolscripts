@@ -87,35 +87,104 @@ class HSIDefs:
             "mi_msg_cnt": {"index": self.mag_outer_index, "subindex": "ADC4", "type": "<H", "row": 10, "col": 4},
             "mi_can_err": {"index": self.mag_outer_index, "subindex": "ADC5", "type": "<H", "row": 10, "col": 5},
 
-            "vo_anode_v": {"index": self.valves_index, "subindex": "ADC0", "type": "<H", "row": 13, "col": 0x0},
-            "vo_cath_hf_v": {"index": self.valves_index, "subindex": "ADC1", "type": "<H", "row": 13, "col": 0x1},
-            "vo_cath_lf_v": {"index": self.valves_index, "subindex": "ADC2", "type": "<H", "row": 13, "col": 0x2},
-            "vo_temp": {"index": self.valves_index, "subindex": "ADC3", "type": "<H", "row": 13, "col": 0x3},
+            "vo_anode_v": {"index": self.valves_index, "subindex": "ADC0", "type": "<H", "row": 13, "col": 0},
+            "vo_cath_hf_v": {"index": self.valves_index, "subindex": "ADC1", "type": "<H", "row": 13, "col": 1},
+            "vo_cath_lf_v": {"index": self.valves_index, "subindex": "ADC2", "type": "<H", "row": 13, "col": 2},
+            "vo_temp": {"index": self.valves_index, "subindex": "ADC3", "type": "<H", "row": 13, "col": 3},
             # signed 32bit
-            "vo_tank_pressure": {"index": self.valves_index, "subindex": "ADC4", "type": "<H", "row": 13, "col": 0x4},
+            "vo_tank_pressure": {"index": self.valves_index, "subindex": "ADC4", "type": "<H", "row": 13, "col": 4},
             # 32bit
             "vo_cathode_pressure": {"index": self.valves_index, "subindex": "ADC5", "type": "<H", "row": 13,
-                                    "col": 0x5},
-            "vo_anode_pressure": {"index": self.valves_index, "subindex": "ADC6", "type": "<H", "row": 13, "col": 0x6},
-            "vo_reg_pressure": {"index": self.valves_index, "subindex": "ADC7", "type": "<H", "row": 13, "col": 0x7},
-            "vo_msg_cnt": {"index": self.valves_index, "subindex": "ADC8", "type": "<H", "row": 13, "col": 0x8},
-            "vo_can_err": {"index": self.valves_index, "subindex": "ADC9", "type": "<H", "row": 13, "col": 0x9},
+                                    "col": 5},
+            "vo_anode_pressure": {"index": self.valves_index, "subindex": "ADC6", "type": "<H", "row": 13, "col": 6},
+            "vo_reg_pressure": {"index": self.valves_index, "subindex": "ADC7", "type": "<H", "row": 13, "col": 7},
+            "vo_msg_cnt": {"index": self.valves_index, "subindex": "ADC8", "type": "<H", "row": 13, "col": 8},
+            "vo_can_err": {"index": self.valves_index, "subindex": "ADC9", "type": "<H", "row": 13, "col": 9},
 
-            "current_28v": {"index": self.hk_index, "subindex": "ADC0", "type": "<H", "row": 16, "col": 0x0},
-            "sense_14v": {"index": self.hk_index, "subindex": "ADC1", "type": "<H", "row": 16, "col": 0x1},
-            "current_14v": {"index": self.hk_index, "subindex": "ADC2", "type": "<H", "row": 16, "col": 0x2},
-            "sense_7a": {"index": self.hk_index, "subindex": "ADC3", "type": "<H", "row": 16, "col": 0x3},
-            "current_7a": {"index": self.hk_index, "subindex": "ADC4", "type": "<H", "row": 16, "col": 0x4},
+            "hk_mA_28V": {"index": self.hk_index, "subindex": "ADC0", "type": "<H", "row": 16, "col": 0},
+            "hk_mV_14V": {"index": self.hk_index, "subindex": "ADC1", "type": "<H", "row": 16, "col": 1},
+            "hk_mA_14V": {"index": self.hk_index, "subindex": "ADC2", "type": "<H", "row": 16, "col": 2},
+            "hk_mV_7VA": {"index": self.hk_index, "subindex": "ADC3", "type": "<H", "row": 16, "col": 3},
+            "hk_mA_7VA": {"index": self.hk_index, "subindex": "ADC4", "type": "<H", "row": 16, "col": 4},
 
-            "count_meccemsb": {"index": self.hk_index, "subindex": "ADC0", "type": "<H", "row": 19, "col": 0x0},
-            "count_ueccemsb": {"index": self.hk_index, "subindex": "ADC1", "type": "<H", "row": 19, "col": 0x1},
-            "count_meccelsb": {"index": self.hk_index, "subindex": "ADC2", "type": "<H", "row": 19, "col": 0x2},
-            "count_ueccelsb": {"index": self.hk_index, "subindex": "ADC3", "type": "<H", "row": 19, "col": 0x3},
+            "count_meccemsb": {"index": self.hk_index, "subindex": "ADC0", "type": "<H", "row": 19, "col": 0},
+            "count_ueccemsb": {"index": self.hk_index, "subindex": "ADC1", "type": "<H", "row": 19, "col": 1},
+            "count_meccelsb": {"index": self.hk_index, "subindex": "ADC2", "type": "<H", "row": 19, "col": 2},
+            "count_ueccelsb": {"index": self.hk_index, "subindex": "ADC3", "type": "<H", "row": 19, "col": 3},
 
-            # "region_stat": {"index": self.hk_index, "subindex": "ADC0", "type": "<I", "row": 22, "col": 0x0},
-            # "failed_repairs": {"index": self.hk_index, "subindex": "ADC1", "type": "<I", "row": 22, "col": 0x1},
-            # "repair_stat": {"index": self.hk_index, "subindex": "ADC2", "type": "<I", "row": 22, "col": 0x2},
+            "region_stat": {"index": self.hk_index, "subindex": "ADC0", "type": "<I", "row": 22, "col": 0},
+            "failed_repairs": {"index": self.hk_index, "subindex": "ADC1", "type": "<I", "row": 22, "col": 1},
+            "repair_stat": {"index": self.hk_index, "subindex": "ADC2", "type": "<I", "row": 22, "col": 2},
         }
+        self.block_hsi = [
+            # anode
+            {"name": "a_vx", "type": "<I", "hex": False},
+            {"name": "a_vy", "type": "<I", "hex": False},
+            {"name": "a_vout", "type": "<I", "hex": False},
+            {"name": "a_iout", "type": "<H", "hex": False},
+            {"name": "a_dac", "type": "<H", "hex": False},
+            {"name": "a_hstemp", "type": "<H", "hex": False},
+            {"name": "a_lasterr", "type": "<H", "hex": False},
+            {"name": "a_current_oft", "type": "<H", "hex": False},
+            {"name": "a_msg_cnt", "type": "<H", "hex": False},
+            {"name": "a_can_err", "type": "<H", "hex": False},
+
+            # keeper
+            {"name": "k_sepic_v", "type": "<I", "hex": False},
+            {"name": "k_v_in", "type": "<H", "hex": False},
+            {"name": "k_i_out", "type": "<H", "hex": False},
+            {"name": "k_dac_out", "type": "<H", "hex": False},
+            {"name": "k_last_error", "type": "<H", "hex": False},
+            {"name": "k_cur_oft", "type": "<H", "hex": False},
+            {"name": "k_msg_cnt", "type": "<H", "hex": False},
+            {"name": "k_can_err", "type": "<H", "hex": False},
+
+            # magnet
+            {"name": "mo_v_out", "type": "<H", "hex": False},
+            {"name": "mo_i_out", "type": "<H", "hex": False},
+            {"name": "mo_dac_out", "type": "<H", "hex": False},
+            {"name": "mo_last_err", "type": "<H", "hex": False},
+            {"name": "mo_msg_cnt", "type": "<H", "hex": False},
+            {"name": "mo_can_err", "type": "<H", "hex": False},
+
+            #magnet inner
+            {"name": "mi_v_out", "type": "<H", "hex": False},
+            {"name": "mi_i_out", "type": "<H", "hex": False},
+            {"name": "mi_dac_out", "type": "<H", "hex": False},
+            {"name": "mi_last_err", "type": "<H", "hex": False},
+            {"name": "mi_msg_cnt", "type": "<H", "hex": False},
+            {"name": "mi_can_err", "type": "<H", "hex": False},
+
+            # valves
+            {"name": "v_anode_v", "type": "<H", "hex": False},
+            {"name": "v_cathode_hf_v", "type": "<H", "hex": False},
+            {"name": "v_cathode_lf_v", "type": "<H", "hex": False},
+            {"name": "v_temperature", "type": "<I", "hex": False},
+            {"name": "v_tank_pressure", "type": "<I", "hex": False},
+            {"name": "v_cathode_pressure", "type": "<H", "hex": False},
+            {"name": "v_anode_pressure", "type": "<H", "hex": False},
+            {"name": "v_regulator_pressure", "type": "<H", "hex": False},
+            {"name": "v_msg_cnt", "type": "<H", "hex": False},
+            {"name": "v_can_errr", "type": "<H", "hex": False},
+
+            # hk mem
+            {"name": "hk_mA_28V", "type": "<H", "hex": False},
+            {"name": "hk_mV_14V", "type": "<H", "hex": False},
+            {"name": "hk_mA_14V", "type": "<H", "hex": False},
+            {"name": "hk_mV_7VA", "type": "<H", "hex": False},
+            {"name": "hk_mA_7VA", "type": "<H", "hex": False},
+
+            # efc
+            {"name": "count_meccemsb", "type": "<H", "hex": True},
+            {"name": "count_ueccemsb", "type": "<H", "hex": True},
+            {"name": "count_meccelsb", "type": "<H", "hex": True},
+            {"name": "count_ueccelsb", "type": "<H", "hex": True},
+
+            # sys-mem
+            {"name": "region_stat", "type": "<I", "hex": True},
+            {"name": "failed_repairs", "type": "<I", "hex": True},
+            {"name": "repair_stat", "type": "<I", "hex": True},
+        ]
 
 
 class MrLogger():
@@ -279,6 +348,7 @@ class ThrusterCommand:
         self.version = "0.0.7"
         self.serial_port = ser_port
         self.eds_file = eds_file
+        self.hsi_defs = HSIDefs()
         # main loop control
         self.running = True
         # thread control
@@ -553,15 +623,14 @@ class ThrusterCommand:
                     self.notify_updated_state(int(statuses[2], 16))
                     self.get_trace_msg()
                     self.get_block_hsi()
-                    self.get_hsi_msgs()
+                    # self.get_hsi_msgs()
             time.sleep(TRACE_SLEEP_TIME)
 
     def get_hsi_msgs(self):
         """
         get_hsi_msgs, this gathers hsi messages and sends it over udp, runs in thread.
         """
-        hsi_defs = HSIDefs()
-        for a in hsi_defs.hsi.items():
+        for a in self.hsi_defs.hsi.items():
             item_name = a[0]
             index = a[1].get("index")
             subindex = a[1].get("subindex")
@@ -584,91 +653,21 @@ class ThrusterCommand:
     def query_block_hsi(self, args):
         index = args.get("index")
         subindex = args.get("subindex")
-        block_hsi = [
-            # anode
-            {"name": "anode_vx", "type": "<I", "hex": False},
-            {"name": "anode_vy", "type": "<I", "hex": False},
-            {"name": "anode_vout", "type": "<I", "hex": False},
-            {"name": "anode_iout", "type": "<H", "hex": False},
-            {"name": "anode_dac", "type": "<H", "hex": False},
-            {"name": "anode_hstemp", "type": "<H", "hex": False},
-            {"name": "anode_lasterr", "type": "<H", "hex": False},
-            {"name": "anode_current_oft", "type": "<H", "hex": False},
-            {"name": "anode_msg_cnt", "type": "<H", "hex": False},
-            {"name": "anode_can_err", "type": "<H", "hex": False},
-
-            # keeper
-            {"name": "keeper_sepic_v", "type": "<I", "hex": False},
-            {"name": "keeper_v_in", "type": "<H", "hex": False},
-            {"name": "keeper_i_out", "type": "<H", "hex": False},
-            {"name": "keeper_dac_out", "type": "<H", "hex": False},
-            {"name": "keeper_last_error", "type": "<H", "hex": False},
-            {"name": "keeper_current_oft", "type": "<H", "hex": False},
-            {"name": "keeper_msg_cnt", "type": "<H", "hex": False},
-            {"name": "keeper_can_err", "type": "<H", "hex": False},
-
-            # magnet
-            {"name": "magnet_o_v_out", "type": "<H", "hex": False},
-            {"name": "magnet_o_i_out", "type": "<H", "hex": False},
-            {"name": "magnet_o_dac_out", "type": "<H", "hex": False},
-            {"name": "magnet_o_last_err", "type": "<H", "hex": False},
-            {"name": "magnet_o_msg_cnt", "type": "<H", "hex": False},
-            {"name": "magnet_o_can_err", "type": "<H", "hex": False},
-
-            #magnet inner
-            {"name": "magnet_i_v_out", "type": "<H", "hex": False},
-            {"name": "magnet_i_i_out", "type": "<H", "hex": False},
-            {"name": "magnet_i_dac_out", "type": "<H", "hex": False},
-            {"name": "magnet_i_last_err", "type": "<H", "hex": False},
-            {"name": "magnet_i_msg_cnt", "type": "<H", "hex": False},
-            {"name": "magnet_i_can_err", "type": "<H", "hex": False},
-
-            # valves
-            {"name": "valves_anode_v", "type": "<H", "hex": False},
-            {"name": "valves_cathode_hf_v", "type": "<H", "hex": False},
-            {"name": "valves_cathode_lf_v", "type": "<H", "hex": False},
-            {"name": "valves_temperature", "type": "<I", "hex": False},
-            {"name": "valves_tank_pressure", "type": "<I", "hex": False},
-            {"name": "valves_cathode_pressure", "type": "<H", "hex": False},
-            {"name": "valves_anode_pressure", "type": "<H", "hex": False},
-            {"name": "valves_regulator_pressure", "type": "<H", "hex": False},
-            {"name": "valves_msg_cnt", "type": "<H", "hex": False},
-            {"name": "valves_can_errr", "type": "<H", "hex": False},
-
-            # hk mem
-            {"name": "hk_mA_28V", "type": "<H", "hex": False},
-            {"name": "hk_mV_14V", "type": "<H", "hex": False},
-            {"name": "hk_mA_14V", "type": "<H", "hex": False},
-            {"name": "hk_mV_7VA", "type": "<H", "hex": False},
-            {"name": "hk_mA_7VA", "type": "<H", "hex": False},
-
-            # efc
-            {"name": "count_meccemsb", "type": "<H", "hex": True},
-            {"name": "count_ueccemsb", "type": "<H", "hex": True},
-            {"name": "count_meccelsb", "type": "<H", "hex": True},
-            {"name": "count_ueccelsb", "type": "<H", "hex": True},
-
-            # sysmem
-            {"name": "region_stat", "type": "<I", "hex": True},
-            {"name": "failed_repairs", "type": "<I", "hex": True},
-            {"name": "repair_stat", "type": "<I", "hex": True},
-        ]
         try:
             # loop through it once generate the string and then loop over it again to print it out
             parse_str = "<"
-            for v in block_hsi:
+            for v in self.hsi_defs.block_hsi:
                 parse_str += v.get("type").replace("<", "")
             data = self.node.sdo.upload(index, subindex)
-            if len(data) % 2 == 0:
-                raw_vals = struct.unpack_from(parse_str, data)
-                # "<IIIH HHHH HH HHH HHH HH HH HH HH HHHH HHHH HH HHHHH HHHH III", data)
-                for i,value in enumerate(block_hsi):
-                    name = value.get("name")
-                    hex_en = value.get("hex")
-                    parsed_val = raw_vals[i]
-                    if hex_en:
-                        parsed_val = hex(parsed_val)
-                    self.mr_logger.log(self.mr_logger.SYS,f"{name} - {parsed_val}")
+            # if len(data) % 2 == 0:
+            raw_vals = struct.unpack_from(parse_str, data)
+            for i,value in enumerate(self.hsi_defs.block_hsi):
+                name = value.get("name")
+                hex_en = value.get("hex")
+                parsed_val = raw_vals[i]
+                if hex_en:
+                    parsed_val = hex(parsed_val)
+                self.mr_logger.log(self.mr_logger.SYS,f"{name} - {parsed_val}")
             else:
                 self.mr_logger.log(self.mr_logger.SYS, f"Cant parse the bytearray because its not divisable by 2.  Len Data: {len(data)}")
         except canopen.sdo.exceptions.SdoCommunicationError as comms_err: \
