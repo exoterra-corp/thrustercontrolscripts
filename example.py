@@ -22,8 +22,9 @@ class SEQ_STATUS(Enum):
     SEQ_STAT_ABORTED    = 4
     SEQ_STAT_SUCCESS    = 5
 
-class THRUSTER_CMD(Enum):
+class THRUSTER_CMD_STATE(Enum):
     OPERATIONAL = 0x1
+    OPERATIONAL_RESP = 0x8
     PRE_OPERATIONAL = 0x80
     INIT = 0x81
 
@@ -35,7 +36,7 @@ class Example:
             # self.port = "/dev/ttyUSB0"
             self.port = "COM3"
             self.nmt_state = 0
-            self.wait_attempts = 5
+            self.wait_attempts = 15
 
             #create a network
             self.network = Network()
@@ -60,7 +61,7 @@ class Example:
             #read nmt state of the PPU
             #Index: Thruster Command - Subindex: Status in the eds file.
             attempts = 0
-            while (self.nmt_state != THRUSTER_CMD.OPERATIONAL) and (attempts < self.wait_attempts):
+            while (self.nmt_state != THRUSTER_CMD_STATE.OPERATIONAL_RESP) and (attempts < self.wait_attempts):
                 print(f"Checking NMT State attempt nmt_state {self.nmt_state} - {attempts} <  attempt Max:{self.wait_attempts}.")
                 self.nmt_state = self.node.sdo.upload(0x4000, 0x5)
                 self.nmt_state = struct.unpack("<I",self.nmt_state)[0]
