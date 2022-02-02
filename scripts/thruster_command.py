@@ -37,7 +37,7 @@ TRACE_MSG_MAX_GATHER = 2
 
 HSI_STATUS_IP = "127.0.0.1"
 HSI_UDP_PORT = 4001
-HSI_BLOCK_UDP_PORT = 4003
+HSI_BLOCK_UDP_PORT = 4004
 HSI_SLEEP_TIME = 0
 
 RAW_UDP_IP = "127.0.0.1"
@@ -64,42 +64,42 @@ class HSIDefs:
             "a_msg_cnt": {"index": self.anode_index, "subindex": "ADC8", "type": "<H", "row": 4, "col": 0x8},
             "a_can_err": {"index": self.anode_index, "subindex": "ADC9", "type": "<H", "row": 4, "col": 0x9},
 
-            "k_vsepic": {"index": self.keeper_index, "subindex": "ADC0", "type": "<H", "row": 1, "col": 0x0},  # 32bit
-            "k_vin": {"index": self.keeper_index, "subindex": "ADC1", "type": "<H", "row": 1, "col": 0x1},  # 32bit
-            "k_iout": {"index": self.keeper_index, "subindex": "ADC2", "type": "<H", "row": 1, "col": 0x2},
-            "k_dacout": {"index": self.keeper_index, "subindex": "ADC3", "type": "<H", "row": 1, "col": 0x3},
-            "k_lasterr": {"index": self.keeper_index, "subindex": "ADC4", "type": "<H", "row": 1, "col": 0x4},
+            "k_v_sepic": {"index": self.keeper_index, "subindex": "ADC0", "type": "<H", "row": 1, "col": 0x0},  # 32bit
+            "k_v_in": {"index": self.keeper_index, "subindex": "ADC1", "type": "<H", "row": 1, "col": 0x1},  # 32bit
+            "k_i_out": {"index": self.keeper_index, "subindex": "ADC2", "type": "<H", "row": 1, "col": 0x2},
+            "k_dac_out": {"index": self.keeper_index, "subindex": "ADC3", "type": "<H", "row": 1, "col": 0x3},
+            "k_last_err": {"index": self.keeper_index, "subindex": "ADC4", "type": "<H", "row": 1, "col": 0x4},
             "k_cur_oft": {"index": self.keeper_index, "subindex": "ADC5", "type": "<H", "row": 1, "col": 0x5},
             "k_msg_cnt": {"index": self.keeper_index, "subindex": "ADC6", "type": "<H", "row": 1, "col": 0x6},
             "k_can_err": {"index": self.keeper_index, "subindex": "ADC7", "type": "<H", "row": 1, "col": 0x7},
 
-            "mo_vout": {"index": self.mag_inner_index, "subindex": "ADC0", "type": "<H", "row": 7, "col": 0},
-            "mo_iout": {"index": self.mag_inner_index, "subindex": "ADC1", "type": "<H", "row": 7, "col": 1},
+            "mo_v_out": {"index": self.mag_inner_index, "subindex": "ADC0", "type": "<H", "row": 7, "col": 0},
+            "mo_i_out": {"index": self.mag_inner_index, "subindex": "ADC1", "type": "<H", "row": 7, "col": 1},
             "mo_dac_out": {"index": self.mag_inner_index, "subindex": "ADC2", "type": "<H", "row": 7, "col": 2},
             "mo_last_err": {"index": self.mag_inner_index, "subindex": "ADC3", "type": "<H", "row": 7, "col": 3},
             "mo_msg_cnt": {"index": self.mag_inner_index, "subindex": "ADC4", "type": "<H", "row": 7, "col": 4},
             "mo_can_err": {"index": self.mag_inner_index, "subindex": "ADC5", "type": "<H", "row": 7, "col": 5},
 
-            "mi_vout": {"index": self.mag_outer_index, "subindex": "ADC0", "type": "<H", "row": 10, "col": 0},
-            "mi_iout": {"index": self.mag_outer_index, "subindex": "ADC1", "type": "<H", "row": 10, "col": 1},
+            "mi_v_out": {"index": self.mag_outer_index, "subindex": "ADC0", "type": "<H", "row": 10, "col": 0},
+            "mi_i_out": {"index": self.mag_outer_index, "subindex": "ADC1", "type": "<H", "row": 10, "col": 1},
             "mi_dac_out": {"index": self.mag_outer_index, "subindex": "ADC2", "type": "<H", "row": 10, "col": 2},
             "mi_last_err": {"index": self.mag_outer_index, "subindex": "ADC3", "type": "<H", "row": 10, "col": 3},
             "mi_msg_cnt": {"index": self.mag_outer_index, "subindex": "ADC4", "type": "<H", "row": 10, "col": 4},
             "mi_can_err": {"index": self.mag_outer_index, "subindex": "ADC5", "type": "<H", "row": 10, "col": 5},
 
-            "vo_anode_v": {"index": self.valves_index, "subindex": "ADC0", "type": "<H", "row": 13, "col": 0},
-            "vo_cath_hf_v": {"index": self.valves_index, "subindex": "ADC1", "type": "<H", "row": 13, "col": 1},
-            "vo_cath_lf_v": {"index": self.valves_index, "subindex": "ADC2", "type": "<H", "row": 13, "col": 2},
-            "vo_temp": {"index": self.valves_index, "subindex": "ADC3", "type": "<H", "row": 13, "col": 3},
+            "va_anode_v": {"index": self.valves_index, "subindex": "ADC0", "type": "<H", "row": 13, "col": 0},
+            "va_cathode_hf_v": {"index": self.valves_index, "subindex": "ADC1", "type": "<H", "row": 13, "col": 1},
+            "va_cathode_lf_v": {"index": self.valves_index, "subindex": "ADC2", "type": "<H", "row": 13, "col": 2},
+            "va_temperature": {"index": self.valves_index, "subindex": "ADC3", "type": "<H", "row": 13, "col": 3},
             # signed 32bit
-            "vo_tank_pressure": {"index": self.valves_index, "subindex": "ADC4", "type": "<H", "row": 13, "col": 4},
+            "va_tank_pressure": {"index": self.valves_index, "subindex": "ADC4", "type": "<H", "row": 13, "col": 4},
             # 32bit
-            "vo_cathode_pressure": {"index": self.valves_index, "subindex": "ADC5", "type": "<H", "row": 13,
+            "va_cathode_pressure": {"index": self.valves_index, "subindex": "ADC5", "type": "<H", "row": 13,
                                     "col": 5},
-            "vo_anode_pressure": {"index": self.valves_index, "subindex": "ADC6", "type": "<H", "row": 13, "col": 6},
-            "vo_reg_pressure": {"index": self.valves_index, "subindex": "ADC7", "type": "<H", "row": 13, "col": 7},
-            "vo_msg_cnt": {"index": self.valves_index, "subindex": "ADC8", "type": "<H", "row": 13, "col": 8},
-            "vo_can_err": {"index": self.valves_index, "subindex": "ADC9", "type": "<H", "row": 13, "col": 9},
+            "va_anode_pressure": {"index": self.valves_index, "subindex": "ADC6", "type": "<H", "row": 13, "col": 6},
+            "va_regulator_pressure": {"index": self.valves_index, "subindex": "ADC7", "type": "<H", "row": 13, "col": 7},
+            "va_msg_cnt": {"index": self.valves_index, "subindex": "ADC8", "type": "<H", "row": 13, "col": 8},
+            "va_can_err": {"index": self.valves_index, "subindex": "ADC9", "type": "<H", "row": 13, "col": 9},
 
             "hk_mA_28V": {"index": self.hk_index, "subindex": "ADC0", "type": "<H", "row": 16, "col": 0},
             "hk_mV_14V": {"index": self.hk_index, "subindex": "ADC1", "type": "<H", "row": 16, "col": 1},
@@ -123,18 +123,18 @@ class HSIDefs:
             {"name": "a_vout", "type": "<I", "hex": False},
             {"name": "a_iout", "type": "<H", "hex": False},
             {"name": "a_dac", "type": "<H", "hex": False},
-            {"name": "a_hstemp", "type": "<H", "hex": False},
-            {"name": "a_lasterr", "type": "<H", "hex": False},
-            {"name": "a_current_oft", "type": "<H", "hex": False},
+            {"name": "a_hs_temp", "type": "<H", "hex": False},
+            {"name": "a_last_err", "type": "<H", "hex": False},
+            {"name": "a_cur_oft", "type": "<H", "hex": False},
             {"name": "a_msg_cnt", "type": "<H", "hex": False},
             {"name": "a_can_err", "type": "<H", "hex": False},
 
             # keeper
-            {"name": "k_sepic_v", "type": "<I", "hex": False},
+            {"name": "k_v_sepic", "type": "<I", "hex": False},
             {"name": "k_v_in", "type": "<H", "hex": False},
             {"name": "k_i_out", "type": "<H", "hex": False},
             {"name": "k_dac_out", "type": "<H", "hex": False},
-            {"name": "k_last_error", "type": "<H", "hex": False},
+            {"name": "k_last_err", "type": "<H", "hex": False},
             {"name": "k_cur_oft", "type": "<H", "hex": False},
             {"name": "k_msg_cnt", "type": "<H", "hex": False},
             {"name": "k_can_err", "type": "<H", "hex": False},
@@ -156,16 +156,16 @@ class HSIDefs:
             {"name": "mi_can_err", "type": "<H", "hex": False},
 
             # valves
-            {"name": "v_anode_v", "type": "<H", "hex": False},
-            {"name": "v_cathode_hf_v", "type": "<H", "hex": False},
-            {"name": "v_cathode_lf_v", "type": "<H", "hex": False},
-            {"name": "v_temperature", "type": "<I", "hex": False},
-            {"name": "v_tank_pressure", "type": "<I", "hex": False},
-            {"name": "v_cathode_pressure", "type": "<H", "hex": False},
-            {"name": "v_anode_pressure", "type": "<H", "hex": False},
-            {"name": "v_regulator_pressure", "type": "<H", "hex": False},
-            {"name": "v_msg_cnt", "type": "<H", "hex": False},
-            {"name": "v_can_errr", "type": "<H", "hex": False},
+            {"name": "va_anode_v", "type": "<H", "hex": False},
+            {"name": "va_cathode_hf_v", "type": "<H", "hex": False},
+            {"name": "va_cathode_lf_v", "type": "<H", "hex": False},
+            {"name": "va_temperature", "type": "<I", "hex": False},
+            {"name": "va_tank_pressure", "type": "<I", "hex": False},
+            {"name": "va_cathode_pressure", "type": "<H", "hex": False},
+            {"name": "va_anode_pressure", "type": "<H", "hex": False},
+            {"name": "va_regulator_pressure", "type": "<H", "hex": False},
+            {"name": "va_msg_cnt", "type": "<H", "hex": False},
+            {"name": "va_can_err", "type": "<H", "hex": False},
 
             # hk mem
             {"name": "hk_mA_28V", "type": "<H", "hex": False},
@@ -648,7 +648,7 @@ class ThrusterCommand:
 
     def get_block_hsi(self):
         data = self.node.sdo.upload(0x3100, 0x1)
-        self.send_udp_packet(data, HSI_UDP_IP, HSI_BLOCK_UDP_PORT)
+        self.trace_sock.sendto(data, (HSI_UDP_IP, HSI_BLOCK_UDP_PORT))
 
     def query_block_hsi(self, args):
         index = args.get("index")

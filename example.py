@@ -74,6 +74,8 @@ class Example:
 
             #Set the PPU to run Ready Mode
             self.ready_mode = self.node.sdo.upload(0x4000, 0x1)
+            while (self. != THRUSTER_CMD_STATE.OPERATIONAL_RESP) and (attempts < self.wait_attempts):
+
 
             #check to see if the keeper sparks and the state is updated
             mode = SEQ_STATUS.SEQ_STAT_IDLE
