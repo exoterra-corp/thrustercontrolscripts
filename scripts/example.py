@@ -21,17 +21,18 @@ class NMT_STATE(Enum):
     GO_TO_INIT = 0x81
 
 class THRUSTER_STATE(Enum):
-    TCS_TRANISTION_STANDBY      = 0x7,  #Transitioning to Standby (NMT_OPERATIONAL)
-    TCS_STANDBY                 = 0x8,  #In Standby               (NMT_OPERATIONAL) 
-    TCS_TRANSITION_READY_MODE   = 0x9,  #Thruster Startup         (NMT_OPERATIONAL)   
-    TCS_READY_MODE              = 0xA,  #Ready Mode (Keeper On)   (NMT_OPERATIONAL) 
-    TCS_TRANSITION_STEADY_STATE = 0xB,  #Starting Anode           (NMT_OPERATIONAL) 
-    TCS_STEADY_STATE            = 0xC,  #Steady State (Anode On)  (NMT_OPERATIONAL) 
+    TCS_TRANISTION_STANDBY      = 0x7  #Transitioning to Standby (NMT_OPERATIONAL)
+    TCS_STANDBY                 = 0x8  #In Standby               (NMT_OPERATIONAL) 
+    TCS_TRANSITION_READY_MODE   = 0x9  #Thruster Startup         (NMT_OPERATIONAL)   
+    TCS_READY_MODE              = 0xA  #Ready Mode (Keeper On)   (NMT_OPERATIONAL) 
+    TCS_TRANSITION_STEADY_STATE = 0xB  #Starting Anode           (NMT_OPERATIONAL) 
+    TCS_STEADY_STATE            = 0xC  #Steady State (Anode On)  (NMT_OPERATIONAL) 
 
 THRUSTER_COMMAND_INDEX = 0x4000
 THRUSTER_COMMAND_SUBINDEX_READY_MODE = 0x1
 THRUSTER_COMMAND_SUBINDEX_STEADY_STATE = 0x2
-THRUSTER_COMMAND_SUBINDEX_STATUS = 0x5
+THRUSTER_COMMAND_SUBINDEX_STATE = 0x5
+SLEEP_TIME = 1
 
 class Example:
     def __init__(self, serial_port, ppu_system_id):
@@ -70,21 +71,21 @@ class Example:
             #waiting for the PPU to boot.
             print("waiting for boot msg...")
             while self.boot_msg == False:
-                time.sleep(1)
+                time.sleep(SLEEP_TIME)
             print("PPU Ready!")
 
             #change the nmt state of the PPU to OPERATIONAL and wait for Thruster_Standby.
             self.node.nmt.send_command(NMT_STATE.GO_TO_OPERATIONAL.value)
-            while (self.thruster_state != 8):
-                print(f"Transitioning to Standby. Thruster State: {self.thruster_state}", end="\r")
-                time.sleep(1)
-                self.thruster_state = self.node.sdo.upload(THRUSTER_COMMAND_INDEX, THRUSTER_COMMAND_SUBINDEX_STATUS)
+            while (self.thruster_state != THRUSTER_STATE.TCS_STANDBY.value):
+                time.sleep(SLEEP_TIME)
+                self.thruster_state = self.node.sdo.upload(THRUSTER_COMMAND_INDEX, THRUSTER_COMMAND_SUBINDEX_STATE)
                 self.thruster_state = struct.unpack("<I",self.thruster_state)[0]
+                print(f"Transitioning to Standby. Thruster State: {self.thruster_state}", end="\r")
 
             print(f"\nThruster State: {hex(self.thruster_state)}")
 
             if self.thruster_state != THRUSTER_STATE.TCS_STANDBY.value:
-                    print("Device Failed to got to Standby.")
+                    print("Device Failed to go to Standby.")
                     exit(1)
             else: 
                     print("Device is set to Standby.")
@@ -94,17 +95,20 @@ class Example:
             self.thruster_state = 0
             while (self.thruster_state != THRUSTER_STATE.TCS_READY_MODE.value) and \
                     (self.thruster_state != THRUSTER_STATE.TCS_STANDBY.value):
-                self.thruster_state = self.node.sdo.upload(THRUSTER_COMMAND_INDEX, THRUSTER_COMMAND_SUBINDEX_STATUS)
+                time.sleep(SLEEP_TIME)
+                self.thruster_state = self.node.sdo.upload(THRUSTER_COMMAND_INDEX, THRUSTER_COMMAND_SUBINDEX_STATE)
                 self.thruster_state = struct.unpack("<I", self.thruster_state)[0]
                 print(f"Transitioning to Ready Mode. Thruster State: {hex(self.thruster_state)}", end="\r")
-                time.sleep(1)
 
             print(f"\nThruster State: {hex(self.thruster_state)}")
             
             if self.thruster_state != THRUSTER_STATE.TCS_READY_MODE.value:
                 print("Device Failed to set to Ready Mode.")
-                #download the steady state status and print it
-                #return to pre-op
+                self.thruster_state = self.node.sdo.upload(THRUSTER_COMMAND_INDEX, THRUSTER_COMMAND_SUBINDEX_STATE)
+                self.thruster_state = struct.unpack("<I", self.thruster_state)[0]
+                print(f"\nThruster State: {hex(self.thruster_state)}")
+                self.node.nmt.send_command(NMT_STATE.GO_TO_PRE_OPERATIONAL.value)
+                exit(1)
             else:
                 print("Device is set to Ready Mode. ")
 
@@ -113,10 +117,10 @@ class Example:
             self.thruster_state = 0
             while (self.thruster_state != THRUSTER_STATE.TCS_STEADY_STATE.value) and \
                     (self.thruster_state != THRUSTER_STATE.TCS_STANDBY.value):
-                self.thruster_state = self.node.sdo.upload(THRUSTER_COMMAND_INDEX, THRUSTER_COMMAND_SUBINDEX_STATUS)
+                time.sleep(SLEEP_TIME)
+                self.thruster_state = self.node.sdo.upload(THRUSTER_COMMAND_INDEX, THRUSTER_COMMAND_SUBINDEX_STATE)
                 self.thruster_state = struct.unpack("<I", self.thruster_state)[0]
                 print(f"Transitioning to Steady State. Thruster State: {hex(self.thruster_state)}", end="\r")
-                time.sleep(1)
             
             print(f"\nThruster State: {hex(self.thruster_state)}")
             
@@ -130,11 +134,11 @@ class Example:
 
             while True:
                 print("Thruster in Steady State. Cntrl-c to shutdown and exit.", end="\r")
-                time.sleep(0.1)
+                time.sleep(SLEEP_TIME)
 
         except KeyboardInterrupt:
             print("\nDetected Cntrl-c Returning to Pre-Operational.")
-            self.node.nmt.send_command(NMT_STATE.GO_TO_PRE_OPERATIONAL)
+            self.node.nmt.send_command(NMT_STATE.GO_TO_PRE_OPERATIONAL.value)
             print("Sent NMT change state Pre-Operational.")
 
         except Exception as e:
