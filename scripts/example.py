@@ -8,44 +8,37 @@ contact:
 joshua.meyers@exoterracorp.com
 jeremy.mitchell@exoterracorp.com
 """
+
 import struct
-import time
+import time, traceback
 from sys import exit
 from canopen import Network
 from enum import Enum
 
-class SEQ_STATUS(Enum):
-    SEQ_STAT_IDLE       = 0
-    SEQ_STAT_QUEUED     = 1
-    SEQ_STAT_RUNNING    = 2
-    SEQ_STAT_ERROR      = 3
-    SEQ_STAT_ABORTED    = 4
-    SEQ_STAT_SUCCESS    = 5
-
 class NMT_STATE(Enum):
-    OPERATIONAL = 0x1
-    PRE_OPERATIONAL = 0x80
-    INIT = 0x81
+    GO_TO_OPERATIONAL = 0x1
+    GO_TO_PRE_OPERATIONAL = 0x80
+    GO_TO_INIT = 0x81
 
 class THRUSTER_STATE(Enum):
-    STANDBY = 8
-
-#go back to init
-##wait for bootup msg
-#operational
-#ready mode
-#steady state
+    TCS_TRANISTION_STANDBY      = 0x7,  #Transitioning to Standby (NMT_OPERATIONAL)
+    TCS_STANDBY                 = 0x8,  #In Standby               (NMT_OPERATIONAL) 
+    TCS_TRANSITION_READY_MODE   = 0x9,  #Thruster Startup         (NMT_OPERATIONAL)   
+    TCS_READY_MODE              = 0xA,  #Ready Mode (Keeper On)   (NMT_OPERATIONAL) 
+    TCS_TRANSITION_STEADY_STATE = 0xB,  #Starting Anode           (NMT_OPERATIONAL) 
+    TCS_STEADY_STATE            = 0xC,  #Steady State (Anode On)  (NMT_OPERATIONAL) 
 
 class Example:
-    def __init__(self):
+    def __init__(self, serial_port, ppu_system_id):
         try:
             #initalize variables
-            self.system_id = 0x22 #PPU ID
-            self.port = "/dev/ttyUSB0"
-            # self.port = "COM3"
+            self.system_id = ppu_system_id
+            self.port = serial_port
             self.thruster_state = 0
-            self.wait_attempts = 15
+            self.boot_msg = False
+            self.enable_val = bytearray(struct.pack("<I", 0x1))
 
+            start = time.time()
             #create a network
             self.network = Network()
             print("Created can Network.")
@@ -60,54 +53,92 @@ class Example:
 
             #add this node to the network object
             self.network.add_node(self.node)
-            print(f"Added {self.system_id} to canopen Network.")
+            print(f"Added {hex(self.system_id)} to canopen Network.")
 
-            #change the nmt state of the PPU to OPERATIONAL
+            #subscribe to bootup msg
+            self.network.subscribe(0x722, self.notify_bootup)
+
+            #send device Init, resets the PPU.
+            print("Resetting PPU.")
+            self.node.nmt.send_command(0x81)
+            
+            #waiting for the PPU to boot.
+            print("waiting for boot msg...")
+            while self.boot_msg == False:
+                time.sleep(1)
+            print("PPU Ready!")
+
+            #change the nmt state of the PPU to OPERATIONAL and wait for Thruster_Standby.
             self.node.nmt.send_command(0x1)
-            print("Sent NMT change state OPERATIONAL.")
-            #read nmt state of the PPU
-            #Index: Thruster Command - Subindex: Status in the eds file.
-            attempts = 0
-            while (self.thruster_state != 8) and (attempts < self.wait_attempts):
-                print(f"Checking Thruster State attempt thruster_state {self.thruster_state} - {attempts} <  attempt Max:{self.wait_attempts}.")
+            while (self.thruster_state != 8):
+                print(f"Transitioning to Standby. Thruster State: {self.thruster_state}", end="\r")
+                time.sleep(1)
                 self.thruster_state = self.node.sdo.upload(0x4000, 0x5)
                 self.thruster_state = struct.unpack("<I",self.thruster_state)[0]
-                attempts += 1
-                time.sleep(1)
+
+            print(f"\nThruster State: {hex(self.thruster_state)}")
 
             if self.thruster_state != 8:
-                    print("Device Failed to set to OPERATIONAL")
+                    print("Device Failed to got to Standby.")
                     exit(1)
-
-            #send steady state
-            #Set the PPU to run Ready Mode
-            self.ready_mode = self.node.sdo.download(0x4000, 0x1, 0x1)
-            attempts = 0
-            while (self.ready_mode > 3) and (attempts < self.wait_attempts):
-                self.ready_mode = self.node.sdo.upload(0x4000, 0x1)
-                self.ready_mode = struct.unpack("<I", self.ready_mode)[0]# unpack and get last byte
-                print(f"Ready Mode {self.ready_mode}")
-            print(self.ready_mode)
-            if self.ready_mode != 0xA:
-                print("Device Failed to set to READY MODE")
+            else: 
+                    print("Device is set to Standby.")
 
             #Set the PPU to run Ready Mode
-            self.steady_state = self.node.sdo.download(0x4000, 0x2, 0x1)
-            print(f"Device in Steady State {self.steady_state}")
-            #check to see if the keeper sparks and the state is updated
-            mode = 0
-            while mode > 3: #wait while qeued or running
-                mode = self.node.sdo.upload(0x4000, 0x2)
-                mode = struct.unpack("<I", mode)[0] #check to see if 3,4,5
-                print(f"Steady State {self.mode}")
+            self.node.sdo.download(0x4000, 0x1, self.enable_val) # set the device to ready_mode
+            self.thruster_state = 0
+            while (self.thruster_state != 0xA) and (self.thruster_state != 0x8):
+                self.thruster_state = self.node.sdo.upload(0x4000, 0x5)
+                self.thruster_state = struct.unpack("<I", self.thruster_state)[0]
+                print(f"Transitioning to Ready Mode. Thruster State: {hex(self.thruster_state)}", end="\r")
+                time.sleep(1)
+
+            print(f"\nThruster State: {hex(self.thruster_state)}")
+            
+            if self.thruster_state != 0xA:
+                print("Device Failed to set to Ready Mode.")
+                #download the steady state status and print it
+                #return to pre-op
+            else:
+                print("Device is set to Ready Mode. ")
+
+            #Set the PPU to run Steady State
+            self.node.sdo.download(0x4000, 0x2, self.enable_val)
+            self.thruster_state = 0
+            while (self.thruster_state != 0xC) and (self.thruster_state != 0xA):
+                self.thruster_state = self.node.sdo.upload(0x4000, 0x5)
+                self.thruster_state = struct.unpack("<I", self.thruster_state)[0]
+                print(f"Transitioning to Steady State. Thruster State: {hex(self.thruster_state)}", end="\r")
+                time.sleep(1)
+            
+            print(f"\nThruster State: {hex(self.thruster_state)}")
+            
+            if self.thruster_state != 0xC:
+                print(f"Device Failed to go into Steady State. {self.thruster_state}")
+            else:
+                print(f"Device in Steady State. {hex(self.thruster_state)}")
+            stop = time.time()
+
+            print(f"PPU took {stop - start} seconds from reset to steady state.")
+
+            while True:
+                print("Thruster in Steady State. Cntrl-c to shutdown and exit.", end="\r")
+                time.sleep(0.1)
 
         except KeyboardInterrupt:
-            print("Detected Cntrl-c going back to pre operational")
-            # self.node.nmt.send_command(0x80)
-            print("Sent NMT change state PRE-OPERATIONAL.")
+            print("\nDetected Cntrl-c Returning to Pre-Operational.")
+            self.node.nmt.send_command(0x80)
+            print("Sent NMT change state Pre-Operational.")
 
         except Exception as e:
+            print(traceback.format_exc())
             print(f"{e}")
+    
+    def notify_bootup(self, can_id, data, timestamp):
+        self.boot_msg = True
 
 if __name__ == "__main__":
-    e = Example()
+    serial_port = "/dev/ttyUSB0"
+    system_id = 0x22
+
+    e = Example(serial_port, system_id)
