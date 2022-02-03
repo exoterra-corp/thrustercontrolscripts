@@ -70,12 +70,13 @@ class Example:
 
             if self.wait_attempts >= 5:
                     print("Device Failed to set to OPERATIONAL")
-                    exit(1)
+                    # exit(1)
 
             #Set the PPU to run Ready Mode
-            self.ready_mode = self.node.sdo.upload(0x4000, 0x1)
-            while (self. != THRUSTER_CMD_STATE.OPERATIONAL_RESP) and (attempts < self.wait_attempts):
-
+            self.ready_mode = 0
+            while (self.ready_mode > 3) and (attempts < self.wait_attempts):
+                self.ready_mode = self.node.sdo.upload(0x4000, 0x1)
+                self.ready_mode = struct.unpack("<I", self.ready_mode)[0][-1:]  # unpack and get last byte
 
             #check to see if the keeper sparks and the state is updated
             mode = SEQ_STATUS.SEQ_STAT_IDLE
