@@ -159,7 +159,7 @@ class HSIDefs:
             {"name": "va_anode_v", "type": "<H", "hex": False},
             {"name": "va_cathode_hf_v", "type": "<H", "hex": False},
             {"name": "va_cathode_lf_v", "type": "<H", "hex": False},
-            {"name": "va_temperature", "type": "<I", "hex": False},
+            {"name": "va_temperature", "type": "<i", "hex": False},
             {"name": "va_tank_pressure", "type": "<I", "hex": False},
             {"name": "va_cathode_pressure", "type": "<H", "hex": False},
             {"name": "va_anode_pressure", "type": "<H", "hex": False},
