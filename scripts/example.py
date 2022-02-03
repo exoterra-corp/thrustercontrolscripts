@@ -65,7 +65,6 @@ class Example:
             #change the nmt state of the PPU to OPERATIONAL
             self.node.nmt.send_command(0x1)
             print("Sent NMT change state OPERATIONAL.")
-
             #read nmt state of the PPU
             #Index: Thruster Command - Subindex: Status in the eds file.
             attempts = 0
@@ -80,25 +79,27 @@ class Example:
                     print("Device Failed to set to OPERATIONAL")
                     exit(1)
 
+            #send steady state
             #Set the PPU to run Ready Mode
-            self.ready_mode = 0
+            self.ready_mode = self.node.sdo.download(0x4000, 0x1, 0x1)
             attempts = 0
             while (self.ready_mode > 3) and (attempts < self.wait_attempts):
                 self.ready_mode = self.node.sdo.upload(0x4000, 0x1)
-                self.ready_mode = struct.unpack("<I", self.ready_mode)[0][-1:]  # unpack and get last byte
+                self.ready_mode = struct.unpack("<I", self.ready_mode)[0]# unpack and get last byte
+                print(f"Ready Mode {self.ready_mode}")
             print(self.ready_mode)
             if self.ready_mode != 0xA:
                 print("Device Failed to set to READY MODE")
 
+            #Set the PPU to run Ready Mode
+            self.steady_state = self.node.sdo.download(0x4000, 0x2, 0x1)
+            print(f"Device in Steady State {self.steady_state}")
             #check to see if the keeper sparks and the state is updated
             mode = 0
             while mode > 3: #wait while qeued or running
-                mode = self.node.sdo.upload(0x4000, 0x1)
-                mode = struct.unpack("<I", mode) #check to see if 3,4,5
-
-            #Set the PPU to run Steady State
-            self.steady_state = self.node.sdo.upload(0x4000, 0x2)
-            print(f"Device in Steady State {self.steady_state}")
+                mode = self.node.sdo.upload(0x4000, 0x2)
+                mode = struct.unpack("<I", mode)[0] #check to see if 3,4,5
+                print(f"Steady State {self.mode}")
 
         except KeyboardInterrupt:
             print("Detected Cntrl-c going back to pre operational")
