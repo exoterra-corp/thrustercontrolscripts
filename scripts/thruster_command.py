@@ -215,7 +215,7 @@ class MrLogger():
         self.run = True
         self.handle_thread = Thread(target=self.handle_q, daemon=True)
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.sock.bind((RAW_UDP_IP, RAW_UDP_PORT))
+        #self.sock.bind((RAW_UDP_IP, RAW_UDP_PORT))
         self.network_handle_thread = Thread(target=self.handle_raw, daemon=True)
 
         self.handle_thread.start()
