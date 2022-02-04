@@ -1,9 +1,10 @@
 #!/usr/bin/python3
-import canopen, argparse, struct, time, sys, socket, traceback, datetime, wx
+import canopen, argparse, struct, time, sys, socket, traceback, datetime, os
 from canopen.nmt import NmtError, NMT_STATES
 from serial.tools import list_ports
 from threading import Thread, Lock
-
+from os.path import exists
+from queue import Queue
 
 """
 ExoTerra Resource Thruster Command Script.
@@ -32,8 +33,7 @@ TRACE_SLEEP_TIME = 0
 TRACE_MSG_MAX_GATHER = 2
 
 HSI_STATUS_IP = "127.0.0.1"
-HSI_UDP_PORT = 4001
-HSI_BLOCK_UDP_PORT = 4003
+HSI_BLOCK_UDP_PORT = 4001
 HSI_SLEEP_TIME = 0
 TRACE_MSG_GATHER_CNT = 2
 STATUS_CONSOLE_PRINT_DELAY = 1
@@ -213,7 +213,7 @@ class MrLogger():
         self.run = True
         self.handle_thread = Thread(target=self.handle_q, daemon=True)
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        #self.sock.bind((RAW_UDP_IP, RAW_UDP_PORT))
+        self.sock.bind((RAW_UDP_IP, RAW_UDP_PORT))
         self.network_handle_thread = Thread(target=self.handle_raw, daemon=True)
 
         self.handle_thread.start()
@@ -301,7 +301,7 @@ class MrLogger():
                     index = struct.unpack("<H", rx_bytes[4:6])[0]
                     subindex = rx_bytes[6]
                     if index == 0x5001 and subindex == 0x3:
-                        self.sock.sendto(data, (self.udp_ip, self.udp_port + 1))
+                        self.sock.sendto(data, (RAW_UDP_IP, 4001))
                     msg = f" id:{hex(cob_id)}: dl:{data_length}: d:{data.hex()}"
                     self.raw_log.write(f"[R:{time_string}]:{rx_bytes.hex()}:{msg}\n")
             else:
@@ -333,60 +333,8 @@ class ThrusterCommand:
     Contains function definitions for communicating with the ecp, and definitions on what indexes and sub-idxs to
     communicate with.
     """
-    hsi = {
-        "k_vsepic": {"index": KEEPER_INDEX, "subindex": 0x1, "row": 1, "col": 0x0},
-        "k_vin": {"index": KEEPER_INDEX, "subindex": 0x2, "row": 1, "col": 0x1},
-        "k_iout": {"index": KEEPER_INDEX, "subindex": 0x3,"row": 1, "col": 0x2},
-        "k_dacout": {"index": KEEPER_INDEX, "subindex": 0x4,"row": 1, "col": 0x3},
-        "k_lasterr": {"index": KEEPER_INDEX, "subindex": 0x5,"row": 1, "col": 0x4},
-        "k_cur_oft": {"index": KEEPER_INDEX, "subindex": 0x6,"row": 1, "col": 0x5},
-        "k_msg_cnt": {"index": KEEPER_INDEX, "subindex": 0x7,"row": 1, "col": 0x6},
-        "k_can_err": {"index": KEEPER_INDEX, "subindex": 0x8,"row": 1, "col": 0x7},
 
-        "a_vx": {"index": ANODE_INDEX, "subindex": 0x1,"row": 4, "col": 0x0},
-        "a_vy": {"index": ANODE_INDEX, "subindex": 0x2,"row": 4, "col": 0x1},
-        "a_vout": {"index": ANODE_INDEX, "subindex": 0x3,"row": 4, "col": 0x2},
-        "a_iout": {"index": ANODE_INDEX, "subindex": 0x4,"row": 4, "col": 0x3},
-        "a_dac": {"index": ANODE_INDEX, "subindex": 0x5,"row": 4, "col": 0x4},
-        "a_last_err": {"index": ANODE_INDEX, "subindex": 0x6,"row": 4, "col": 0x5},
-        "a_cur_oft": {"index": ANODE_INDEX, "subindex": 0x7,"row": 4, "col": 0x6},
-        "a_hs_temp": {"index": ANODE_INDEX, "subindex": 0x8,"row": 4, "col": 0x7},
-        "a_msg_cnt": {"index": ANODE_INDEX, "subindex": 0x9,"row": 4, "col": 0x8},
-        "a_can_err": {"index": ANODE_INDEX, "subindex": 0xA,"row": 4, "col": 0x9},
-
-        "mo_vout": {"index": MAG_INNER_INDEX, "subindex": 0x1,"row": 7, "col": 0},
-        "mo_iout": {"index": MAG_INNER_INDEX, "subindex": 0x2,"row": 7, "col": 1},
-        "mo_dac_out": {"index": MAG_INNER_INDEX, "subindex": 0x3,"row": 7, "col": 2},
-        "mo_last_err": {"index": MAG_INNER_INDEX, "subindex": 0x4,"row": 7, "col": 3},
-        "mo_msg_cnt": {"index": MAG_INNER_INDEX, "subindex": 0x5,"row": 7, "col": 4},
-        "mo_can_err": {"index": MAG_INNER_INDEX, "subindex": 0x6,"row": 7, "col": 5},
-
-        "mi_vout": {"index": MAG_OUTER_INDEX, "subindex": 0x1,"row": 10, "col": 0},
-        "mi_iout": {"index": MAG_OUTER_INDEX, "subindex": 0x2,"row": 10, "col": 1},
-        "mi_dac_out": {"index": MAG_OUTER_INDEX, "subindex": 0x3,"row": 10, "col": 2},
-        "mi_last_err": {"index": MAG_OUTER_INDEX, "subindex": 0x4,"row": 10, "col": 3},
-        "mi_msg_cnt": {"index": MAG_OUTER_INDEX, "subindex": 0x5,"row": 10, "col": 4},
-        "mi_can_err": {"index": MAG_OUTER_INDEX, "subindex": 0x6,"row": 10, "col": 5},
-
-        "vo_anode_v": {"index": VALVES_INDEX, "subindex": 0x1,"row": 13, "col": 0x0},
-        "vo_cath_hf_v": {"index": VALVES_INDEX, "subindex": 0x2,"row": 13, "col": 0x1},
-        "vo_cath_lf_v": {"index": VALVES_INDEX, "subindex": 0x3,"row": 13, "col": 0x2},
-        "vo_temp": {"index": VALVES_INDEX, "subindex": 0x4,"row": 13, "col": 0x3},
-        "vo_tank_pressure": {"index": VALVES_INDEX, "subindex": 0x5,"row": 13, "col": 0x4},
-        "vo_cathode_pressure": {"index": VALVES_INDEX, "subindex": 0x6,"row": 13, "col": 0x5},
-        "vo_anode_pressure": {"index": VALVES_INDEX, "subindex": 0x7,"row": 13, "col": 0x6},
-        "vo_reg_pressure": {"index": VALVES_INDEX, "subindex": 0x8,"row": 13, "col": 0x7},
-        "vo_msg_cnt": {"index": VALVES_INDEX, "subindex": 0x9,"row": 13, "col": 0x8},
-        "vo_can_err": {"index": VALVES_INDEX, "subindex": 0xA,"row": 13, "col": 0x9},
-	#not used in version 1.4.0
-        #"current_28v": {"index": HK_INDEX, "subindex": 0x1, "row": 16, "col": 0x0},
-        #"sense_14v": {"index": HK_INDEX, "subindex": 0x2, "row": 16, "col": 0x1},
-        #"current_14v": {"index": HK_INDEX, "subindex": 0x3, "row": 16, "col": 0x2},
-        #"sense_7a": {"index": HK_INDEX, "subindex": 0x4, "row": 16, "col": 0x3},
-        #"current_7a": {"index": HK_INDEX, "subindex": 0x5, "row": 16, "col": 0x4},
-    }
-
-    def __init__(self, ecp_id, ser_port, listen_mode, debug):
+    def __init__(self, ecp_id, ser_port, eds_file, listen_mode, debug, test_name):
         """
         __init__, sets up serial port and cmds definitions and launches the help menu.
         """
@@ -670,9 +618,12 @@ class ThrusterCommand:
             if self.nmt_state != "Stopped":
                 statuses = self.get_status(self.th_command_index, True)
                 if statuses[2] is not None:
-                    self.notify_updated_state(int(statuses[2], 16))
-                    self.get_trace_msg()
-                    self.get_block_hsi()
+                    try:
+                        self.notify_updated_state(int(statuses[2], 16))
+                        self.get_trace_msg()
+                        self.get_block_hsi()
+                    except Exception as e:
+                        self.mr_logger.log(self.mr_logger.SYS, f"{e}", )
             time.sleep(TRACE_SLEEP_TIME)
 
     def get_hsi_msgs(self):
@@ -697,6 +648,8 @@ class ThrusterCommand:
 
     def get_block_hsi(self):
         data = self.node.sdo.upload(0x3100, 0x1)
+        #save it to the log file
+        self.mr_logger.log(self.mr_logger.HSI, f"{data}")
         self.trace_sock.sendto(data, (HSI_UDP_IP, HSI_BLOCK_UDP_PORT))
 
     def query_block_hsi(self, args):

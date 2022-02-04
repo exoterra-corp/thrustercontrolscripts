@@ -159,17 +159,6 @@ class Listener():
                                     wx.CallAfter(self.frame.write_display, r, c, parsed_val)
                     except Exception as e:
                         print(f"Query Failed: {e}")
-
-                    # data_split = str(data, "utf-8").split(":")
-                    # if len(data_split) == 8:
-                    #     name = data_split[1].strip()
-                    #     val = data_split[-1]
-                    #     el = HSIDefs().hsi.get(name)
-                    #     if el is not None:
-                    #         r = el.get("row")
-                    #         c = el.get("col")
-                    #         if r is not None and c is not None:
-                    #             wx.CallAfter(self.frame.write_display, r, c, val)
         except IndexError:
             None
 
