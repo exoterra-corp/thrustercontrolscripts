@@ -103,26 +103,29 @@ class HSIExcelWindow(HSIExcelFrame):
         self.grid.SetRowLabelValue(row, "HK")
         self.grid.SetRowLabelValue(row+1, "HK-Data")
         self.grid.SetCellValue(row, 0, "current_28v")
-        self.grid.SetCellValue(row, 1, "sense_14v")
+        self.grid.SetCellValue(row, 1, "voltage_14v")
         self.grid.SetCellValue(row, 2, "current_14v")
-        self.grid.SetCellValue(row, 3, "sense_7a")
+        self.grid.SetCellValue(row, 3, "voltage_7a")
         self.grid.SetCellValue(row, 4, "current_7a")
 
         row += 3
         self.grid.SetRowLabelValue(row, "EFC")
-        self.grid.SetRowLabelValue(row + 1, "EFC-Data")
-        self.grid.SetCellValue(row, 0, "count_meccelsb")
-        self.grid.SetCellValue(row, 1, "count_meccemsb")
-        self.grid.SetCellValue(row, 2, "count_ueccelsb")
-        self.grid.SetCellValue(row, 3, "count_ueccemsb")
+        self.grid.SetRowLabelValue(row+1, "EFC-Data")
+        self.grid.SetCellValue(row, 0, "cnt_meccemsb")
+        self.grid.SetCellValue(row, 1, "cnt_ueccemsb")
+        self.grid.SetCellValue(row, 2, "cnt_meccelsb")
+        self.grid.SetCellValue(row, 3, "cnt_ueccelsb")
 
         row += 3
         self.grid.SetRowLabelValue(row, "SYS-MEM")
-        self.grid.SetRowLabelValue(row + 1, "SYS-MEM-Data")
-        self.grid.SetCellValue(row, 0, "failed_repairs")
-        self.grid.SetCellValue(row, 1, "region_stat")
+        self.grid.SetRowLabelValue(row+1, "SYS-MEM-Data")
+        self.grid.SetCellValue(row, 0, "region_stat")
+        self.grid.SetCellValue(row, 1, "failed_repairs")
         self.grid.SetCellValue(row, 2, "repair_stat")
 
-
     def write_display(self, row, col, val):
-        self.grid.SetCellValue(row, col, val)
+        try:
+            self.grid.SetCellValue(row, col, str(val))
+        except Exception as e:
+            print(f"{e}")
+            print(row,col, val)
