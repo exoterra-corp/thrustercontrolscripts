@@ -41,7 +41,6 @@ STATUS_CONSOLE_PRINT_DELAY = 1
 RAW_UDP_IP = "127.0.0.1"
 RAW_UDP_PORT = 4000
 
-
 class HSIDefs:
     def __init__(self):
         self.keeper_index = "KeeperDiag"
@@ -320,13 +319,6 @@ class MrLogger():
         self.trace_log.close()
         self.raw_log.close()
 
-
-class ConfigLoader():
-    def __init__(self, config_file):
-        if not exists(config_file):
-            print("")
-
-
 class ThrusterCommand:
     """
     ThrusterCommand,
@@ -435,7 +427,10 @@ class ThrusterCommand:
             self.node.emcy.add_callback(self.handle_emcy)
             self.network.subscribe(0x722, self.notify_bootup)
             # check to see if device is connected
-            self.nmt_state = self.read(self.th_command_index, THRUSTER_STATUS_SUBINDEX, "<I")
+            attemps = 0
+            while self.nmt_state is None and attemps < 3:
+                self.nmt_state = self.read(self.th_command_index, THRUSTER_STATUS_SUBINDEX, "<I")
+                attemps += 1
             # check to see if msg was recieved
             if self.nmt_state is None:
                 self.mr_logger.log(self.mr_logger.SYS, "System Controller Failed to Connect.  Waiting for bootup msg.")
