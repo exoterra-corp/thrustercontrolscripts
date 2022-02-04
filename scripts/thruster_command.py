@@ -37,7 +37,7 @@ TRACE_MSG_MAX_GATHER = 2
 
 HSI_STATUS_IP = "127.0.0.1"
 HSI_UDP_PORT = 4001
-HSI_BLOCK_UDP_PORT = 4004
+HSI_BLOCK_UDP_PORT = 4003
 HSI_SLEEP_TIME = 0
 
 RAW_UDP_IP = "127.0.0.1"
@@ -623,7 +623,6 @@ class ThrusterCommand:
                     self.notify_updated_state(int(statuses[2], 16))
                     self.get_trace_msg()
                     self.get_block_hsi()
-                    # self.get_hsi_msgs()
             time.sleep(TRACE_SLEEP_TIME)
 
     def get_hsi_msgs(self):

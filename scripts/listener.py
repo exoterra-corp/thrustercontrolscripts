@@ -196,7 +196,7 @@ if __name__ == "__main__":
         print("Enabled HSI Mode.")
     elif args.gui:
         logdir = "listener_hsi"
-        args.port = 4004
+        args.port = 4003
         mode = "gui"
         print("Enabled HSI-GUI Mode.")
     else:
