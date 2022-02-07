@@ -196,6 +196,7 @@ class MrLogger():
         self.TRACE = 1
         self.HSI = 2
         self.SYS = 3
+        self.raw_q = Queue()
         self.q = Queue(10)
         # create logging dir
         self.create_folder(root_dir)
@@ -220,6 +221,9 @@ class MrLogger():
 
         self.handle_thread.start()
         self.network_handle_thread.start()
+
+    def set_raw_queue(self, q):
+        self.raw_q = q
 
     def create_folder(self, folder_name):
         if not exists(folder_name):
@@ -268,7 +272,12 @@ class MrLogger():
 
     def handle_raw(self):
         while self.run:
-            data, addr = self.sock.recvfrom(1024)  # buffer size is 1024 bytes
+            # data, addr = self.sock.recvfrom(1024)  # buffer size is 1024 bytes
+            data = None
+            if not self.raw_q.empty():
+                data = self.raw_q.get()
+            else:
+                continue
             now = datetime.datetime.now()
             time_string = now.strftime("%Y_%m_%d_%H_%M_%S.%f")
             time_string_disp = now.strftime("%M:%S.%f")
@@ -358,6 +367,7 @@ class ThrusterCommand:
         self.trace_msg_index = "Trace"
         self.debug = debug
         self.test_name = test_name
+        self.raw_q = None
         self.mr_logger = MrLogger("logs", test_name)
         self.version = "0.0.7"
         self.serial_port = ser_port
@@ -448,6 +458,8 @@ class ThrusterCommand:
                 self.network.connect(bustype="exoserial", channel=self.serial_port, baudrate=115200)
             self.node = self.network.add_node(self.system_id, self.eds_file)
             self.network.add_node(self.node)
+            self.raw_q = self.node.network.bus.get_int_q()
+            self.mr_logger.set_raw_queue(self.raw_q)
             self.node.sdo.RESPONSE_TIMEOUT = 2
             self.node.emcy.add_callback(self.handle_emcy)
             self.network.subscribe(0x722, self.notify_bootup)
@@ -463,7 +475,6 @@ class ThrusterCommand:
                     time.sleep(0.01)
                 self.mr_logger.log(self.mr_logger.SYS, "System Controller Connected!")
 
-            self.node.network.bus.get_raw_msgs()
 
             # read the state on bootup
             self.get_status(self.th_command_index)

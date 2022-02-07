@@ -26,12 +26,6 @@ class Listener():
         self.udp_ip = udp_ip
         self.udp_port = int(udp_port)
         self.logdir = f"./{logdir}/"
-        now = datetime.datetime.now()
-        time_string = now.strftime("%Y_%m_%d_%H_%M_%S")
-        if not os.path.exists("./" + self.logdir):
-            print("Creating log dir " + self.logdir)
-            os.makedirs(self.logdir)
-        self.logf = open(self.logdir + f"listener_log_{time_string}.txt", "a+")
         self.running = True
         self.hsi_defs = HSIDefs()
         self.q = Queue()
