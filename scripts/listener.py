@@ -26,12 +26,6 @@ class Listener():
         self.udp_ip = udp_ip
         self.udp_port = int(udp_port)
         self.logdir = f"./{logdir}/"
-        now = datetime.datetime.now()
-        time_string = now.strftime("%Y_%m_%d_%H_%M_%S")
-        if not os.path.exists("./" + self.logdir):
-            print("Creating log dir " + self.logdir)
-            os.makedirs(self.logdir)
-        self.logf = open(self.logdir + f"listener_log_{time_string}.txt", "a+")
         self.running = True
         self.hsi_defs = HSIDefs()
         self.q = Queue()
@@ -159,17 +153,6 @@ class Listener():
                                     wx.CallAfter(self.frame.write_display, r, c, parsed_val)
                     except Exception as e:
                         print(f"Query Failed: {e}")
-
-                    # data_split = str(data, "utf-8").split(":")
-                    # if len(data_split) == 8:
-                    #     name = data_split[1].strip()
-                    #     val = data_split[-1]
-                    #     el = HSIDefs().hsi.get(name)
-                    #     if el is not None:
-                    #         r = el.get("row")
-                    #         c = el.get("col")
-                    #         if r is not None and c is not None:
-                    #             wx.CallAfter(self.frame.write_display, r, c, val)
         except IndexError:
             None
 
