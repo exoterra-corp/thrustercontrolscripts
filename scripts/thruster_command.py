@@ -5,6 +5,7 @@ from serial.tools import list_ports
 from threading import Thread, Lock
 from os.path import exists
 from queue import Queue
+from enum import Enum
 
 """
 ExoTerra Resource Thruster Command Script.
@@ -212,7 +213,9 @@ class MrLogger():
         self.run = True
         self.handle_thread = Thread(target=self.handle_q, daemon=True)
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.sock.bind((RAW_UDP_IP, RAW_UDP_PORT))
+        # self.sock.bind((RAW_UDP_IP, RAW_UDP_PORT))
+        #get the trace msgs from the bus class itself
+
         self.network_handle_thread = Thread(target=self.handle_raw, daemon=True)
 
         self.handle_thread.start()
@@ -319,6 +322,27 @@ class MrLogger():
         self.trace_log.close()
         self.raw_log.close()
 
+class TCS(Enum): #Thruster Control State
+    """
+        Thruster Control State,
+    """
+    TCS_CO_INVALID              = 0x0
+    TCS_CO_INIT                 = 0x1
+    TCS_CO_PREOP                = 0x2
+    TCS_CO_OPERATIONAL          = 0x3
+    TCS_CO_STOP                 = 0x4
+    TCS_CO_MODE_NUM             = 0x5
+    TCS_POWER_OFF               = 0x6
+    TCS_TRANISTION_STANDBY      = 0x7
+    TCS_STANDBY                 = 0x8
+    TCS_TRANSITION_READY_MODE   = 0x9
+    TCS_READY_MODE              = 0xA
+    TCS_TRANSITION_STEADY_STATE = 0xB
+    TCS_STEADY_STATE            = 0xC
+    TCS_CONDITIONING            = 0xD
+    TCS_BIT_TEST                = 0xE
+    TCS_STATE_NUM               = 0xF
+
 class ThrusterCommand:
     """
     ThrusterCommand,
@@ -360,6 +384,7 @@ class ThrusterCommand:
         self.mode_status = 0
         self.state_status = 0
         self.thruster_status = 0
+        self.thruster_status_parsed = 0
         self.bit_status = 0
         self.cond_status = 0
         self.thrust_point = 0
@@ -437,8 +462,9 @@ class ThrusterCommand:
                 while not self.bootup_msg:
                     time.sleep(0.01)
                 self.mr_logger.log(self.mr_logger.SYS, "System Controller Connected!")
-                # when connected read the state
-                self.nmt_state = self.read(self.th_command_index, THRUSTER_STATUS_SUBINDEX, "<I")
+
+            self.node.network.bus.get_raw_msgs()
+
             # read the state on bootup
             self.get_status(self.th_command_index)
             cur_state = ""
@@ -496,7 +522,13 @@ class ThrusterCommand:
             cur_state = "Bootup - Init"
             self.thread_run = False
         if self.nmt_state != state:
-            self.mr_logger.log(self.mr_logger.SYS,f"Updated State: {cur_state}")
+            thruster_state_str = None
+            try:
+                thruster_state_str = TCS(int(self.thruster_status,16))
+            except ValueError:
+                None #ignore when it doesnt match
+            self.mr_logger.log(self.mr_logger.SYS, f"NMT State: {cur_state} Thruster State: {thruster_state_str}")
+            self.nmt_state_str = cur_state
             self.nmt_state_str = cur_state
             self.nmt_state = state
 
@@ -560,7 +592,7 @@ class ThrusterCommand:
         """
         mode_status = self.read(index, MODE_STATUS_SUBINDEX, "<I")
         state_status = self.read(index, STATE_STATUS_SUBINDEX, "<I")
-        thruster_status = self.read(index, THRUSTER_STATUS_SUBINDEX, "<I")
+        self.thruster_status_parsed = self.read(index, THRUSTER_STATUS_SUBINDEX, "<I")
         cond_status = self.read(index, CONDITION_STATUS_SUBINDEX, "<I")
         thrust_point = self.read(index, THRUST_POINT_SUBINDEX, "<I")
         bit_status = self.read(index, BIT_STATUS_SUBINDEX, "<I")
@@ -569,8 +601,8 @@ class ThrusterCommand:
             mode_status = 0
         if state_status == None:
             state_status = 0
-        if thruster_status == None:
-            thruster_status = 0
+        if self.thruster_status_parsed == None:
+            self.thruster_status_parsed = 0
         if cond_status == None:
             cond_status = 0
         if thrust_point == None:
@@ -580,7 +612,7 @@ class ThrusterCommand:
 
         self.mode_status = hex(mode_status)
         self.state_status = hex(state_status)
-        self.thruster_status = hex(thruster_status)
+        self.thruster_status = hex(self.thruster_status_parsed)
         self.cond_status = hex(cond_status)
         self.thrust_point = hex(thrust_point)
         self.bit_status = hex(bit_status)
@@ -621,33 +653,19 @@ class ThrusterCommand:
                         self.mr_logger.log(self.mr_logger.SYS, f"{e}", )
             time.sleep(TRACE_SLEEP_TIME)
 
-    def get_hsi_msgs(self):
-        """
-        get_hsi_msgs, this gathers hsi messages and sends it over udp, runs in thread.
-        """
-        for a in self.hsi_defs.hsi.items():
-            item_name = a[0]
-            index = a[1].get("index")
-            subindex = a[1].get("subindex")
-            type = a[1].get("type")
-            parsed_val = self.get_var(index, subindex)
-            index = parsed_val.get("index")
-            subindex = parsed_val.get("subindex")
-            if type is None:
-                type = "<H"
-            val = self.read(index, subindex, type)
-            if val is not None:
-                msg = f"{item_name.ljust(10, ' ')}:index:{hex(index)}:subindex:{hex(subindex)}:val:{val}"
-                self.send_udp_packet(msg, HSI_UDP_IP, HSI_UDP_PORT)
-        time.sleep(HSI_SLEEP_TIME)
-
     def get_block_hsi(self):
+        """
+        get_block_hsi, gets hsi data and sends it out for parsing.
+        """
         data = self.node.sdo.upload(0x3100, 0x1)
         #save it to the log file
         self.mr_logger.log(self.mr_logger.HSI, f"{data}")
         self.trace_sock.sendto(data, (HSI_UDP_IP, HSI_BLOCK_UDP_PORT))
 
     def query_block_hsi(self, args):
+        """
+        query_block_hsi, reads and prints the hsi to the console
+        """
         index = args.get("index")
         subindex = args.get("subindex")
         try:
