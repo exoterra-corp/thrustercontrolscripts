@@ -19,17 +19,14 @@ class ErrorHandling:
         self.network.add_node(self.node)
         self.node.sdo.RESPONSE_TIMEOUT = 2
         self.eds_file = eds_file 
-        for obj in self.node.object_dictionary.values():
-            print('0x%X: %s' % (obj.index, obj.name))
-            if isinstance(obj, canopen.objectdictionary.Record):
-                for subobj in obj.values():
-                    print('  %d: %s' % (subobj.subindex, subobj.name))
+
 
         self.err_detail_cmds = {
-            "0": {"name": "Dump Error Log", "func":self.error_log_dump, "help": "Dump a submodules error log", "args":"submodule"},
-            "1": {"name": "Change Fault Handler", "func": self.fault_handler_change, "help": "Change a fault reaction for a fault type"},
-            "2": {"name": "Dump Fault Handler Configs", "func": self.fault_handler_config_dump, "help": "Dumps fault handler configured for each error code"},
-            "3": {"name": "Dump Fault Reaction Status", "func": self.fault_reaction_status_dump, "help": "Dump fault reaction status variable"}
+            "0": {"name": "Quit", "func":quit, "help": "Quit Script"},
+            "1": {"name": "Dump Error Log", "func":self.error_log_dump, "help": "Dump a submodules error log", "args":"submodule"},
+            "2": {"name": "Change Fault Handler", "func": self.fault_handler_change, "help": "Change a fault reaction for a fault type"},
+            "3": {"name": "Dump Fault Handler Configs", "func": self.fault_handler_config_dump, "help": "Dumps fault handler configured for each error code"},
+            "4": {"name": "Dump Fault Status", "func": self.fault_reaction_status_dump, "help": "Dump fault reaction status variable"}
         }
 
         self.submodules = {
@@ -70,10 +67,9 @@ class ErrorHandling:
                 print(self.submodules[inp]["name"])
                 index = self.submodules[inp]["index"]
                 subindex = self.submodules[inp]["subindex"]
-                print(hex(index), hex(subindex))
                 data = self.node.sdo.upload(index, subindex)
-                print(data)
                 self.pretty_text(data, "ERROR", "<I")
+
 
     def fault_handler_change(self):
         inp = ""
@@ -89,14 +85,13 @@ class ErrorHandling:
                     subindex = self.node.object_dictionary['FaultReactionType']['FaultReactionSet'].subindex,
                     inp = inp.split(',')
                     data = bytearray([0, int(inp[0]), int(inp[1]),0 ])
-                    print(index[0],subindex[0])
                     val = self.node.sdo.download(index[0], subindex[0], data)
+
 
     def fault_handler_config_dump(self):
         print("Dumping Fault Configurations...")
         index = self.node.object_dictionary['FaultReactionType'].index,
         subindex = self.node.object_dictionary['FaultReactionType']['FaultReactionType'].subindex,
-        print(index[0], subindex[0])
         val = self.node.sdo.upload(index[0], subindex[0])
         val = val[1:len(val):2]
         self.pretty_text(val, "FAULT_CONFIG", "<c") 
@@ -106,7 +101,6 @@ class ErrorHandling:
         index = self.node.object_dictionary['FaultStatus'].index,
         subindex = self.node.object_dictionary['FaultStatus']['FaultStatus'].subindex,
         val = self.node.sdo.upload(index[0], subindex[0])
-        print(val)
         self.pretty_text(val, "Fault Status", "<I")
 
     def help(self):
@@ -148,7 +142,6 @@ if __name__ == "__main__":
     parser.add_argument('serial_port', action='store', type=str, help='The Serial Port to use for RS485, or use can to select the pcan',
                         default="/dev/ttyUSB0")
     parser.add_argument('--debug', action='store_true', help='enable debug mode.')
-    parser.add_argument('--hsi', action='store', help='Overrides localhost hsi target.', default="127.0.0.1")
     parser.add_argument('eds_file', action='store', type=str, help='The eds file used for communication.',
                         default="eds_file.eds")
     args = parser.parse_args()
@@ -169,12 +162,10 @@ if __name__ == "__main__":
                     print(f"Check system_id, {args.system_id} is not a  hex number.")
                 valid = True
                 break
-    """
     if not valid:
         print("Serial Port Not Found")
         print("Available Serial Ports:")
         for p in ports:
             print(p.name)
-    """
     err_handler = ErrorHandling(id, args.serial_port, args.eds_file)
     err_handler.console()
