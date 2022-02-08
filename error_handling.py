@@ -53,7 +53,7 @@ class ErrorHandling:
                 name =''
                 if formatting == "<c":
                     h = int.from_bytes(h, "little")
-                val = (f"{str(i).zfill(2)}: 0x{hex(h)[2:].zfill(bites*2)}")
+                val = (f"{hex(int(str(i).zfill(2)))}: 0x{hex(h)[2:].zfill(bites*2)}")
                 parsed_vals.append([name,val])
             print(tabulate(parsed_vals, [heading]))
 
@@ -169,11 +169,12 @@ if __name__ == "__main__":
                     print(f"Check system_id, {args.system_id} is not a  hex number.")
                 valid = True
                 break
-
+    """
     if not valid:
         print("Serial Port Not Found")
         print("Available Serial Ports:")
         for p in ports:
             print(p.name)
+    """
     err_handler = ErrorHandling(id, args.serial_port, args.eds_file)
     err_handler.console()
