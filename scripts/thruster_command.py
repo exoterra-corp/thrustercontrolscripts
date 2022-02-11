@@ -4,7 +4,8 @@ from serial.tools import list_ports
 from threading import Thread, Lock
 from os.path import exists
 from enum import Enum
-from src import mr_logger,hsi_defines,config_manager
+from src import hsi_defines,config_manager
+from src.mr_logger import MrLogger, LogType
 
 """
 ExoTerra Resource Thruster Command Script.
@@ -15,8 +16,6 @@ contact:
 joshua.meyers@exoterracorp.com 
 jeremy.mitchell@exoterracorp.com
 """
-
-
 
 class ThrusterCommand:
     """
@@ -531,7 +530,7 @@ class ThrusterCommand:
         """
         help, reads the predefined cmds and prints them in a table.
         """
-        self.mr_logger.log(self.mr_logger.SYS, "============= ExoTerra Thruster Command Help Menu =============")
+        self.mr_logger.log(LogType.SYS, "============= ExoTerra Thruster Command Help Menu =============")
         for v in self.hsi_cmds:
             x = self.hsi_cmds.get(v)
             self.mr_logger.log(self.mr_logger.SYS, f"{v} - {x.get('name')} : [{x.get('help')}]")

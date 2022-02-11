@@ -2,7 +2,7 @@ from enum import Enum
 
 class TCS(Enum): #Thruster Control State
     """
-        Thruster Control State,
+        Thruster Control State, enums of the various states of the PPU.
     """
     TCS_CO_INVALID              = 0x0
     TCS_CO_INIT                 = 0x1
@@ -22,6 +22,9 @@ class TCS(Enum): #Thruster Control State
     TCS_STATE_NUM               = 0xF
 
 class HSIDefines:
+    """
+    HSIDefines is a way to define the structure for the hsi gathering and decoding.
+    """
     def __init__(self):
         self.keeper_index = "KeeperDiag"
         self.anode_index = "AnodeDiag"

@@ -1,3 +1,13 @@
+"""
+ExoTerra Resource Mr Logger Library.
+description:
+Provides and interface to gather and log messages to files.
+
+contact:
+joshua.meyers@exoterracorp.com
+jeremy.mitchell@exoterracorp.com
+"""
+
 from queue import Queue
 from socket import socket, AF_INET, SOCK_DGRAM
 from datetime import datetime
@@ -7,6 +17,7 @@ from threading import Thread
 from time import sleep
 from traceback import extract_tb
 from struct import unpack
+from enum import Enum
 
 class LogType(Enum):
     """
@@ -47,9 +58,9 @@ class MrLogger:
         self.sys_log = open(self.log_dir + f"/{time_string}_{log_name}_sys_log.txt", "w+")
         # create a thread to handle incoming messages.
         self.run = True
-        self.handle_thread = Thread(target=self.handle_q, daemon=True)
+        self.handle_thread = Thread(target=self.handle_hsi_trace_sys_queue, daemon=True)
         self.sock = socket(AF_INET, SOCK_DGRAM)
-        self.network_handle_thread = Thread(target=self.handle_raw, daemon=True)
+        self.network_handle_thread = Thread(target=self.handle_raw_queue, daemon=True)
         #start threads
         self.handle_thread.start()
         self.network_handle_thread.start()
