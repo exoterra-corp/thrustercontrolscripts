@@ -85,7 +85,7 @@ class MrLogger:
                 print(f"Error {folder_name} could not be created. {e}")
         return False
 
-    def log(self, log_type, msg, end="\n", print_val=True):
+    def log(self, log_type:LogType, msg, end="\n", print_val=True):
         """
         log, creates a log message and adds it to the Queue.
         log_type: LogType, is the enum above.
@@ -93,9 +93,9 @@ class MrLogger:
         end: str, what to put at the end of a msg, default newline.
         print_Val: bool, whether or not to print the logged message.
         """
-        if log_type >= 0 and log_type <= 3:  # valid log mesage
+        if log_type.value >= 0 and log_type.value <= 3:  # valid log mesage
             self.q.put({"type": log_type, "msg": msg})
-            if log_type == self.SYS and print_val:
+            if log_type == LogType.SYS.value and print_val:
                 print(msg, end=end)
             return True
         else:
@@ -112,13 +112,13 @@ class MrLogger:
                     try:
                         type = m.get("type")
                         msg = m.get("msg")
-                        if type == self.HSI:
+                        if type == LogType.HSI.value:
                             self.hsi_log.write(f"{msg}\n")
-                        elif type == self.TRACE:
+                        elif type == LogType.TRACE.value:
                             decoded_msg = f"{msg.decode('ascii')}\n"
                             self.trace_log.write(decoded_msg)
                             self.trace_log.flush()
-                        elif type == self.SYS:
+                        elif type == LogType.SYS.value:
                             self.sys_log.write(f"{msg}\n")
                             self.sys_log.flush()
                     except KeyError:
@@ -128,7 +128,6 @@ class MrLogger:
                     sleep(0.1)
             except Exception as e:
                 print(e)
-                print(extract_tb())
 
     def handle_raw_queue(self):
         """

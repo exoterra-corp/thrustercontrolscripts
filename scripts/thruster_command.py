@@ -34,7 +34,7 @@ class ThrusterCommand:
         self.test_name = test_name
         self.raw_q = None
         self.conf_man = config_manager.ConfigManager()
-        self.mr_logger = mr_logger.MrLogger(self.conf_man, "logs", test_name)
+        self.mr_logger = MrLogger(self.conf_man, "logs", test_name)
         self.version = "0.0.7"
         self.serial_port = ser_port
         self.eds_file = eds_file
@@ -116,11 +116,11 @@ class ThrusterCommand:
             self.network = canopen.Network()
             if self.serial_port == "can":
                 if self.debug:
-                    self.mr_logger.log(self.mr_logger.SYS, "Selected can network type")
+                    self.mr_logger.log(LogType.SYS, "Selected can network type")
                 self.network.connect(bustype='pcan', channel='PCAN_USBBUS1', bitrate=1000000)  # 1MHZ
             else:
                 if self.debug:
-                    self.mr_logger.log(self.mr_logger.SYS, "Selected serial network type")
+                    self.mr_logger.log(LogType.SYS, "Selected serial network type")
                 self.network.connect(bustype="exoserial", channel=self.serial_port, baudrate=115200)
             self.node = self.network.add_node(self.system_id, self.eds_file)
             self.network.add_node(self.node)
@@ -136,10 +136,10 @@ class ThrusterCommand:
                 attemps += 1
             # check to see if msg was recieved
             if self.nmt_state is None:
-                self.mr_logger.log(self.mr_logger.SYS, "System Controller Failed to Connect.  Waiting for bootup msg.")
+                self.mr_logger.log(LogType.SYS, "System Controller Failed to Connect.  Waiting for bootup msg.")
                 while not self.bootup_msg:
                     time.sleep(0.01)
-                self.mr_logger.log(self.mr_logger.SYS, "System Controller Connected!")
+                self.mr_logger.log(LogType.SYS, "System Controller Connected!")
 
 
             # read the state on bootup
@@ -156,10 +156,10 @@ class ThrusterCommand:
                 elif self.nmt_state == 0x1:
                     cur_state = "Bootup - Init"
                 self.nmt_state_str = cur_state
-                self.mr_logger.log(self.mr_logger.SYS, "System Controller Connected!")
+                self.mr_logger.log(LogType.SYS, "System Controller Connected!")
 
         except Exception as a:
-            self.mr_logger.log(self.mr_logger.SYS, traceback.print_exc())
+            self.mr_logger.log(LogType.SYS, traceback.print_exc())
 
     def notify_bootup(self, can_id, data, timestamp):
         self.bootup_msg = True
@@ -173,13 +173,13 @@ class ThrusterCommand:
         try:
             var = self.node.object_dictionary.get_variable(index_str, subindex_str)
             if var is None:
-                self.mr_logger.log(self.mr_logger.SYS,
+                self.mr_logger.log(LogType.SYS,
                                    f"Error Not found.  Check if {index_str} and {subindex_str} are in the eds file.")
             else:
                 index = var.index
                 subindex = var.subindex
         except KeyError as e:
-            self.mr_logger.log(self.mr_logger.SYS, f"{traceback.print_exc()} {e}")
+            self.mr_logger.log(LogType.SYS, f"{traceback.print_exc()} {e}")
         return {"index": index, "subindex": subindex}
 
     def notify_updated_state(self, state):
@@ -204,7 +204,7 @@ class ThrusterCommand:
                 thruster_state_str = TCS(int(self.thruster_status,16))
             except ValueError:
                 None #ignore when it doesnt match
-            self.mr_logger.log(self.mr_logger.SYS, f"NMT State: {cur_state} Thruster State: {thruster_state_str}")
+            self.mr_logger.log(LogType.SYS, f"NMT State: {cur_state} Thruster State: {thruster_state_str}")
             self.nmt_state_str = cur_state
             self.nmt_state_str = cur_state
             self.nmt_state = state
@@ -214,21 +214,21 @@ class ThrusterCommand:
         change_nmt_state, is called by the NmtMaster callback when the state changes.
         """
         if self.debug:
-            self.mr_logger.log(self.mr_logger.SYS, "Thread Stopped")
+            self.mr_logger.log(LogType.SYS, "Thread Stopped")
         state = args.get("nmt_state")
         if state == "OPERATIONAL":
-            self.mr_logger.log(self.mr_logger.SYS, "Switching State Operational")
+            self.mr_logger.log(LogType.SYS, "Switching State Operational")
             self.node.nmt.send_command(0x1)
             self.start_threads()
         elif state == "PREOPERATIONAL":
-            self.mr_logger.log(self.mr_logger.SYS, "Switching State Pre-Operational")
+            self.mr_logger.log(LogType.SYS, "Switching State Pre-Operational")
             self.node.nmt.send_command(0x80)
             self.start_threads()
         elif state == "INIT":
-            self.mr_logger.log(self.mr_logger.SYS, "Switching State Init")
+            self.mr_logger.log(LogType.SYS, "Switching State Init")
             self.node.nmt.send_command(0x81)
         elif state == "STOP":
-            self.mr_logger.log(self.mr_logger.SYS, "Switching State Stop")
+            self.mr_logger.log(LogType.SYS, "Switching State Stop")
             self.thread_run = False
             self.node.nmt.send_command(0x2)
 
@@ -240,7 +240,7 @@ class ThrusterCommand:
                   f" EMCYData: {error.data}"
 
         self.send_udp_packet(message, TRACE_UDP_IP, TRACE_UDP_PORT)
-        self.mr_logger.log(self.mr_logger.SYS,message)
+        self.mr_logger.log(LogType.SYS,message)
 
     def get_status_index(self, args):
         """
@@ -251,7 +251,7 @@ class ThrusterCommand:
         statuses = self.get_status(index, noprint)
         if statuses[2] >= '0x7':
             self.start_threads()
-        self.mr_logger.log(self.mr_logger.SYS, "8 to enable / disable console status print")
+        self.mr_logger.log(LogType.SYS, "8 to enable / disable console status print")
 
         self.status_console_lock.acquire()
         if not self.status_console_run:
@@ -299,7 +299,7 @@ class ThrusterCommand:
             msg = f"Ready Mode: {self.mode_status}: Steady State: {self.state_status}: ThrusterStatus:{self.thruster_status}:  Bit Status: {self.bit_status} "
             # self.send_udp_packet(msg, STATUS_UDP_IP, STATUS_UDP_PORT)
         else:
-            self.mr_logger.log(self.mr_logger.SYS, msg)
+            self.mr_logger.log(LogType.SYS, msg)
         return (self.mode_status, self.state_status, self.thruster_status)
 
     def status_thread(self):
@@ -317,7 +317,7 @@ class ThrusterCommand:
         gather_status_and_trace, gathers hsi and trace messages by calling functions and sends udp, runs in a thread.
         """
         if self.debug:
-            self.mr_logger.log(self.mr_logger.SYS, "Starting Query Thread")
+            self.mr_logger.log(LogType.SYS, "Starting Query Thread")
         while getattr(self, "thread_run"):
             if self.nmt_state != "Stopped":
                 statuses = self.get_status(self.th_command_index, True)
@@ -327,7 +327,7 @@ class ThrusterCommand:
                         self.get_trace_msg()
                         self.get_block_hsi()
                     except Exception as e:
-                        self.mr_logger.log(self.mr_logger.SYS, f"{e}", )
+                        self.mr_logger.log(LogType.SYS, f"{e}", )
             time.sleep(TRACE_SLEEP_TIME)
 
     def get_block_hsi(self):
@@ -359,15 +359,15 @@ class ThrusterCommand:
                 parsed_val = raw_vals[i]
                 if hex_en:
                     parsed_val = hex(parsed_val)
-                self.mr_logger.log(self.mr_logger.SYS,f"{name} - {parsed_val}")
+                self.mr_logger.log(LogType.SYS,f"{name} - {parsed_val}")
             else:
-                self.mr_logger.log(self.mr_logger.SYS, f"Cant parse the bytearray because its not divisable by 2.  Len Data: {len(data)}")
+                self.mr_logger.log(LogType.SYS, f"Cant parse the bytearray because its not divisable by 2.  Len Data: {len(data)}")
         except canopen.sdo.exceptions.SdoCommunicationError as comms_err: \
-                self.mr_logger.log(self.mr_logger.SYS,f"Query Failed: {comms_err}")
+                self.mr_logger.log(LogType.SYS,f"Query Failed: {comms_err}")
         except canopen.sdo.exceptions.SdoAbortedError as aborted_err: \
-                self.mr_logger.log(self.mr_logger.SYS,f"Query Failed: {aborted_err}")
+                self.mr_logger.log(LogType.SYS,f"Query Failed: {aborted_err}")
         except Exception as e:
-            self.mr_logger.log(self.mr_logger.SYS,f"Query Failed: {e}")
+            self.mr_logger.log(LogType.SYS,f"Query Failed: {e}")
 
     def start_threads(self):
         """
@@ -375,7 +375,7 @@ class ThrusterCommand:
         """
         if not self.thread_run:
             if self.debug:
-                self.mr_logger.log(self.mr_logger.SYS, f"Starting Trace / Status thread. Sending HSI to {HSI_UDP_IP}:{HSI_UDP_PORT}.")
+                self.mr_logger.log(LogType.SYS, f"Starting Trace / Status thread. Sending HSI to {HSI_UDP_IP}:{HSI_UDP_PORT}.")
             self.thread_run = True
             self.listen_thread = Thread(target=self.gather_status_and_trace, daemon=True)
             self.listen_thread.start()
@@ -402,7 +402,7 @@ class ThrusterCommand:
                 self.write(index, subindex, default, python_type)
             else:
                 while not valid:
-                    self.mr_logger.log(self.mr_logger.SYS,
+                    self.mr_logger.log(LogType.SYS,
                                        "Enter hex value to send to ECP - or 'x' to return to previous menu.")
                     inp = input("write> 0x")
                     if inp.lower() == "back" or inp.lower() == "x":
@@ -423,15 +423,15 @@ class ThrusterCommand:
                 val = struct.pack(python_type, int_val)
                 self.node.sdo.download(index, subindex,
                                        bytearray(val))
-                self.mr_logger.log(self.mr_logger.SYS, f"Wrote:{hex(index)}-{hex(subindex)}: 0x{val.hex()}")
+                self.mr_logger.log(LogType.SYS, f"Wrote:{hex(index)}-{hex(subindex)}: 0x{val.hex()}")
         except struct.error as e:
-            self.mr_logger.log(self.mr_logger.SYS, f"{e}")
+            self.mr_logger.log(LogType.SYS, f"{e}")
         except canopen.sdo.exceptions.SdoCommunicationError as comms_err:
-            self.mr_logger.log(self.mr_logger.SYS, f"Write Failed: {comms_err}")
+            self.mr_logger.log(LogType.SYS, f"Write Failed: {comms_err}")
         except canopen.sdo.exceptions.SdoAbortedError as aborted_err:
-            self.mr_logger.log(self.mr_logger.SYS, f"Write Failed: {aborted_err}")
+            self.mr_logger.log(LogType.SYS, f"Write Failed: {aborted_err}")
         except Exception as e:
-            self.mr_logger.log(self.mr_logger.SYS, f"Write Failed: {e}")
+            self.mr_logger.log(LogType.SYS, f"Write Failed: {e}")
         finally:
             self.write_mutex.release()
 
@@ -444,7 +444,7 @@ class ThrusterCommand:
 
         # get var from eds file
         in_val = self.read(index, subindex, "<I")
-        self.mr_logger.log(self.mr_logger.SYS, f"Query:{hex(index)}-{hex(subindex)}: {hex(in_val)}")
+        self.mr_logger.log(LogType.SYS, f"Query:{hex(index)}-{hex(subindex)}: {hex(in_val)}")
 
     def read(self, index, subindex, python_type, show_failure=True):
         if type(index) is str and type(subindex) is str:
@@ -464,17 +464,17 @@ class ThrusterCommand:
                     return in_val
             except canopen.sdo.exceptions.SdoCommunicationError as comms_err:
                 if show_failure:
-                    self.mr_logger.log(self.mr_logger.SYS, f"Query Failed {hex(index)}:{hex(subindex)}: {comms_err}")
+                    self.mr_logger.log(LogType.SYS, f"Query Failed {hex(index)}:{hex(subindex)}: {comms_err}")
             except canopen.sdo.exceptions.SdoAbortedError as aborted_err:
                 if show_failure:
-                    self.mr_logger.log(self.mr_logger.SYS, f"Query Failed {hex(index)}:{hex(subindex)}: {aborted_err}")
+                    self.mr_logger.log(LogType.SYS, f"Query Failed {hex(index)}:{hex(subindex)}: {aborted_err}")
             except Exception as e:
                 if show_failure:
-                    self.mr_logger.log(self.mr_logger.SYS, f"Query Failed {hex(index)}:{hex(subindex)}: {e}")
+                    self.mr_logger.log(LogType.SYS, f"Query Failed {hex(index)}:{hex(subindex)}: {e}")
             finally:
                 self.write_mutex.release()
         else:
-            self.mr_logger.log(self.mr_logger.SYS, "Error with args to write function, check index and subindex")
+            self.mr_logger.log(LogType.SYS, "Error with args to write function, check index and subindex")
         return None
 
     def get_trace_msg(self):
@@ -509,20 +509,20 @@ class ThrusterCommand:
         while self.running:
             try:
                 var_str = f"[rm:{self.mode_status}:ss:{self.state_status}:ts:{self.thruster_status}]".zfill(10)
-                self.mr_logger.log(self.mr_logger.SYS, f"{var_str}>", end='', print_val=False)
+                self.mr_logger.log(LogType.SYS, f"{var_str}>", end='', print_val=False)
                 inp = input(f"{var_str}>").lower().strip()
-                self.mr_logger.log(self.mr_logger.SYS, f"{inp}", end='', print_val=False)
+                self.mr_logger.log(LogType.SYS, f"{inp}", end='', print_val=False)
                 if inp in self.hsi_cmds.keys():
                     cmd = self.hsi_cmds.get(inp)
                     func = cmd.get("func")
                     args = cmd.get("args")
                     name = cmd.get("name")
                     if func != None:
-                        self.mr_logger.log(self.mr_logger.SYS,f"{name}")
+                        self.mr_logger.log(LogType.SYS,f"{name}")
                         try:
                             func(args)
                         except Exception as e:
-                            self.mr_logger.log(self.mr_logger.SYS,f"{e}")
+                            self.mr_logger.log(LogType.SYS,f"{e}")
             except KeyboardInterrupt as e:
                 sys.exit(0)
 
@@ -533,7 +533,7 @@ class ThrusterCommand:
         self.mr_logger.log(LogType.SYS, "============= ExoTerra Thruster Command Help Menu =============")
         for v in self.hsi_cmds:
             x = self.hsi_cmds.get(v)
-            self.mr_logger.log(self.mr_logger.SYS, f"{v} - {x.get('name')} : [{x.get('help')}]")
+            self.mr_logger.log(LogType.SYS, f"{v} - {x.get('name')} : [{x.get('help')}]")
 
     def exit(self, args):
         """
