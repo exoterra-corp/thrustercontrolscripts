@@ -1,11 +1,10 @@
 #!/usr/bin/python3
-import canopen, argparse, struct, time, sys, socket, traceback, datetime, os
-from canopen.nmt import NmtError, NMT_STATES
+import canopen, argparse, struct, time, sys, socket, traceback, datetime
 from serial.tools import list_ports
 from threading import Thread, Lock
 from os.path import exists
-from queue import Queue
 from enum import Enum
+from src import mr_logger,hsi_defines,config_manager
 
 """
 ExoTerra Resource Thruster Command Script.
@@ -17,340 +16,7 @@ joshua.meyers@exoterracorp.com
 jeremy.mitchell@exoterracorp.com
 """
 
-STATUS_CONSOLE_PRINT_DELAY = 1
-THRUSTER_COMMAND_INDEX = "ThrusterCommand"
-TRACE_MSG_INDEX = "Trace"
-MODE_STATUS_SUBINDEX = "ReadyMode"
-STATE_STATUS_SUBINDEX = "SteadyState"
-THRUSTER_STATUS_SUBINDEX = "Status"
-CONDITION_STATUS_SUBINDEX = "Condition"
-THRUST_POINT_SUBINDEX = "Thrust"
-TRACE_MSG_SUBINDEX = "TraceMessageTail"
-BIT_STATUS_SUBINDEX = "BIT"
 
-TRACE_UDP_IP = "127.0.0.1"
-TRACE_UDP_PORT = 4002
-TRACE_SLEEP_TIME = 0
-TRACE_MSG_MAX_GATHER = 2
-
-HSI_STATUS_IP = "127.0.0.1"
-HSI_BLOCK_UDP_PORT = 4001
-HSI_SLEEP_TIME = 0
-TRACE_MSG_GATHER_CNT = 2
-STATUS_CONSOLE_PRINT_DELAY = 1
-
-RAW_UDP_IP = "127.0.0.1"
-RAW_UDP_PORT = 4000
-
-class HSIDefs:
-    def __init__(self):
-        self.keeper_index = "KeeperDiag"
-        self.anode_index = "AnodeDiag"
-        self.mag_outer_index = "MagnetOuterDiag"
-        self.mag_inner_index = "MagnetInnerDiag"
-        self.valves_index = "ValveDiag"
-        self.hk_index = "HKDiag"
-        self.hsi = {
-            "a_vx": {"index": self.anode_index, "subindex": "ADC0", "type": "<H", "row": 4, "col": 0x0},  # 32bit
-            "a_vy": {"index": self.anode_index, "subindex": "ADC1", "type": "<H", "row": 4, "col": 0x1},  # 32bit
-            "a_vout": {"index": self.anode_index, "subindex": "ADC2", "type": "<H", "row": 4, "col": 0x2},  # 32bit
-            "a_iout": {"index": self.anode_index, "subindex": "ADC3", "type": "<H", "row": 4, "col": 0x3},
-            "a_dac": {"index": self.anode_index, "subindex": "ADC4", "type": "<H", "row": 4, "col": 0x4},
-            "a_hs_temp": {"index": self.anode_index, "subindex": "ADC7", "type": "<H", "row": 4, "col": 0x7},
-            "a_last_err": {"index": self.anode_index, "subindex": "ADC5", "type": "<H", "row": 4, "col": 0x5},
-            "a_cur_oft": {"index": self.anode_index, "subindex": "ADC6", "type": "<H", "row": 4, "col": 0x6},
-            "a_msg_cnt": {"index": self.anode_index, "subindex": "ADC8", "type": "<H", "row": 4, "col": 0x8},
-            "a_can_err": {"index": self.anode_index, "subindex": "ADC9", "type": "<H", "row": 4, "col": 0x9},
-
-            "k_v_sepic": {"index": self.keeper_index, "subindex": "ADC0", "type": "<H", "row": 1, "col": 0x0},  # 32bit
-            "k_v_in": {"index": self.keeper_index, "subindex": "ADC1", "type": "<H", "row": 1, "col": 0x1},  # 32bit
-            "k_i_out": {"index": self.keeper_index, "subindex": "ADC2", "type": "<H", "row": 1, "col": 0x2},
-            "k_dac_out": {"index": self.keeper_index, "subindex": "ADC3", "type": "<H", "row": 1, "col": 0x3},
-            "k_last_err": {"index": self.keeper_index, "subindex": "ADC4", "type": "<H", "row": 1, "col": 0x4},
-            "k_cur_oft": {"index": self.keeper_index, "subindex": "ADC5", "type": "<H", "row": 1, "col": 0x5},
-            "k_msg_cnt": {"index": self.keeper_index, "subindex": "ADC6", "type": "<H", "row": 1, "col": 0x6},
-            "k_can_err": {"index": self.keeper_index, "subindex": "ADC7", "type": "<H", "row": 1, "col": 0x7},
-
-            "mo_v_out": {"index": self.mag_inner_index, "subindex": "ADC0", "type": "<H", "row": 7, "col": 0},
-            "mo_i_out": {"index": self.mag_inner_index, "subindex": "ADC1", "type": "<H", "row": 7, "col": 1},
-            "mo_dac_out": {"index": self.mag_inner_index, "subindex": "ADC2", "type": "<H", "row": 7, "col": 2},
-            "mo_last_err": {"index": self.mag_inner_index, "subindex": "ADC3", "type": "<H", "row": 7, "col": 3},
-            "mo_msg_cnt": {"index": self.mag_inner_index, "subindex": "ADC4", "type": "<H", "row": 7, "col": 4},
-            "mo_can_err": {"index": self.mag_inner_index, "subindex": "ADC5", "type": "<H", "row": 7, "col": 5},
-
-            "mi_v_out": {"index": self.mag_outer_index, "subindex": "ADC0", "type": "<H", "row": 10, "col": 0},
-            "mi_i_out": {"index": self.mag_outer_index, "subindex": "ADC1", "type": "<H", "row": 10, "col": 1},
-            "mi_dac_out": {"index": self.mag_outer_index, "subindex": "ADC2", "type": "<H", "row": 10, "col": 2},
-            "mi_last_err": {"index": self.mag_outer_index, "subindex": "ADC3", "type": "<H", "row": 10, "col": 3},
-            "mi_msg_cnt": {"index": self.mag_outer_index, "subindex": "ADC4", "type": "<H", "row": 10, "col": 4},
-            "mi_can_err": {"index": self.mag_outer_index, "subindex": "ADC5", "type": "<H", "row": 10, "col": 5},
-
-            "va_anode_v": {"index": self.valves_index, "subindex": "ADC0", "type": "<H", "row": 13, "col": 0},
-            "va_cathode_hf_v": {"index": self.valves_index, "subindex": "ADC1", "type": "<H", "row": 13, "col": 1},
-            "va_cathode_lf_v": {"index": self.valves_index, "subindex": "ADC2", "type": "<H", "row": 13, "col": 2},
-            "va_temperature": {"index": self.valves_index, "subindex": "ADC3", "type": "<H", "row": 13, "col": 3},
-            # signed 32bit
-            "va_tank_pressure": {"index": self.valves_index, "subindex": "ADC4", "type": "<H", "row": 13, "col": 4},
-            # 32bit
-            "va_cathode_pressure": {"index": self.valves_index, "subindex": "ADC5", "type": "<H", "row": 13,
-                                    "col": 5},
-            "va_anode_pressure": {"index": self.valves_index, "subindex": "ADC6", "type": "<H", "row": 13, "col": 6},
-            "va_regulator_pressure": {"index": self.valves_index, "subindex": "ADC7", "type": "<H", "row": 13, "col": 7},
-            "va_msg_cnt": {"index": self.valves_index, "subindex": "ADC8", "type": "<H", "row": 13, "col": 8},
-            "va_can_err": {"index": self.valves_index, "subindex": "ADC9", "type": "<H", "row": 13, "col": 9},
-
-            "hk_mA_28V": {"index": self.hk_index, "subindex": "ADC0", "type": "<H", "row": 16, "col": 0},
-            "hk_mV_14V": {"index": self.hk_index, "subindex": "ADC1", "type": "<H", "row": 16, "col": 1},
-            "hk_mA_14V": {"index": self.hk_index, "subindex": "ADC2", "type": "<H", "row": 16, "col": 2},
-            "hk_mV_7VA": {"index": self.hk_index, "subindex": "ADC3", "type": "<H", "row": 16, "col": 3},
-            "hk_mA_7VA": {"index": self.hk_index, "subindex": "ADC4", "type": "<H", "row": 16, "col": 4},
-
-            "count_meccemsb": {"index": self.hk_index, "subindex": "ADC0", "type": "<H", "row": 19, "col": 0},
-            "count_ueccemsb": {"index": self.hk_index, "subindex": "ADC1", "type": "<H", "row": 19, "col": 1},
-            "count_meccelsb": {"index": self.hk_index, "subindex": "ADC2", "type": "<H", "row": 19, "col": 2},
-            "count_ueccelsb": {"index": self.hk_index, "subindex": "ADC3", "type": "<H", "row": 19, "col": 3},
-
-            "region_stat": {"index": self.hk_index, "subindex": "ADC0", "type": "<I", "row": 22, "col": 0},
-            "failed_repairs": {"index": self.hk_index, "subindex": "ADC1", "type": "<I", "row": 22, "col": 1},
-            "repair_stat": {"index": self.hk_index, "subindex": "ADC2", "type": "<I", "row": 22, "col": 2},
-        }
-        self.block_hsi = [
-            # anode
-            {"name": "a_vx", "type": "<I", "hex": False},
-            {"name": "a_vy", "type": "<I", "hex": False},
-            {"name": "a_vout", "type": "<I", "hex": False},
-            {"name": "a_iout", "type": "<H", "hex": False},
-            {"name": "a_dac", "type": "<H", "hex": False},
-            {"name": "a_hs_temp", "type": "<H", "hex": False},
-            {"name": "a_last_err", "type": "<H", "hex": False},
-            {"name": "a_cur_oft", "type": "<H", "hex": False},
-            {"name": "a_msg_cnt", "type": "<H", "hex": False},
-            {"name": "a_can_err", "type": "<H", "hex": False},
-
-            # keeper
-            {"name": "k_v_sepic", "type": "<I", "hex": False},
-            {"name": "k_v_in", "type": "<H", "hex": False},
-            {"name": "k_i_out", "type": "<H", "hex": False},
-            {"name": "k_dac_out", "type": "<H", "hex": False},
-            {"name": "k_last_err", "type": "<H", "hex": False},
-            {"name": "k_cur_oft", "type": "<H", "hex": False},
-            {"name": "k_msg_cnt", "type": "<H", "hex": False},
-            {"name": "k_can_err", "type": "<H", "hex": False},
-
-            # magnet
-            {"name": "mo_v_out", "type": "<H", "hex": False},
-            {"name": "mo_i_out", "type": "<H", "hex": False},
-            {"name": "mo_dac_out", "type": "<H", "hex": False},
-            {"name": "mo_last_err", "type": "<H", "hex": False},
-            {"name": "mo_msg_cnt", "type": "<H", "hex": False},
-            {"name": "mo_can_err", "type": "<H", "hex": False},
-
-            #magnet inner
-            {"name": "mi_v_out", "type": "<H", "hex": False},
-            {"name": "mi_i_out", "type": "<H", "hex": False},
-            {"name": "mi_dac_out", "type": "<H", "hex": False},
-            {"name": "mi_last_err", "type": "<H", "hex": False},
-            {"name": "mi_msg_cnt", "type": "<H", "hex": False},
-            {"name": "mi_can_err", "type": "<H", "hex": False},
-
-            # valves
-            {"name": "va_anode_v", "type": "<H", "hex": False},
-            {"name": "va_cathode_hf_v", "type": "<H", "hex": False},
-            {"name": "va_cathode_lf_v", "type": "<H", "hex": False},
-            {"name": "va_temperature", "type": "<i", "hex": False},
-            {"name": "va_tank_pressure", "type": "<I", "hex": False},
-            {"name": "va_cathode_pressure", "type": "<H", "hex": False},
-            {"name": "va_anode_pressure", "type": "<H", "hex": False},
-            {"name": "va_regulator_pressure", "type": "<H", "hex": False},
-            {"name": "va_msg_cnt", "type": "<H", "hex": False},
-            {"name": "va_can_err", "type": "<H", "hex": False},
-
-            # hk mem
-            {"name": "hk_mA_28V", "type": "<H", "hex": False},
-            {"name": "hk_mV_14V", "type": "<H", "hex": False},
-            {"name": "hk_mA_14V", "type": "<H", "hex": False},
-            {"name": "hk_mV_7VA", "type": "<H", "hex": False},
-            {"name": "hk_mA_7VA", "type": "<H", "hex": False},
-
-            # efc
-            {"name": "count_meccemsb", "type": "<H", "hex": True},
-            {"name": "count_ueccemsb", "type": "<H", "hex": True},
-            {"name": "count_meccelsb", "type": "<H", "hex": True},
-            {"name": "count_ueccelsb", "type": "<H", "hex": True},
-
-            # sys-mem
-            {"name": "region_stat", "type": "<I", "hex": True},
-            {"name": "failed_repairs", "type": "<I", "hex": True},
-            {"name": "repair_stat", "type": "<I", "hex": True},
-        ]
-
-
-class MrLogger():
-    """
-    Log Folder Format
-    """
-
-    def __init__(self, root_dir, log_name):
-        # log types
-        self.RAW = 0
-        self.TRACE = 1
-        self.HSI = 2
-        self.SYS = 3
-        self.raw_q = Queue()
-        self.q = Queue(10)
-        # create logging dir
-        self.create_folder(root_dir)
-        now = datetime.datetime.now()
-        time_string = now.strftime("%Y_%m_%d_%H_%M_%S")
-        self.log_dir = root_dir + f"/unnamed_{time_string}"
-        if len(log_name) > 0:  # create a custom test folder
-            self.log_dir = root_dir + f"/{log_name}_{time_string}"
-        self.create_folder(self.log_dir)
-        self.hsi_log = open(self.log_dir + f"/{time_string}_{log_name}_hsi_log.txt", "w+")
-        self.trace_log = open(self.log_dir + f"/{time_string}_{log_name}_trace_log.txt", "w+")
-        self.raw_log = open(self.log_dir + f"/{time_string}_{log_name}_raw_serial_log.txt", "w+")
-        self.sys_log = open(self.log_dir + f"/{time_string}_{log_name}_sys_log.txt", "w+")
-        # create a thread to handle incoming messages.
-        self.run = True
-        self.handle_thread = Thread(target=self.handle_q, daemon=True)
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        # self.sock.bind((RAW_UDP_IP, RAW_UDP_PORT))
-        #get the trace msgs from the bus class itself
-
-        self.network_handle_thread = Thread(target=self.handle_raw, daemon=True)
-
-        self.handle_thread.start()
-        self.network_handle_thread.start()
-
-    def set_raw_queue(self, q):
-        self.raw_q = q
-
-    def create_folder(self, folder_name):
-        if not exists(folder_name):
-            print(f"Creating {folder_name}.")
-            try:
-                os.mkdir(folder_name)
-                return True
-            except OSError as e:
-                print(f"Error {folder_name} could not be created. {e}")
-        return False
-
-    def log(self, log_type, msg, end="\n", print_val=True):
-        if log_type >= 0 and log_type <= 3:  # valid log mesage
-            self.q.put({"type": log_type, "msg": msg})
-            if log_type == self.SYS and print_val:
-                print(msg, end=end)
-            return True
-        else:
-            return False
-
-    def handle_q(self):
-        while self.run:
-            try:
-                if not self.q.empty():
-                    m = self.q.get()
-                    try:
-                        type = m.get("type")
-                        msg = m.get("msg")
-                        if type == self.HSI:
-                            self.hsi_log.write(f"{msg}\n")
-                        elif type == self.TRACE:
-                            decoded_msg = f"{msg.decode('ascii')}\n"
-                            self.trace_log.write(decoded_msg)
-                            self.trace_log.flush()
-                        elif type == self.SYS:
-                            self.sys_log.write(f"{msg}\n")
-                            self.sys_log.flush()
-                    except KeyError:
-                        None
-                        # failed to parse log message
-                else:
-                    time.sleep(0.1)
-            except Exception as e:
-                print(e)
-                print(traceback.extract_tb())
-
-    def handle_raw(self):
-        while self.run:
-            # data, addr = self.sock.recvfrom(1024)  # buffer size is 1024 bytes
-            data = None
-            if not self.raw_q.empty():
-                data = self.raw_q.get()
-            else:
-                continue
-            now = datetime.datetime.now()
-            time_string = now.strftime("%Y_%m_%d_%H_%M_%S.%f")
-            time_string_disp = now.strftime("%M:%S.%f")
-            if data[0] == 0xA:
-                # sent from the gui
-                tx_bytes = data[1:]  # remove the first byte
-                # rx_cnt = data[2]
-                header = (tx_bytes[0] & 0xF8)
-                if (header) == 0xa8:
-                    # get the cob id
-                    cob_id = (tx_bytes[0] & 0x7) << 8  # move the 3bits up to the top
-                    cob_id |= (tx_bytes[1] & 0xFF)  # append the bottom 8 bits
-                    remote_frame = (tx_bytes[2] & 0x80) >> 7
-                    extended_id = (tx_bytes[2] & 0x40) >> 6
-                    data_length = (tx_bytes[2] & 0xF)
-                    data = tx_bytes[3:11]
-                    msg = f" id:{hex(cob_id)}: dl:{data_length}: d:{data.hex()}"
-                    self.raw_log.write(f"[S:{time_string}]:{tx_bytes.hex()}:{msg}\n")
-
-            elif data[0] == 0xB:
-                # recv from sam
-                rx_bytes = data[1:]  # remove the first byte
-                # rx_cnt = hex(data[2])
-                header = (rx_bytes[0] & 0xF8)
-                if (header) == 0xa8:
-                    # get the cob id
-                    cob_id = (rx_bytes[0] & 0x7) << 8  # move the 3bits up to the top
-                    cob_id |= (rx_bytes[1] & 0xFF)  # append the bottom 8 bits
-                    data_length = (rx_bytes[2] & 0xF)
-                    data = rx_bytes[3:11]
-
-                    index = struct.unpack("<H", rx_bytes[4:6])[0]
-                    subindex = rx_bytes[6]
-                    if index == 0x5001 and subindex == 0x3:
-                        self.sock.sendto(data, (RAW_UDP_IP, 4001))
-                    msg = f" id:{hex(cob_id)}: dl:{data_length}: d:{data.hex()}"
-                    self.raw_log.write(f"[R:{time_string}]:{rx_bytes.hex()}:{msg}\n")
-            else:
-                # garbage
-                None
-            time.sleep(0.01)
-
-    def close(self):
-        self.run = False
-        if self.handle_thread.is_alive():
-            self.handle_thread.join()
-        if self.network_handle_thread.is_alive():
-            self.sock.sendto(bytes(" ", "ascii"), (RAW_UDP_IP, RAW_UDP_PORT))  # send a packet to get out of waiting
-            self.network_handle_thread.join()
-        self.hsi_log.close()
-        self.trace_log.close()
-        self.raw_log.close()
-
-class TCS(Enum): #Thruster Control State
-    """
-        Thruster Control State,
-    """
-    TCS_CO_INVALID              = 0x0
-    TCS_CO_INIT                 = 0x1
-    TCS_CO_PREOP                = 0x2
-    TCS_CO_OPERATIONAL          = 0x3
-    TCS_CO_STOP                 = 0x4
-    TCS_CO_MODE_NUM             = 0x5
-    TCS_POWER_OFF               = 0x6
-    TCS_TRANISTION_STANDBY      = 0x7
-    TCS_STANDBY                 = 0x8
-    TCS_TRANSITION_READY_MODE   = 0x9
-    TCS_READY_MODE              = 0xA
-    TCS_TRANSITION_STEADY_STATE = 0xB
-    TCS_STEADY_STATE            = 0xC
-    TCS_CONDITIONING            = 0xD
-    TCS_BIT_TEST                = 0xE
-    TCS_STATE_NUM               = 0xF
 
 class ThrusterCommand:
     """
@@ -368,11 +34,12 @@ class ThrusterCommand:
         self.debug = debug
         self.test_name = test_name
         self.raw_q = None
-        self.mr_logger = MrLogger("logs", test_name)
+        self.conf_man = config_manager.ConfigManager()
+        self.mr_logger = mr_logger.MrLogger(self.conf_man, "logs", test_name)
         self.version = "0.0.7"
         self.serial_port = ser_port
         self.eds_file = eds_file
-        self.hsi_defs = HSIDefs()
+        self.hsi_defs = hsi_defines.HSIDefines()
         # main loop control
         self.running = True
         # thread control
@@ -911,7 +578,8 @@ if __name__ == "__main__":
                     print(f"Check system_id, {args.system_id} is not a  hex number.")
                 valid = True
                 break
-
+    if args.debug:
+        valid = True
     if not valid:
         print("Serial Port Not Found")
         print("Available Serial Ports:")
