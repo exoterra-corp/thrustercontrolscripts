@@ -4,7 +4,6 @@ from canopen.nmt import NmtError, NMT_STATES
 from serial.tools import list_ports
 from threading import Thread, Lock
 
-
 """
 ExoTerra Resource Thruster Command Script.
 description:

@@ -14,7 +14,10 @@ class ErrorHandling:
         self.serial_port = ser_port
         self.system_id = id
         self.network = canopen.Network()
-        self.network.connect(bustype="exoserial", channel=self.serial_port, baudrate=115200)
+        if ser_port == 'can':
+            self.network.connect(bustype="pcan", channel='PCAN_USBBUS1', baudrate=1000000)
+        else:
+            self.network.connect(bustype="exoserial", channel=self.serial_port, baudrate=115200)
         self.node = self.network.add_node(self.system_id, eds_file)
         self.network.add_node(self.node)
         self.node.sdo.RESPONSE_TIMEOUT = 2
