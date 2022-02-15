@@ -105,10 +105,10 @@ class ThrusterCommand:
                   "args": {"nmt_state": "OPERATIONAL"},
                   "help": "Changes NMT STATE to OPERATIONAL."},
             "5": {"name": "Run Ready Mode", "func": self.get_write_value,
-                  "args": {"index": self.th_command_index, "subindex": "ReadyMode", "type": "<I", "default": "0x1"},
+                  "args": {"index": self.th_command_index, "subindex": "Ready Mode", "type": "<I", "default": "0x1"},
                   "help": "Writes a UINT-32 to the Thruster Ready Mode."},
             "6": {"name": "Run Steady State", "func": self.get_write_value,
-                  "args": {"index": self.th_command_index, "subindex": "SteadyState", "type": "<I"},
+                  "args": {"index": self.th_command_index, "subindex": "Steady State", "type": "<I"},
                   "help": "Writes a UINT-32 to the Thruster Steady State."},
             "7": {"name": "Thruster Shutdown", "func": self.get_write_value,
                   "args": {"index": self.th_command_index, "subindex": "Shutdown", "type": "<B", "default": "0x1"},
@@ -276,7 +276,6 @@ class ThrusterCommand:
         statuses = self.get_status(index, noprint)
         if statuses[2] >= '0x7':
             self.start_threads()
-        self.mr_logger.log(LogType.SYS, "8 to enable / disable console status print")
 
         self.status_console_lock.acquire()
         if not self.status_console_run:
@@ -284,8 +283,11 @@ class ThrusterCommand:
             self.status_console_run = True
             self.status_console_thread = Thread(target=self.status_thread)
             self.status_console_thread.start()
+            self.mr_logger.log(LogType.SYS, "status console print enabled!")
+            self.mr_logger.log(LogType.SYS, "8 to disable status console print.")
         else:
             self.status_console_run = False
+            self.mr_logger.log(LogType.SYS, "status console print disabled!")
         self.status_console_lock.release()
 
     def get_status(self, index, noprint=False):
@@ -335,8 +337,7 @@ class ThrusterCommand:
             self.status_console_lock.acquire()
             status = self.get_status(self.th_command_index, False)
             self.status_console_lock.release()
-            status_console_print_delay = self.conf_man.get("DEFAULT", "STATUS_CONSOLE_PRINT_DELAY")
-            time.sleep(status_console_print_delay)
+            time.sleep(self.status_console_print_delay)
 
     def gather_status_and_trace(self):
         """
