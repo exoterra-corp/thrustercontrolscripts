@@ -4,8 +4,9 @@ from serial.tools import list_ports
 from threading import Thread, Lock
 from os.path import exists
 from enum import Enum
-from src import hsi_defines,config_manager
 from src.mr_logger import MrLogger, LogType
+from src.config_manager import ConfigManager
+from src.hsi_defines import TCS, HSIDefines
 
 """
 ExoTerra Resource Thruster Command Script.
@@ -33,23 +34,23 @@ class ThrusterCommand:
         self.debug = debug
         self.test_name = test_name
         self.raw_q = None
-        self.conf_man = config_manager.ConfigManager()
+        #setup classes
+        self.conf_man = ConfigManager()
         self.mr_logger = MrLogger(self.conf_man, "logs", test_name)
-        self.version = "0.0.7"
+        self.hsi_defs = HSIDefines()
+        #passed in params
+        self.version = "0.0.8"
         self.serial_port = ser_port
         self.eds_file = eds_file
-        self.hsi_defs = hsi_defines.HSIDefines()
         # main loop control
         self.running = True
         # thread control
         self.thread_run = False
-
         # status console print vars
         self.status_console_thread = None
         self.status_console_run = False
         self.status_console_lock = Lock()
         self.eds = {}
-
         self.system_id = ecp_id
         self.node = None
         self.nmt_state = None
@@ -64,8 +65,33 @@ class ThrusterCommand:
         self.bit_status = 0
         self.cond_status = 0
         self.thrust_point = 0
-
         self.bootup_msg = False
+
+        #read default config variables
+        self.udp_enable = self.conf_man.get("DEFAULT", "UDP_ENABLE", bool)
+        self.status_console_print_delay = self.conf_man.get("DEFAULT", "STATUS_CONSOLE_PRINT_DELAY", int)
+        self.mode_status_subindex = self.conf_man.get("DEFAULT", "MODE_STATUS_SUBINDEX")
+        self.state_status_subindex = self.conf_man.get("DEFAULT", "STATE_STATUS_SUBINDEX")
+        self.thruster_status_subindex = self.conf_man.get("DEFAULT", "THRUSTER_STATUS_SUBINDEX")
+        self.condition_status_subindex = self.conf_man.get("DEFAULT", "CONDITION_STATUS_SUBINDEX")
+        self.thrust_point_subindex = self.conf_man.get("DEFAULT", "THRUST_POINT_SUBINDEX")
+        self.bit_status_subindex = self.conf_man.get("DEFAULT","BIT_STATUS_SUBINDEX")
+
+        #read trace config variables
+        self.trace_udp_ip = self.conf_man.get("TRACE", "TRACE_UDP_IP")
+        self.trace_udp_port = self.conf_man.get("TRACE", "TRACE_UDP_PORT", int)
+        self.trace_sleep_time = self.conf_man.get("TRACE", "TRACE_SLEEP_TIME", int)
+        self.trace_msg_max_gather = self.conf_man.get("TRACE", "TRACE_MSG_MAX_GATHER")
+
+        #read hsi config variables
+        self.hsi_status_ip = self.conf_man.get("HSI", "HSI_STATUS_IP")
+        self.hsi_block_udp_port = self.conf_man.get("HSI", "HSI_BLOCK_UDP_PORT", int)
+        self.hsi_sleep_time = self.conf_man.get("HSI", "HSI_SLEEP_TIME", int)
+
+        #read raw config variables
+        self.raw_udp_ip = self.conf_man.get("RAW", "RAW_UDP_IP")
+        self.raw_udp_port = self.conf_man.get("RAW", "RAW_UDP_PORT", int)
+
         self.hsi_cmds = {
             "0": {"name": "Exit", "func": self.exit, "help": "Exits the Program"},
             "1": {"name": "Help", "func": self.help, "help": "Displays the help Menu"},
@@ -129,10 +155,11 @@ class ThrusterCommand:
             self.node.sdo.RESPONSE_TIMEOUT = 2
             self.node.emcy.add_callback(self.handle_emcy)
             self.network.subscribe(0x722, self.notify_bootup)
+
             # check to see if device is connected
             attemps = 0
             while self.nmt_state is None and attemps < 3:
-                self.nmt_state = self.read(self.th_command_index, THRUSTER_STATUS_SUBINDEX, "<I")
+                self.nmt_state = self.read(self.th_command_index, self.thruster_status_subindex, "<I")
                 attemps += 1
             # check to see if msg was recieved
             if self.nmt_state is None:
@@ -140,7 +167,6 @@ class ThrusterCommand:
                 while not self.bootup_msg:
                     time.sleep(0.01)
                 self.mr_logger.log(LogType.SYS, "System Controller Connected!")
-
 
             # read the state on bootup
             self.get_status(self.th_command_index)
@@ -238,9 +264,8 @@ class ThrusterCommand:
         """
         message = f"EMCYTimestamp: {error.timestamp}, EMCYCode: {error.code}," \
                   f" EMCYData: {error.data}"
-
-        self.send_udp_packet(message, TRACE_UDP_IP, TRACE_UDP_PORT)
-        self.mr_logger.log(LogType.SYS,message)
+        self.send_udp_packet(message, self.trace_udp_ip, self.trace_udp_port)
+        self.mr_logger.log(LogType.SYS, message)
 
     def get_status_index(self, args):
         """
@@ -267,12 +292,12 @@ class ThrusterCommand:
         """
         get_status, this function provides more direct access to the status variables.
         """
-        mode_status = self.read(index, MODE_STATUS_SUBINDEX, "<I")
-        state_status = self.read(index, STATE_STATUS_SUBINDEX, "<I")
-        self.thruster_status_parsed = self.read(index, THRUSTER_STATUS_SUBINDEX, "<I")
-        cond_status = self.read(index, CONDITION_STATUS_SUBINDEX, "<I")
-        thrust_point = self.read(index, THRUST_POINT_SUBINDEX, "<I")
-        bit_status = self.read(index, BIT_STATUS_SUBINDEX, "<I")
+        mode_status = self.read(index, self.mode_status_subindex, "<I")
+        state_status = self.read(index, self.state_status_subindex, "<I")
+        self.thruster_status_parsed = self.read(index, self.thruster_status_subindex, "<I")
+        cond_status = self.read(index, self.condition_status_subindex, "<I")
+        thrust_point = self.read(index, self.thrust_point_subindex, "<I")
+        bit_status = self.read(index, self.bit_status_subindex, "<I")
 
         if mode_status == None:
             mode_status = 0
@@ -310,7 +335,8 @@ class ThrusterCommand:
             self.status_console_lock.acquire()
             status = self.get_status(self.th_command_index, False)
             self.status_console_lock.release()
-            time.sleep(STATUS_CONSOLE_PRINT_DELAY)
+            status_console_print_delay = self.conf_man.get("DEFAULT", "STATUS_CONSOLE_PRINT_DELAY")
+            time.sleep(status_console_print_delay)
 
     def gather_status_and_trace(self):
         """
@@ -328,7 +354,7 @@ class ThrusterCommand:
                         self.get_block_hsi()
                     except Exception as e:
                         self.mr_logger.log(LogType.SYS, f"{e}", )
-            time.sleep(TRACE_SLEEP_TIME)
+            time.sleep(self.trace_sleep_time)
 
     def get_block_hsi(self):
         """
@@ -336,8 +362,8 @@ class ThrusterCommand:
         """
         data = self.node.sdo.upload(0x3100, 0x1)
         #save it to the log file
-        self.mr_logger.log(self.mr_logger.HSI, f"{data}")
-        self.trace_sock.sendto(data, (HSI_UDP_IP, HSI_BLOCK_UDP_PORT))
+        self.mr_logger.log(LogType.HSI, f"{data}")
+        self.trace_sock.sendto(data, (self.hsi_status_ip, self.hsi_block_udp_port))
 
     def query_block_hsi(self, args):
         """
@@ -375,7 +401,7 @@ class ThrusterCommand:
         """
         if not self.thread_run:
             if self.debug:
-                self.mr_logger.log(LogType.SYS, f"Starting Trace / Status thread. Sending HSI to {HSI_UDP_IP}:{HSI_UDP_PORT}.")
+                self.mr_logger.log(LogType.SYS, f"Starting Trace / Status thread. Sending HSI to {self.hsi_status_ip}:{self.hsi_block_udp_port}.")
             self.thread_run = True
             self.listen_thread = Thread(target=self.gather_status_and_trace, daemon=True)
             self.listen_thread.start()
@@ -385,7 +411,6 @@ class ThrusterCommand:
         get_write_value, looks for a default value and if one is found just writes it, otherwise its prompts the user
         for a hex value to write.
         """
-
         index = args.get("index")
         subindex = args.get("subindex")
         python_type = args.get("type")
@@ -483,12 +508,12 @@ class ThrusterCommand:
             if the head and the tail are == then there are no messages just return.
         """
         try:
-            for i in range(0, TRACE_MSG_MAX_GATHER):
+            for i in range(0, self.trace_msg_max_gather):
                 # msg = self.read(self.trace_msg_index, TRACE_MSG_SUBINDEX, "noparse", False)
                 msg = self.node.sdo.upload(0x5001, 0x6)
                 if msg is not None:
-                    self.mr_logger.log(self.mr_logger.TRACE, msg)
-                    self.send_udp_packet(msg, TRACE_UDP_IP, TRACE_UDP_PORT)
+                    self.mr_logger.log(LogType.TRACE, msg)
+                    self.send_udp_packet(msg, self.trace_udp_ip, self.trace_udp_port)
         except Exception as e:
             # ran out of msgs to get
             None

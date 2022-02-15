@@ -2,7 +2,7 @@
 import socket, argparse, datetime, struct, os, sys, threading, wx, time
 from queue import Queue
 from HSIExcelWindow import HSIExcelWindow
-from thruster_command import HSIDefs
+from src.hsi_defines import HSIDefines
 
 """
 ExoTerra Resource Listener Script.
@@ -27,7 +27,7 @@ class Listener():
         self.udp_port = int(udp_port)
         self.logdir = f"./{logdir}/"
         self.running = True
-        self.hsi_defs = HSIDefs()
+        self.hsi_defs = HSIDefines()
         self.q = Queue()
         self.sock = socket.socket(socket.AF_INET,  # Internet
                                   socket.SOCK_DGRAM)  # UDP

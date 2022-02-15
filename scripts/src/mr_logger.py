@@ -67,7 +67,7 @@ class MrLogger:
 
     def set_raw_queue(self, q):
         """
-        set_raw_queue, sets the local Queue reference into the exoserial library.  This is so the Queue can be empitted
+        set_raw_queue, sets the local Queue reference into the exoserial library.
         by a thread and into a file for storage.
         """
         self.raw_q = q
@@ -95,7 +95,7 @@ class MrLogger:
         """
         if log_type.value >= 0 and log_type.value <= 3:  # valid log mesage
             self.q.put({"type": log_type, "msg": msg})
-            if log_type == LogType.SYS.value and print_val:
+            if log_type.value == LogType.SYS.value and print_val:
                 print(msg, end=end)
             return True
         else:
@@ -174,7 +174,7 @@ class MrLogger:
                     index = unpack("<H", rx_bytes[4:6])[0]
                     subindex = rx_bytes[6]
                     if index == 0x5001 and subindex == 0x3:
-                        self.sock.sendto(data, (RAW_UDP_IP, 4001))
+                        self.sock.sendto(data, (self.raw_udp_ip, 4001))
                     msg = f" id:{hex(cob_id)}: dl:{data_length}: d:{data.hex()}"
                     self.raw_log.write(f"[R:{time_string}]:{rx_bytes.hex()}:{msg}\n")
             else:
@@ -190,7 +190,7 @@ class MrLogger:
         if self.handle_thread.is_alive():
             self.handle_thread.join()
         if self.network_handle_thread.is_alive():
-            self.sock.sendto(bytes(" ", "ascii"), (RAW_UDP_IP, RAW_UDP_PORT))  # send a packet to get out of waiting
+            self.sock.sendto(bytes(" ", "ascii"), (self.raw_udp_ip, self.raw_udp_port))  # send a packet to get out of waiting
             self.network_handle_thread.join()
         self.hsi_log.close()
         self.trace_log.close()

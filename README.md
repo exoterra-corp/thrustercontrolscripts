@@ -12,3 +12,6 @@ sudo ./install.sh
 
 This script will attempt to install the required python packages and then add the user to the dialout group for serial 
 communication.
+
+## Running the example.py
+example.py is located under scripts/example.py and shows how to fire the thruster in a step-by-step process.

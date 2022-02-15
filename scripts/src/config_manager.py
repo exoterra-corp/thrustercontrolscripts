@@ -19,7 +19,6 @@ class ConfigManager:
                     print(f"Found {self.config_file}!")
                     with open(self.config_file) as e:
                         self.parser.read_file(e)
-                        self.parser.get()
 
         except Exception as e:
             print(extract_tb(None))
