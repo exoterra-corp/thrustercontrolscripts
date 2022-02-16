@@ -263,7 +263,9 @@ class ThrusterCommand:
         handle_emcy, on emcy msg this function prints the error to console and udp port
         """
         message = f"EMCYTimestamp: {error.timestamp}, EMCYCode: {error.code}," \
-                  f" EMCYData: {error.data}"
+                  f" EMCYData: 0x{error.data.hex()}"
+
+
         self.send_udp_packet(message, self.trace_udp_ip, self.trace_udp_port)
         self.mr_logger.log(LogType.SYS, message)
 
