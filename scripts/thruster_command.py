@@ -1,11 +1,12 @@
 #!/usr/bin/python3
-import canopen, argparse, struct, time, sys, socket, traceback, datetime, os
-from canopen.nmt import NmtError, NMT_STATES
+import canopen, argparse, struct, time, sys, socket, traceback, datetime
 from serial.tools import list_ports
 from threading import Thread, Lock
 from os.path import exists
-from queue import Queue
 from enum import Enum
+from src.mr_logger import MrLogger, LogType
+from src.config_manager import ConfigManager
+from src.hsi_defines import TCS, HSIDefines
 
 """
 ExoTerra Resource Thruster Command Script.
@@ -16,341 +17,6 @@ contact:
 joshua.meyers@exoterracorp.com 
 jeremy.mitchell@exoterracorp.com
 """
-
-STATUS_CONSOLE_PRINT_DELAY = 1
-THRUSTER_COMMAND_INDEX = "ThrusterCommand"
-TRACE_MSG_INDEX = "Trace"
-MODE_STATUS_SUBINDEX = "ReadyMode"
-STATE_STATUS_SUBINDEX = "SteadyState"
-THRUSTER_STATUS_SUBINDEX = "Status"
-CONDITION_STATUS_SUBINDEX = "Condition"
-THRUST_POINT_SUBINDEX = "Thrust"
-TRACE_MSG_SUBINDEX = "TraceMessageTail"
-BIT_STATUS_SUBINDEX = "BIT"
-
-TRACE_UDP_IP = "127.0.0.1"
-TRACE_UDP_PORT = 4002
-TRACE_SLEEP_TIME = 0
-TRACE_MSG_MAX_GATHER = 2
-
-HSI_STATUS_IP = "127.0.0.1"
-HSI_BLOCK_UDP_PORT = 4001
-HSI_SLEEP_TIME = 0
-TRACE_MSG_GATHER_CNT = 2
-STATUS_CONSOLE_PRINT_DELAY = 1
-
-RAW_UDP_IP = "127.0.0.1"
-RAW_UDP_PORT = 4000
-
-class HSIDefs:
-    def __init__(self):
-        self.keeper_index = "KeeperDiag"
-        self.anode_index = "AnodeDiag"
-        self.mag_outer_index = "MagnetOuterDiag"
-        self.mag_inner_index = "MagnetInnerDiag"
-        self.valves_index = "ValveDiag"
-        self.hk_index = "HKDiag"
-        self.hsi = {
-            "a_vx": {"index": self.anode_index, "subindex": "ADC0", "type": "<H", "row": 4, "col": 0x0},  # 32bit
-            "a_vy": {"index": self.anode_index, "subindex": "ADC1", "type": "<H", "row": 4, "col": 0x1},  # 32bit
-            "a_vout": {"index": self.anode_index, "subindex": "ADC2", "type": "<H", "row": 4, "col": 0x2},  # 32bit
-            "a_iout": {"index": self.anode_index, "subindex": "ADC3", "type": "<H", "row": 4, "col": 0x3},
-            "a_dac": {"index": self.anode_index, "subindex": "ADC4", "type": "<H", "row": 4, "col": 0x4},
-            "a_hs_temp": {"index": self.anode_index, "subindex": "ADC7", "type": "<H", "row": 4, "col": 0x7},
-            "a_last_err": {"index": self.anode_index, "subindex": "ADC5", "type": "<H", "row": 4, "col": 0x5},
-            "a_cur_oft": {"index": self.anode_index, "subindex": "ADC6", "type": "<H", "row": 4, "col": 0x6},
-            "a_msg_cnt": {"index": self.anode_index, "subindex": "ADC8", "type": "<H", "row": 4, "col": 0x8},
-            "a_can_err": {"index": self.anode_index, "subindex": "ADC9", "type": "<H", "row": 4, "col": 0x9},
-
-            "k_v_sepic": {"index": self.keeper_index, "subindex": "ADC0", "type": "<H", "row": 1, "col": 0x0},  # 32bit
-            "k_v_in": {"index": self.keeper_index, "subindex": "ADC1", "type": "<H", "row": 1, "col": 0x1},  # 32bit
-            "k_i_out": {"index": self.keeper_index, "subindex": "ADC2", "type": "<H", "row": 1, "col": 0x2},
-            "k_dac_out": {"index": self.keeper_index, "subindex": "ADC3", "type": "<H", "row": 1, "col": 0x3},
-            "k_last_err": {"index": self.keeper_index, "subindex": "ADC4", "type": "<H", "row": 1, "col": 0x4},
-            "k_cur_oft": {"index": self.keeper_index, "subindex": "ADC5", "type": "<H", "row": 1, "col": 0x5},
-            "k_msg_cnt": {"index": self.keeper_index, "subindex": "ADC6", "type": "<H", "row": 1, "col": 0x6},
-            "k_can_err": {"index": self.keeper_index, "subindex": "ADC7", "type": "<H", "row": 1, "col": 0x7},
-
-            "mo_v_out": {"index": self.mag_inner_index, "subindex": "ADC0", "type": "<H", "row": 7, "col": 0},
-            "mo_i_out": {"index": self.mag_inner_index, "subindex": "ADC1", "type": "<H", "row": 7, "col": 1},
-            "mo_dac_out": {"index": self.mag_inner_index, "subindex": "ADC2", "type": "<H", "row": 7, "col": 2},
-            "mo_last_err": {"index": self.mag_inner_index, "subindex": "ADC3", "type": "<H", "row": 7, "col": 3},
-            "mo_msg_cnt": {"index": self.mag_inner_index, "subindex": "ADC4", "type": "<H", "row": 7, "col": 4},
-            "mo_can_err": {"index": self.mag_inner_index, "subindex": "ADC5", "type": "<H", "row": 7, "col": 5},
-
-            "mi_v_out": {"index": self.mag_outer_index, "subindex": "ADC0", "type": "<H", "row": 10, "col": 0},
-            "mi_i_out": {"index": self.mag_outer_index, "subindex": "ADC1", "type": "<H", "row": 10, "col": 1},
-            "mi_dac_out": {"index": self.mag_outer_index, "subindex": "ADC2", "type": "<H", "row": 10, "col": 2},
-            "mi_last_err": {"index": self.mag_outer_index, "subindex": "ADC3", "type": "<H", "row": 10, "col": 3},
-            "mi_msg_cnt": {"index": self.mag_outer_index, "subindex": "ADC4", "type": "<H", "row": 10, "col": 4},
-            "mi_can_err": {"index": self.mag_outer_index, "subindex": "ADC5", "type": "<H", "row": 10, "col": 5},
-
-            "va_anode_v": {"index": self.valves_index, "subindex": "ADC0", "type": "<H", "row": 13, "col": 0},
-            "va_cathode_hf_v": {"index": self.valves_index, "subindex": "ADC1", "type": "<H", "row": 13, "col": 1},
-            "va_cathode_lf_v": {"index": self.valves_index, "subindex": "ADC2", "type": "<H", "row": 13, "col": 2},
-            "va_temperature": {"index": self.valves_index, "subindex": "ADC3", "type": "<H", "row": 13, "col": 3},
-            # signed 32bit
-            "va_tank_pressure": {"index": self.valves_index, "subindex": "ADC4", "type": "<H", "row": 13, "col": 4},
-            # 32bit
-            "va_cathode_pressure": {"index": self.valves_index, "subindex": "ADC5", "type": "<H", "row": 13,
-                                    "col": 5},
-            "va_anode_pressure": {"index": self.valves_index, "subindex": "ADC6", "type": "<H", "row": 13, "col": 6},
-            "va_regulator_pressure": {"index": self.valves_index, "subindex": "ADC7", "type": "<H", "row": 13, "col": 7},
-            "va_msg_cnt": {"index": self.valves_index, "subindex": "ADC8", "type": "<H", "row": 13, "col": 8},
-            "va_can_err": {"index": self.valves_index, "subindex": "ADC9", "type": "<H", "row": 13, "col": 9},
-
-            "hk_mA_28V": {"index": self.hk_index, "subindex": "ADC0", "type": "<H", "row": 16, "col": 0},
-            "hk_mV_14V": {"index": self.hk_index, "subindex": "ADC1", "type": "<H", "row": 16, "col": 1},
-            "hk_mA_14V": {"index": self.hk_index, "subindex": "ADC2", "type": "<H", "row": 16, "col": 2},
-            "hk_mV_7VA": {"index": self.hk_index, "subindex": "ADC3", "type": "<H", "row": 16, "col": 3},
-            "hk_mA_7VA": {"index": self.hk_index, "subindex": "ADC4", "type": "<H", "row": 16, "col": 4},
-
-            "count_meccemsb": {"index": self.hk_index, "subindex": "ADC0", "type": "<H", "row": 19, "col": 0},
-            "count_ueccemsb": {"index": self.hk_index, "subindex": "ADC1", "type": "<H", "row": 19, "col": 1},
-            "count_meccelsb": {"index": self.hk_index, "subindex": "ADC2", "type": "<H", "row": 19, "col": 2},
-            "count_ueccelsb": {"index": self.hk_index, "subindex": "ADC3", "type": "<H", "row": 19, "col": 3},
-
-            "region_stat": {"index": self.hk_index, "subindex": "ADC0", "type": "<I", "row": 22, "col": 0},
-            "failed_repairs": {"index": self.hk_index, "subindex": "ADC1", "type": "<I", "row": 22, "col": 1},
-            "repair_stat": {"index": self.hk_index, "subindex": "ADC2", "type": "<I", "row": 22, "col": 2},
-        }
-        self.block_hsi = [
-            # anode
-            {"name": "a_vx", "type": "<I", "hex": False},
-            {"name": "a_vy", "type": "<I", "hex": False},
-            {"name": "a_vout", "type": "<I", "hex": False},
-            {"name": "a_iout", "type": "<H", "hex": False},
-            {"name": "a_dac", "type": "<H", "hex": False},
-            {"name": "a_hs_temp", "type": "<H", "hex": False},
-            {"name": "a_last_err", "type": "<H", "hex": False},
-            {"name": "a_cur_oft", "type": "<H", "hex": False},
-            {"name": "a_msg_cnt", "type": "<H", "hex": False},
-            {"name": "a_can_err", "type": "<H", "hex": False},
-
-            # keeper
-            {"name": "k_v_sepic", "type": "<I", "hex": False},
-            {"name": "k_v_in", "type": "<H", "hex": False},
-            {"name": "k_i_out", "type": "<H", "hex": False},
-            {"name": "k_dac_out", "type": "<H", "hex": False},
-            {"name": "k_last_err", "type": "<H", "hex": False},
-            {"name": "k_cur_oft", "type": "<H", "hex": False},
-            {"name": "k_msg_cnt", "type": "<H", "hex": False},
-            {"name": "k_can_err", "type": "<H", "hex": False},
-
-            # magnet
-            {"name": "mo_v_out", "type": "<H", "hex": False},
-            {"name": "mo_i_out", "type": "<H", "hex": False},
-            {"name": "mo_dac_out", "type": "<H", "hex": False},
-            {"name": "mo_last_err", "type": "<H", "hex": False},
-            {"name": "mo_msg_cnt", "type": "<H", "hex": False},
-            {"name": "mo_can_err", "type": "<H", "hex": False},
-
-            #magnet inner
-            {"name": "mi_v_out", "type": "<H", "hex": False},
-            {"name": "mi_i_out", "type": "<H", "hex": False},
-            {"name": "mi_dac_out", "type": "<H", "hex": False},
-            {"name": "mi_last_err", "type": "<H", "hex": False},
-            {"name": "mi_msg_cnt", "type": "<H", "hex": False},
-            {"name": "mi_can_err", "type": "<H", "hex": False},
-
-            # valves
-            {"name": "va_anode_v", "type": "<H", "hex": False},
-            {"name": "va_cathode_hf_v", "type": "<H", "hex": False},
-            {"name": "va_cathode_lf_v", "type": "<H", "hex": False},
-            {"name": "va_temperature", "type": "<i", "hex": False},
-            {"name": "va_tank_pressure", "type": "<I", "hex": False},
-            {"name": "va_cathode_pressure", "type": "<H", "hex": False},
-            {"name": "va_anode_pressure", "type": "<H", "hex": False},
-            {"name": "va_regulator_pressure", "type": "<H", "hex": False},
-            {"name": "va_msg_cnt", "type": "<H", "hex": False},
-            {"name": "va_can_err", "type": "<H", "hex": False},
-
-            # hk mem
-            {"name": "hk_mA_28V", "type": "<H", "hex": False},
-            {"name": "hk_mV_14V", "type": "<H", "hex": False},
-            {"name": "hk_mA_14V", "type": "<H", "hex": False},
-            {"name": "hk_mV_7VA", "type": "<H", "hex": False},
-            {"name": "hk_mA_7VA", "type": "<H", "hex": False},
-
-            # efc
-            {"name": "count_meccemsb", "type": "<H", "hex": True},
-            {"name": "count_ueccemsb", "type": "<H", "hex": True},
-            {"name": "count_meccelsb", "type": "<H", "hex": True},
-            {"name": "count_ueccelsb", "type": "<H", "hex": True},
-
-            # sys-mem
-            {"name": "region_stat", "type": "<I", "hex": True},
-            {"name": "failed_repairs", "type": "<I", "hex": True},
-            {"name": "repair_stat", "type": "<I", "hex": True},
-        ]
-
-
-class MrLogger():
-    """
-    Log Folder Format
-    """
-
-    def __init__(self, root_dir, log_name):
-        # log types
-        self.RAW = 0
-        self.TRACE = 1
-        self.HSI = 2
-        self.SYS = 3
-        self.raw_q = Queue()
-        self.q = Queue(10)
-        # create logging dir
-        self.create_folder(root_dir)
-        now = datetime.datetime.now()
-        time_string = now.strftime("%Y_%m_%d_%H_%M_%S")
-        self.log_dir = root_dir + f"/unnamed_{time_string}"
-        if len(log_name) > 0:  # create a custom test folder
-            self.log_dir = root_dir + f"/{log_name}_{time_string}"
-        self.create_folder(self.log_dir)
-        self.hsi_log = open(self.log_dir + f"/{time_string}_{log_name}_hsi_log.txt", "w+")
-        self.trace_log = open(self.log_dir + f"/{time_string}_{log_name}_trace_log.txt", "w+")
-        self.raw_log = open(self.log_dir + f"/{time_string}_{log_name}_raw_serial_log.txt", "w+")
-        self.sys_log = open(self.log_dir + f"/{time_string}_{log_name}_sys_log.txt", "w+")
-        # create a thread to handle incoming messages.
-        self.run = True
-        self.handle_thread = Thread(target=self.handle_q, daemon=True)
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        # self.sock.bind((RAW_UDP_IP, RAW_UDP_PORT))
-        #get the trace msgs from the bus class itself
-
-        self.network_handle_thread = Thread(target=self.handle_raw, daemon=True)
-
-        self.handle_thread.start()
-        self.network_handle_thread.start()
-
-    def set_raw_queue(self, q):
-        self.raw_q = q
-
-    def create_folder(self, folder_name):
-        if not exists(folder_name):
-            print(f"Creating {folder_name}.")
-            try:
-                os.mkdir(folder_name)
-                return True
-            except OSError as e:
-                print(f"Error {folder_name} could not be created. {e}")
-        return False
-
-    def log(self, log_type, msg, end="\n", print_val=True):
-        if log_type >= 0 and log_type <= 3:  # valid log mesage
-            self.q.put({"type": log_type, "msg": msg})
-            if log_type == self.SYS and print_val:
-                print(msg, end=end)
-            return True
-        else:
-            return False
-
-    def handle_q(self):
-        while self.run:
-            try:
-                if not self.q.empty():
-                    m = self.q.get()
-                    try:
-                        type = m.get("type")
-                        msg = m.get("msg")
-                        if type == self.HSI:
-                            self.hsi_log.write(f"{msg}\n")
-                        elif type == self.TRACE:
-                            decoded_msg = f"{msg.decode('ascii')}\n"
-                            self.trace_log.write(decoded_msg)
-                            self.trace_log.flush()
-                        elif type == self.SYS:
-                            self.sys_log.write(f"{msg}\n")
-                            self.sys_log.flush()
-                    except KeyError:
-                        None
-                        # failed to parse log message
-                else:
-                    time.sleep(0.1)
-            except Exception as e:
-                print(e)
-                print(traceback.extract_tb())
-
-    def handle_raw(self):
-        while self.run:
-            # data, addr = self.sock.recvfrom(1024)  # buffer size is 1024 bytes
-            data = None
-            if not self.raw_q.empty():
-                data = self.raw_q.get()
-            else:
-                continue
-            now = datetime.datetime.now()
-            time_string = now.strftime("%Y_%m_%d_%H_%M_%S.%f")
-            time_string_disp = now.strftime("%M:%S.%f")
-            if data[0] == 0xA:
-                # sent from the gui
-                tx_bytes = data[1:]  # remove the first byte
-                # rx_cnt = data[2]
-                header = (tx_bytes[0] & 0xF8)
-                if (header) == 0xa8:
-                    # get the cob id
-                    cob_id = (tx_bytes[0] & 0x7) << 8  # move the 3bits up to the top
-                    cob_id |= (tx_bytes[1] & 0xFF)  # append the bottom 8 bits
-                    remote_frame = (tx_bytes[2] & 0x80) >> 7
-                    extended_id = (tx_bytes[2] & 0x40) >> 6
-                    data_length = (tx_bytes[2] & 0xF)
-                    data = tx_bytes[3:11]
-                    msg = f" id:{hex(cob_id)}: dl:{data_length}: d:{data.hex()}"
-                    self.raw_log.write(f"[S:{time_string}]:{tx_bytes.hex()}:{msg}\n")
-
-            elif data[0] == 0xB:
-                # recv from sam
-                rx_bytes = data[1:]  # remove the first byte
-                # rx_cnt = hex(data[2])
-                header = (rx_bytes[0] & 0xF8)
-                if (header) == 0xa8:
-                    # get the cob id
-                    cob_id = (rx_bytes[0] & 0x7) << 8  # move the 3bits up to the top
-                    cob_id |= (rx_bytes[1] & 0xFF)  # append the bottom 8 bits
-                    data_length = (rx_bytes[2] & 0xF)
-                    data = rx_bytes[3:11]
-
-                    index = struct.unpack("<H", rx_bytes[4:6])[0]
-                    subindex = rx_bytes[6]
-                    if index == 0x5001 and subindex == 0x3:
-                        self.sock.sendto(data, (RAW_UDP_IP, 4001))
-                    msg = f" id:{hex(cob_id)}: dl:{data_length}: d:{data.hex()}"
-                    self.raw_log.write(f"[R:{time_string}]:{rx_bytes.hex()}:{msg}\n")
-            else:
-                # garbage
-                None
-            time.sleep(0.01)
-
-    def close(self):
-        self.run = False
-        if self.handle_thread.is_alive():
-            self.handle_thread.join()
-        if self.network_handle_thread.is_alive():
-            self.sock.sendto(bytes(" ", "ascii"), (RAW_UDP_IP, RAW_UDP_PORT))  # send a packet to get out of waiting
-            self.network_handle_thread.join()
-        self.hsi_log.close()
-        self.trace_log.close()
-        self.raw_log.close()
-
-class TCS(Enum): #Thruster Control State
-    """
-        Thruster Control State,
-    """
-    TCS_CO_INVALID              = 0x0
-    TCS_CO_INIT                 = 0x1
-    TCS_CO_PREOP                = 0x2
-    TCS_CO_OPERATIONAL          = 0x3
-    TCS_CO_STOP                 = 0x4
-    TCS_CO_MODE_NUM             = 0x5
-    TCS_POWER_OFF               = 0x6
-    TCS_TRANISTION_STANDBY      = 0x7
-    TCS_STANDBY                 = 0x8
-    TCS_TRANSITION_READY_MODE   = 0x9
-    TCS_READY_MODE              = 0xA
-    TCS_TRANSITION_STEADY_STATE = 0xB
-    TCS_STEADY_STATE            = 0xC
-    TCS_CONDITIONING            = 0xD
-    TCS_BIT_TEST                = 0xE
-    TCS_STATE_NUM               = 0xF
 
 class ThrusterCommand:
     """
@@ -368,22 +34,23 @@ class ThrusterCommand:
         self.debug = debug
         self.test_name = test_name
         self.raw_q = None
-        self.mr_logger = MrLogger("logs", test_name)
-        self.version = "0.0.7"
+        #setup classes
+        self.conf_man = ConfigManager()
+        self.mr_logger = MrLogger(self.conf_man, "logs", test_name)
+        self.hsi_defs = HSIDefines()
+        #passed in params
+        self.version = "0.0.8"
         self.serial_port = ser_port
         self.eds_file = eds_file
-        self.hsi_defs = HSIDefs()
         # main loop control
         self.running = True
         # thread control
         self.thread_run = False
-
         # status console print vars
         self.status_console_thread = None
         self.status_console_run = False
         self.status_console_lock = Lock()
         self.eds = {}
-
         self.system_id = ecp_id
         self.node = None
         self.nmt_state = None
@@ -398,8 +65,33 @@ class ThrusterCommand:
         self.bit_status = 0
         self.cond_status = 0
         self.thrust_point = 0
-
         self.bootup_msg = False
+
+        #read default config variables
+        self.udp_enable = self.conf_man.get("DEFAULT", "UDP_ENABLE", bool)
+        self.status_console_print_delay = self.conf_man.get("DEFAULT", "STATUS_CONSOLE_PRINT_DELAY", int)
+        self.mode_status_subindex = self.conf_man.get("DEFAULT", "MODE_STATUS_SUBINDEX")
+        self.state_status_subindex = self.conf_man.get("DEFAULT", "STATE_STATUS_SUBINDEX")
+        self.thruster_status_subindex = self.conf_man.get("DEFAULT", "THRUSTER_STATUS_SUBINDEX")
+        self.condition_status_subindex = self.conf_man.get("DEFAULT", "CONDITION_STATUS_SUBINDEX")
+        self.thrust_point_subindex = self.conf_man.get("DEFAULT", "THRUST_POINT_SUBINDEX")
+        self.bit_status_subindex = self.conf_man.get("DEFAULT","BIT_STATUS_SUBINDEX")
+
+        #read trace config variables
+        self.trace_udp_ip = self.conf_man.get("TRACE", "TRACE_UDP_IP")
+        self.trace_udp_port = self.conf_man.get("TRACE", "TRACE_UDP_PORT", int)
+        self.trace_sleep_time = self.conf_man.get("TRACE", "TRACE_SLEEP_TIME", int)
+        self.trace_msg_max_gather = self.conf_man.get("TRACE", "TRACE_MSG_MAX_GATHER")
+
+        #read hsi config variables
+        self.hsi_status_ip = self.conf_man.get("HSI", "HSI_STATUS_IP")
+        self.hsi_block_udp_port = self.conf_man.get("HSI", "HSI_BLOCK_UDP_PORT", int)
+        self.hsi_sleep_time = self.conf_man.get("HSI", "HSI_SLEEP_TIME", int)
+
+        #read raw config variables
+        self.raw_udp_ip = self.conf_man.get("RAW", "RAW_UDP_IP")
+        self.raw_udp_port = self.conf_man.get("RAW", "RAW_UDP_PORT", int)
+
         self.hsi_cmds = {
             "0": {"name": "Exit", "func": self.exit, "help": "Exits the Program"},
             "1": {"name": "Help", "func": self.help, "help": "Displays the help Menu"},
@@ -413,10 +105,10 @@ class ThrusterCommand:
                   "args": {"nmt_state": "OPERATIONAL"},
                   "help": "Changes NMT STATE to OPERATIONAL."},
             "5": {"name": "Run Ready Mode", "func": self.get_write_value,
-                  "args": {"index": self.th_command_index, "subindex": "ReadyMode", "type": "<I", "default": "0x1"},
+                  "args": {"index": self.th_command_index, "subindex": "Ready Mode", "type": "<I", "default": "0x1"},
                   "help": "Writes a UINT-32 to the Thruster Ready Mode."},
             "6": {"name": "Run Steady State", "func": self.get_write_value,
-                  "args": {"index": self.th_command_index, "subindex": "SteadyState", "type": "<I"},
+                  "args": {"index": self.th_command_index, "subindex": "Steady State", "type": "<I"},
                   "help": "Writes a UINT-32 to the Thruster Steady State."},
             "7": {"name": "Thruster Shutdown", "func": self.get_write_value,
                   "args": {"index": self.th_command_index, "subindex": "Shutdown", "type": "<B", "default": "0x1"},
@@ -450,11 +142,11 @@ class ThrusterCommand:
             self.network = canopen.Network()
             if self.serial_port == "can":
                 if self.debug:
-                    self.mr_logger.log(self.mr_logger.SYS, "Selected can network type")
+                    self.mr_logger.log(LogType.SYS, "Selected can network type")
                 self.network.connect(bustype='pcan', channel='PCAN_USBBUS1', bitrate=1000000)  # 1MHZ
             else:
                 if self.debug:
-                    self.mr_logger.log(self.mr_logger.SYS, "Selected serial network type")
+                    self.mr_logger.log(LogType.SYS, "Selected serial network type")
                 self.network.connect(bustype="exoserial", channel=self.serial_port, baudrate=115200)
             self.node = self.network.add_node(self.system_id, self.eds_file)
             self.network.add_node(self.node)
@@ -463,18 +155,18 @@ class ThrusterCommand:
             self.node.sdo.RESPONSE_TIMEOUT = 2
             self.node.emcy.add_callback(self.handle_emcy)
             self.network.subscribe(0x722, self.notify_bootup)
+
             # check to see if device is connected
             attemps = 0
             while self.nmt_state is None and attemps < 3:
-                self.nmt_state = self.read(self.th_command_index, THRUSTER_STATUS_SUBINDEX, "<I")
+                self.nmt_state = self.read(self.th_command_index, self.thruster_status_subindex, "<I")
                 attemps += 1
             # check to see if msg was recieved
             if self.nmt_state is None:
-                self.mr_logger.log(self.mr_logger.SYS, "System Controller Failed to Connect.  Waiting for bootup msg.")
+                self.mr_logger.log(LogType.SYS, "System Controller Failed to Connect.  Waiting for bootup msg.")
                 while not self.bootup_msg:
                     time.sleep(0.01)
-                self.mr_logger.log(self.mr_logger.SYS, "System Controller Connected!")
-
+                self.mr_logger.log(LogType.SYS, "System Controller Connected!")
 
             # read the state on bootup
             self.get_status(self.th_command_index)
@@ -490,10 +182,10 @@ class ThrusterCommand:
                 elif self.nmt_state == 0x1:
                     cur_state = "Bootup - Init"
                 self.nmt_state_str = cur_state
-                self.mr_logger.log(self.mr_logger.SYS, "System Controller Connected!")
+                self.mr_logger.log(LogType.SYS, "System Controller Connected!")
 
         except Exception as a:
-            self.mr_logger.log(self.mr_logger.SYS, traceback.print_exc())
+            self.mr_logger.log(LogType.SYS, traceback.print_exc())
 
     def notify_bootup(self, can_id, data, timestamp):
         self.bootup_msg = True
@@ -507,13 +199,13 @@ class ThrusterCommand:
         try:
             var = self.node.object_dictionary.get_variable(index_str, subindex_str)
             if var is None:
-                self.mr_logger.log(self.mr_logger.SYS,
+                self.mr_logger.log(LogType.SYS,
                                    f"Error Not found.  Check if {index_str} and {subindex_str} are in the eds file.")
             else:
                 index = var.index
                 subindex = var.subindex
         except KeyError as e:
-            self.mr_logger.log(self.mr_logger.SYS, f"{traceback.print_exc()} {e}")
+            self.mr_logger.log(LogType.SYS, f"{traceback.print_exc()} {e}")
         return {"index": index, "subindex": subindex}
 
     def notify_updated_state(self, state):
@@ -538,7 +230,7 @@ class ThrusterCommand:
                 thruster_state_str = TCS(int(self.thruster_status,16))
             except ValueError:
                 None #ignore when it doesnt match
-            self.mr_logger.log(self.mr_logger.SYS, f"NMT State: {cur_state} Thruster State: {thruster_state_str}")
+            self.mr_logger.log(LogType.SYS, f"NMT State: {cur_state} Thruster State: {thruster_state_str}")
             self.nmt_state_str = cur_state
             self.nmt_state_str = cur_state
             self.nmt_state = state
@@ -548,21 +240,21 @@ class ThrusterCommand:
         change_nmt_state, is called by the NmtMaster callback when the state changes.
         """
         if self.debug:
-            self.mr_logger.log(self.mr_logger.SYS, "Thread Stopped")
+            self.mr_logger.log(LogType.SYS, "Thread Stopped")
         state = args.get("nmt_state")
         if state == "OPERATIONAL":
-            self.mr_logger.log(self.mr_logger.SYS, "Switching State Operational")
+            self.mr_logger.log(LogType.SYS, "Switching State Operational")
             self.node.nmt.send_command(0x1)
             self.start_threads()
         elif state == "PREOPERATIONAL":
-            self.mr_logger.log(self.mr_logger.SYS, "Switching State Pre-Operational")
+            self.mr_logger.log(LogType.SYS, "Switching State Pre-Operational")
             self.node.nmt.send_command(0x80)
             self.start_threads()
         elif state == "INIT":
-            self.mr_logger.log(self.mr_logger.SYS, "Switching State Init")
+            self.mr_logger.log(LogType.SYS, "Switching State Init")
             self.node.nmt.send_command(0x81)
         elif state == "STOP":
-            self.mr_logger.log(self.mr_logger.SYS, "Switching State Stop")
+            self.mr_logger.log(LogType.SYS, "Switching State Stop")
             self.thread_run = False
             self.node.nmt.send_command(0x2)
 
@@ -572,9 +264,8 @@ class ThrusterCommand:
         """
         message = f"EMCYTimestamp: {error.timestamp}, EMCYCode: {error.code}," \
                   f" EMCYData: {error.data}"
-
-        self.send_udp_packet(message, TRACE_UDP_IP, TRACE_UDP_PORT)
-        self.mr_logger.log(self.mr_logger.SYS,message)
+        self.send_udp_packet(message, self.trace_udp_ip, self.trace_udp_port)
+        self.mr_logger.log(LogType.SYS, message)
 
     def get_status_index(self, args):
         """
@@ -585,7 +276,6 @@ class ThrusterCommand:
         statuses = self.get_status(index, noprint)
         if statuses[2] >= '0x7':
             self.start_threads()
-        self.mr_logger.log(self.mr_logger.SYS, "8 to enable / disable console status print")
 
         self.status_console_lock.acquire()
         if not self.status_console_run:
@@ -593,20 +283,23 @@ class ThrusterCommand:
             self.status_console_run = True
             self.status_console_thread = Thread(target=self.status_thread)
             self.status_console_thread.start()
+            self.mr_logger.log(LogType.SYS, "status console print enabled!")
+            self.mr_logger.log(LogType.SYS, "8 to disable status console print.")
         else:
             self.status_console_run = False
+            self.mr_logger.log(LogType.SYS, "status console print disabled!")
         self.status_console_lock.release()
 
     def get_status(self, index, noprint=False):
         """
         get_status, this function provides more direct access to the status variables.
         """
-        mode_status = self.read(index, MODE_STATUS_SUBINDEX, "<I")
-        state_status = self.read(index, STATE_STATUS_SUBINDEX, "<I")
-        self.thruster_status_parsed = self.read(index, THRUSTER_STATUS_SUBINDEX, "<I")
-        cond_status = self.read(index, CONDITION_STATUS_SUBINDEX, "<I")
-        thrust_point = self.read(index, THRUST_POINT_SUBINDEX, "<I")
-        bit_status = self.read(index, BIT_STATUS_SUBINDEX, "<I")
+        mode_status = self.read(index, self.mode_status_subindex, "<I")
+        state_status = self.read(index, self.state_status_subindex, "<I")
+        self.thruster_status_parsed = self.read(index, self.thruster_status_subindex, "<I")
+        cond_status = self.read(index, self.condition_status_subindex, "<I")
+        thrust_point = self.read(index, self.thrust_point_subindex, "<I")
+        bit_status = self.read(index, self.bit_status_subindex, "<I")
 
         if mode_status == None:
             mode_status = 0
@@ -633,7 +326,7 @@ class ThrusterCommand:
             msg = f"Ready Mode: {self.mode_status}: Steady State: {self.state_status}: ThrusterStatus:{self.thruster_status}:  Bit Status: {self.bit_status} "
             # self.send_udp_packet(msg, STATUS_UDP_IP, STATUS_UDP_PORT)
         else:
-            self.mr_logger.log(self.mr_logger.SYS, msg)
+            self.mr_logger.log(LogType.SYS, msg)
         return (self.mode_status, self.state_status, self.thruster_status)
 
     def status_thread(self):
@@ -644,14 +337,14 @@ class ThrusterCommand:
             self.status_console_lock.acquire()
             status = self.get_status(self.th_command_index, False)
             self.status_console_lock.release()
-            time.sleep(STATUS_CONSOLE_PRINT_DELAY)
+            time.sleep(self.status_console_print_delay)
 
     def gather_status_and_trace(self):
         """
         gather_status_and_trace, gathers hsi and trace messages by calling functions and sends udp, runs in a thread.
         """
         if self.debug:
-            self.mr_logger.log(self.mr_logger.SYS, "Starting Query Thread")
+            self.mr_logger.log(LogType.SYS, "Starting Query Thread")
         while getattr(self, "thread_run"):
             if self.nmt_state != "Stopped":
                 statuses = self.get_status(self.th_command_index, True)
@@ -661,8 +354,8 @@ class ThrusterCommand:
                         self.get_trace_msg()
                         self.get_block_hsi()
                     except Exception as e:
-                        self.mr_logger.log(self.mr_logger.SYS, f"{e}", )
-            time.sleep(TRACE_SLEEP_TIME)
+                        self.mr_logger.log(LogType.SYS, f"{e}", )
+            time.sleep(self.trace_sleep_time)
 
     def get_block_hsi(self):
         """
@@ -670,8 +363,8 @@ class ThrusterCommand:
         """
         data = self.node.sdo.upload(0x3100, 0x1)
         #save it to the log file
-        self.mr_logger.log(self.mr_logger.HSI, f"{data}")
-        self.trace_sock.sendto(data, (HSI_UDP_IP, HSI_BLOCK_UDP_PORT))
+        self.mr_logger.log(LogType.HSI, f"{data}")
+        self.trace_sock.sendto(data, (self.hsi_status_ip, self.hsi_block_udp_port))
 
     def query_block_hsi(self, args):
         """
@@ -693,15 +386,15 @@ class ThrusterCommand:
                 parsed_val = raw_vals[i]
                 if hex_en:
                     parsed_val = hex(parsed_val)
-                self.mr_logger.log(self.mr_logger.SYS,f"{name} - {parsed_val}")
+                self.mr_logger.log(LogType.SYS,f"{name} - {parsed_val}")
             else:
-                self.mr_logger.log(self.mr_logger.SYS, f"Cant parse the bytearray because its not divisable by 2.  Len Data: {len(data)}")
+                self.mr_logger.log(LogType.SYS, f"Cant parse the bytearray because its not divisable by 2.  Len Data: {len(data)}")
         except canopen.sdo.exceptions.SdoCommunicationError as comms_err: \
-                self.mr_logger.log(self.mr_logger.SYS,f"Query Failed: {comms_err}")
+                self.mr_logger.log(LogType.SYS,f"Query Failed: {comms_err}")
         except canopen.sdo.exceptions.SdoAbortedError as aborted_err: \
-                self.mr_logger.log(self.mr_logger.SYS,f"Query Failed: {aborted_err}")
+                self.mr_logger.log(LogType.SYS,f"Query Failed: {aborted_err}")
         except Exception as e:
-            self.mr_logger.log(self.mr_logger.SYS,f"Query Failed: {e}")
+            self.mr_logger.log(LogType.SYS,f"Query Failed: {e}")
 
     def start_threads(self):
         """
@@ -709,7 +402,7 @@ class ThrusterCommand:
         """
         if not self.thread_run:
             if self.debug:
-                self.mr_logger.log(self.mr_logger.SYS, f"Starting Trace / Status thread. Sending HSI to {HSI_UDP_IP}:{HSI_UDP_PORT}.")
+                self.mr_logger.log(LogType.SYS, f"Starting Trace / Status thread. Sending HSI to {self.hsi_status_ip}:{self.hsi_block_udp_port}.")
             self.thread_run = True
             self.listen_thread = Thread(target=self.gather_status_and_trace, daemon=True)
             self.listen_thread.start()
@@ -719,7 +412,6 @@ class ThrusterCommand:
         get_write_value, looks for a default value and if one is found just writes it, otherwise its prompts the user
         for a hex value to write.
         """
-
         index = args.get("index")
         subindex = args.get("subindex")
         python_type = args.get("type")
@@ -736,7 +428,7 @@ class ThrusterCommand:
                 self.write(index, subindex, default, python_type)
             else:
                 while not valid:
-                    self.mr_logger.log(self.mr_logger.SYS,
+                    self.mr_logger.log(LogType.SYS,
                                        "Enter hex value to send to ECP - or 'x' to return to previous menu.")
                     inp = input("write> 0x")
                     if inp.lower() == "back" or inp.lower() == "x":
@@ -757,15 +449,15 @@ class ThrusterCommand:
                 val = struct.pack(python_type, int_val)
                 self.node.sdo.download(index, subindex,
                                        bytearray(val))
-                self.mr_logger.log(self.mr_logger.SYS, f"Wrote:{hex(index)}-{hex(subindex)}: 0x{val.hex()}")
+                self.mr_logger.log(LogType.SYS, f"Wrote:{hex(index)}-{hex(subindex)}: 0x{val.hex()}")
         except struct.error as e:
-            self.mr_logger.log(self.mr_logger.SYS, f"{e}")
+            self.mr_logger.log(LogType.SYS, f"{e}")
         except canopen.sdo.exceptions.SdoCommunicationError as comms_err:
-            self.mr_logger.log(self.mr_logger.SYS, f"Write Failed: {comms_err}")
+            self.mr_logger.log(LogType.SYS, f"Write Failed: {comms_err}")
         except canopen.sdo.exceptions.SdoAbortedError as aborted_err:
-            self.mr_logger.log(self.mr_logger.SYS, f"Write Failed: {aborted_err}")
+            self.mr_logger.log(LogType.SYS, f"Write Failed: {aborted_err}")
         except Exception as e:
-            self.mr_logger.log(self.mr_logger.SYS, f"Write Failed: {e}")
+            self.mr_logger.log(LogType.SYS, f"Write Failed: {e}")
         finally:
             self.write_mutex.release()
 
@@ -778,7 +470,7 @@ class ThrusterCommand:
 
         # get var from eds file
         in_val = self.read(index, subindex, "<I")
-        self.mr_logger.log(self.mr_logger.SYS, f"Query:{hex(index)}-{hex(subindex)}: {hex(in_val)}")
+        self.mr_logger.log(LogType.SYS, f"Query:{hex(index)}-{hex(subindex)}: {hex(in_val)}")
 
     def read(self, index, subindex, python_type, show_failure=True):
         if type(index) is str and type(subindex) is str:
@@ -798,17 +490,17 @@ class ThrusterCommand:
                     return in_val
             except canopen.sdo.exceptions.SdoCommunicationError as comms_err:
                 if show_failure:
-                    self.mr_logger.log(self.mr_logger.SYS, f"Query Failed {hex(index)}:{hex(subindex)}: {comms_err}")
+                    self.mr_logger.log(LogType.SYS, f"Query Failed {hex(index)}:{hex(subindex)}: {comms_err}")
             except canopen.sdo.exceptions.SdoAbortedError as aborted_err:
                 if show_failure:
-                    self.mr_logger.log(self.mr_logger.SYS, f"Query Failed {hex(index)}:{hex(subindex)}: {aborted_err}")
+                    self.mr_logger.log(LogType.SYS, f"Query Failed {hex(index)}:{hex(subindex)}: {aborted_err}")
             except Exception as e:
                 if show_failure:
-                    self.mr_logger.log(self.mr_logger.SYS, f"Query Failed {hex(index)}:{hex(subindex)}: {e}")
+                    self.mr_logger.log(LogType.SYS, f"Query Failed {hex(index)}:{hex(subindex)}: {e}")
             finally:
                 self.write_mutex.release()
         else:
-            self.mr_logger.log(self.mr_logger.SYS, "Error with args to write function, check index and subindex")
+            self.mr_logger.log(LogType.SYS, "Error with args to write function, check index and subindex")
         return None
 
     def get_trace_msg(self):
@@ -817,12 +509,12 @@ class ThrusterCommand:
             if the head and the tail are == then there are no messages just return.
         """
         try:
-            for i in range(0, TRACE_MSG_MAX_GATHER):
+            for i in range(0, self.trace_msg_max_gather):
                 # msg = self.read(self.trace_msg_index, TRACE_MSG_SUBINDEX, "noparse", False)
                 msg = self.node.sdo.upload(0x5001, 0x6)
                 if msg is not None:
-                    self.mr_logger.log(self.mr_logger.TRACE, msg)
-                    self.send_udp_packet(msg, TRACE_UDP_IP, TRACE_UDP_PORT)
+                    self.mr_logger.log(LogType.TRACE, msg)
+                    self.send_udp_packet(msg, self.trace_udp_ip, self.trace_udp_port)
         except Exception as e:
             # ran out of msgs to get
             None
@@ -843,20 +535,20 @@ class ThrusterCommand:
         while self.running:
             try:
                 var_str = f"[rm:{self.mode_status}:ss:{self.state_status}:ts:{self.thruster_status}]".zfill(10)
-                self.mr_logger.log(self.mr_logger.SYS, f"{var_str}>", end='', print_val=False)
+                self.mr_logger.log(LogType.SYS, f"{var_str}>", end='', print_val=False)
                 inp = input(f"{var_str}>").lower().strip()
-                self.mr_logger.log(self.mr_logger.SYS, f"{inp}", end='', print_val=False)
+                self.mr_logger.log(LogType.SYS, f"{inp}", end='', print_val=False)
                 if inp in self.hsi_cmds.keys():
                     cmd = self.hsi_cmds.get(inp)
                     func = cmd.get("func")
                     args = cmd.get("args")
                     name = cmd.get("name")
                     if func != None:
-                        self.mr_logger.log(self.mr_logger.SYS,f"{name}")
+                        self.mr_logger.log(LogType.SYS,f"{name}")
                         try:
                             func(args)
                         except Exception as e:
-                            self.mr_logger.log(self.mr_logger.SYS,f"{e}")
+                            self.mr_logger.log(LogType.SYS,f"{e}")
             except KeyboardInterrupt as e:
                 sys.exit(0)
 
@@ -864,10 +556,10 @@ class ThrusterCommand:
         """
         help, reads the predefined cmds and prints them in a table.
         """
-        self.mr_logger.log(self.mr_logger.SYS, "============= ExoTerra Thruster Command Help Menu =============")
+        self.mr_logger.log(LogType.SYS, "============= ExoTerra Thruster Command Help Menu =============")
         for v in self.hsi_cmds:
             x = self.hsi_cmds.get(v)
-            self.mr_logger.log(self.mr_logger.SYS, f"{v} - {x.get('name')} : [{x.get('help')}]")
+            self.mr_logger.log(LogType.SYS, f"{v} - {x.get('name')} : [{x.get('help')}]")
 
     def exit(self, args):
         """
@@ -911,7 +603,8 @@ if __name__ == "__main__":
                     print(f"Check system_id, {args.system_id} is not a  hex number.")
                 valid = True
                 break
-
+    if args.debug:
+        valid = True
     if not valid:
         print("Serial Port Not Found")
         print("Available Serial Ports:")

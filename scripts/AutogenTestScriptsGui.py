@@ -1638,7 +1638,7 @@ class ThrusterControlFrame ( wx.Frame ):
 class HSIExcelFrame ( wx.Frame ):
 
 	def __init__( self, parent ):
-		wx.Frame.__init__ ( self, parent, id = wx.ID_ANY, title = wx.EmptyString, pos = wx.DefaultPosition, size = wx.Size( 1200,768 ), style = wx.DEFAULT_FRAME_STYLE|wx.TAB_TRAVERSAL )
+		wx.Frame.__init__ ( self, parent, id = wx.ID_ANY, title = wx.EmptyString, pos = wx.DefaultPosition, size = wx.Size( 1484,768 ), style = wx.DEFAULT_FRAME_STYLE|wx.TAB_TRAVERSAL )
 
 		self.SetSizeHints( wx.Size( 1200,768 ), wx.DefaultSize )
 
@@ -1654,16 +1654,16 @@ class HSIExcelFrame ( wx.Frame ):
 		self.m_hsiExcelGrid.SetMargins( 0, 0 )
 
 		# Columns
-		self.m_hsiExcelGrid.SetColSize( 0, 100 )
-		self.m_hsiExcelGrid.SetColSize( 1, 100 )
-		self.m_hsiExcelGrid.SetColSize( 2, 100 )
-		self.m_hsiExcelGrid.SetColSize( 3, 100 )
-		self.m_hsiExcelGrid.SetColSize( 4, 100 )
-		self.m_hsiExcelGrid.SetColSize( 5, 100 )
-		self.m_hsiExcelGrid.SetColSize( 6, 100 )
-		self.m_hsiExcelGrid.SetColSize( 7, 100 )
-		self.m_hsiExcelGrid.SetColSize( 8, 100 )
-		self.m_hsiExcelGrid.SetColSize( 9, 100 )
+		self.m_hsiExcelGrid.SetColSize( 0, 130 )
+		self.m_hsiExcelGrid.SetColSize( 1, 130 )
+		self.m_hsiExcelGrid.SetColSize( 2, 130 )
+		self.m_hsiExcelGrid.SetColSize( 3, 130 )
+		self.m_hsiExcelGrid.SetColSize( 4, 130 )
+		self.m_hsiExcelGrid.SetColSize( 5, 130 )
+		self.m_hsiExcelGrid.SetColSize( 6, 130 )
+		self.m_hsiExcelGrid.SetColSize( 7, 130 )
+		self.m_hsiExcelGrid.SetColSize( 8, 130 )
+		self.m_hsiExcelGrid.SetColSize( 9, 130 )
 		self.m_hsiExcelGrid.EnableDragColMove( False )
 		self.m_hsiExcelGrid.EnableDragColSize( True )
 		self.m_hsiExcelGrid.SetColLabelSize( 30 )
