@@ -110,7 +110,7 @@ class MrLogger:
                 if not self.q.empty():
                     m = self.q.get()
                     try:
-                        type = m.get("type")
+                        type = m.get("type").value
                         msg = m.get("msg")
                         if type == LogType.HSI.value:
                             self.hsi_log.write(f"{msg}\n")
