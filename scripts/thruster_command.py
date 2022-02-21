@@ -3,7 +3,6 @@ import canopen, argparse, struct, time, sys, socket, traceback, datetime
 from serial.tools import list_ports
 from threading import Thread, Lock
 from os.path import exists
-from enum import Enum
 from src.mr_logger import MrLogger, LogType
 from src.config_manager import ConfigManager
 from src.hsi_defines import TCS, HSIDefines
@@ -81,7 +80,7 @@ class ThrusterCommand:
         self.trace_udp_ip = self.conf_man.get("TRACE", "TRACE_UDP_IP")
         self.trace_udp_port = self.conf_man.get("TRACE", "TRACE_UDP_PORT", int)
         self.trace_sleep_time = self.conf_man.get("TRACE", "TRACE_SLEEP_TIME", int)
-        self.trace_msg_max_gather = self.conf_man.get("TRACE", "TRACE_MSG_MAX_GATHER")
+        self.trace_msg_max_gather = self.conf_man.get("TRACE", "TRACE_MSG_MAX_GATHER", int)
 
         #read hsi config variables
         self.hsi_status_ip = self.conf_man.get("HSI", "HSI_STATUS_IP")
