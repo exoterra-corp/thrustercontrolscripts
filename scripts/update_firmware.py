@@ -4,7 +4,7 @@ import sys, canopen, argparse, time
 BOOTUP_TIMEOUT = 10
 
 class FirmwareUpdater():
-    def __init__(self, serial_port, image_file):
+    def __init__(self, serial_port, system_id, image_file):
         self.bytes = bytearray()
         self.boot_msg_found = False
         hexFileObject = open(image_file, 'rb')
@@ -17,7 +17,7 @@ class FirmwareUpdater():
             self.network.connect(bustype='pcan', channel='PCAN_USBBUS1', bitrate=1000000)  # 1MHZ
         else:
             self.network.connect(bustype="exoserial", channel=serial_port, baudrate=115200)
-        self.node = self.network.add_node(0x22)
+        self.node = self.network.add_node(system_id)
         self.network.add_node(self.node)
         self.node.sdo.RESPONSE_TIMEOUT = 5
 
@@ -69,11 +69,14 @@ class FirmwareUpdater():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Update firmware uploads the firmware to the SAM over RS458.')
-    parser.add_argument('serial_port', action='store', type=str, help='The Serial Port to use for RS485.',default="/dev/ttyUSB0")
+    parser.add_argument('serial_port', action='store', type=str, help='The Serial Port to use for RS485.',
+                        default="/dev/ttyUSB0")
+    parser.add_argument('system_id', action='store', type=str, help='The System Id for the connection usually 0x22.',
+                        default=0x22)
     parser.add_argument('image_file', action='store', type=str, help='The SAM firmware image file.')
     parser.add_argument('-v', action='store_true', help='Run just the verify and install option.')
     args = parser.parse_args()
-    updater = FirmwareUpdater(args.serial_port, args.image_file)
+    updater = FirmwareUpdater(args.serial_port, args.system_id, args.image_file)
     try:
         updater.do_update(args)
     except KeyboardInterrupt:
