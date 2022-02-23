@@ -14,11 +14,18 @@ class ConfigManager:
             self.parser = ConfigParser()
             if self.config_file == None:
                 #look for default file
-                self.config_file = "./conf/default.conf"
-                if exists(self.config_file):
-                    print(f"Found {self.config_file}!")
-                    with open(self.config_file) as e:
+                self.config_files = ["./conf/default.conf","./thrustercontrolscripts/scripts/conf/default.conf"]
+                self.config_file = None
+                valid = False
+                for i,config_file in enumerate(self.config_files):
+                    if exists(config_file):
+                        valid = True
+                        break
+                if valid:
+                    print(f"Found {config_file}!")
+                    with open(config_file) as e:
                         self.parser.read_file(e)
+                    self.config_file = config_file
 
         except Exception as e:
             print(extract_tb(None))
