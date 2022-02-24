@@ -128,7 +128,7 @@ class ThrusterCommand:
                    "args": {"index": 0x3100, "subindex": 0x1, "type": "<I"},
                    "help": "Queries the HSI values using a block transfer"},
             "13": {"name": "Read conditioning values", "func": self.read_cond_values,
-                   "args": {"index": 4001, "subindex": 0x0, "type": "<I"},
+                   "args": {"index": 0x4001, "subindex": 0x0, "type": "<I"},
                    "help": "reads the conditioning values based on the value returned in count"},
 
         }
@@ -277,8 +277,8 @@ class ThrusterCommand:
         subindex = args.get("subindex")
 
         #get the count
-        cnt = self.read(index,subindex,python_type="<I")
-        for i in range(0, cnt):
+        cnt = self.read(index,subindex,python_type="<B")
+        for i in range(0, cnt - 1):
             val = self.read(index, subindex+i, python_type="<I")
             print(val)
 
