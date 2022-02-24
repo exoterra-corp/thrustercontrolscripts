@@ -126,7 +126,11 @@ class ThrusterCommand:
                    "help": "Run the BIT sequence."},
             "12": {"name": "Query Block HSI", "func": self.query_block_hsi,
                    "args": {"index": 0x3100, "subindex": 0x1, "type": "<I"},
-                   "help": "Run the BIT sequence."},
+                   "help": "Queries the HSI values using a block transfer"},
+            "13": {"name": "Read conditioning values", "func": self.read_cond_values,
+                   "args": {"index": 4001, "subindex": 0x0, "type": "<I"},
+                   "help": "reads the conditioning values based on the value returned in count"},
+
         }
         self.trace_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # trace port
         self.hsi_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # hsi port
@@ -267,6 +271,16 @@ class ThrusterCommand:
 
         self.send_udp_packet(message, self.trace_udp_ip, self.trace_udp_port)
         self.mr_logger.log(LogType.SYS, message)
+
+    def read_cond_values(self, args):
+        index = args.get("index")
+        subindex = args.get("subindex")
+
+        #get the count
+        cnt = self.read(index,subindex,python_type="<I")
+        for i in range(0, cnt):
+            val = self.read(index, subindex+i, python_type="<I")
+            print(val)
 
     def get_status_index(self, args):
         """
