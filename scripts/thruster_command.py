@@ -278,9 +278,9 @@ class ThrusterCommand:
 
         #get the count
         cnt = self.read(index,subindex,python_type="<B")
-        for i in range(0, cnt - 1):
+        for i in range(1, cnt):
             val = self.read(index, subindex+i, python_type="<I")
-            print(val)
+            print(hex(val))
 
     def get_status_index(self, args):
         """
