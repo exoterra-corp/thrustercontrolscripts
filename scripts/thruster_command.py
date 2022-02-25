@@ -130,6 +130,9 @@ class ThrusterCommand:
             "13": {"name": "Read conditioning values", "func": self.read_cond_values,
                    "args": {"index": 0x4001, "subindex": 0x0, "type": "<I"},
                    "help": "reads the conditioning values based on the value returned in count"},
+            "14": {"name": "Clear Condition Stats", "func": self.get_write_value,
+                  "args": {"index": 0x4000, "subindex": 0x8, "type": "<I", "default": "0x1"},
+                  "help": "Reset Conditioning Stats."},
 
         }
         self.trace_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # trace port
