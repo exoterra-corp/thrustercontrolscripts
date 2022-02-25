@@ -15,7 +15,7 @@ class ErrorHandling:
         self.system_id = id
         self.network = canopen.Network()
         if ser_port == 'can':
-            self.network.connect(bustype="pcan", channel='PCAN_USBBUS1', baudrate=1000000)
+            self.network.connect(bustype="pcan", channel='PCAN_USBBUS1', bitrate=1000000)
         else:
             self.network.connect(bustype="exoserial", channel=self.serial_port, baudrate=115200)
         self.node = self.network.add_node(self.system_id, eds_file)
@@ -36,6 +36,8 @@ class ErrorHandling:
                 "0" : {"name":"Serial", "index": self.node.object_dictionary['ErrorDetail'].index, "subindex": self.node.object_dictionary['ErrorDetail']['SerialSubmodule'].subindex},
                 "1" : {"name":"client control", "index": self.node.object_dictionary['ErrorDetail'].index, "subindex": self.node.object_dictionary['ErrorDetail']['ClientControlSubmodule'].subindex},
                 "2" : {"name":"ICM", "index": self.node.object_dictionary['ErrorDetail'].index, "subindex": self.node.object_dictionary['ErrorDetail']['ICMSubmodule'].subindex},
+                "3" : {"name":"APP", "index": self.node.object_dictionary['ErrorDetail'].index, "subindex": self.node.object_dictionary['ErrorDetail']['AppSubmodule'].subindex},
+
         }
 
     def pretty_text(self, data, heading, formatting):
@@ -110,7 +112,7 @@ class ErrorHandling:
         """
         help, reads the predefined cmds and prints them in a table.
         """
-        print("============= ExoTerra Thruster Command Help Menu =============")
+        print("============= ExoTerra Error Handling Help Menu =============")
         for v in self.err_detail_cmds:
             x = self.err_detail_cmds.get(v)
             print(f"{v} - {x.get('name')} : [{x.get('help')}]")
@@ -149,7 +151,7 @@ if __name__ == "__main__":
                         default="eds_file.eds")
     args = parser.parse_args()
 
-    print("============= ExoTerra Thruster Command & Control =============")
+    print("============= ExoTerra Error Handling =============")
     valid = False
     id = 0x22
     ports = list_ports.comports()
