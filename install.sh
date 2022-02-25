@@ -1,7 +1,7 @@
 #update the system, and install python3, pip
-echo 'Updating the package repos, and installing python3, pip.'
+echo 'Updating the package repos, and installing python3, pip, and libsdl2 for wxpython'
 sudo apt update
-sudo apt install -y python3 python3-pip
+sudo apt install -y python3 python3-pip libsdl2-2.0-0
 
 #Install the other packages wheel.
 echo 'Installing python packages.'
