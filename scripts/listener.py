@@ -2,7 +2,7 @@
 import socket, argparse, datetime, struct, os, sys, threading, wx, time
 from queue import Queue
 from HSIExcelWindow import HSIExcelWindow
-from thruster_command import ThrusterCommand
+from src.hsi_defines import HSIDefines
 
 """
 ExoTerra Resource Listener Script.
@@ -26,13 +26,8 @@ class Listener():
         self.udp_ip = udp_ip
         self.udp_port = int(udp_port)
         self.logdir = f"./{logdir}/"
-        now = datetime.datetime.now()
-        time_string = now.strftime("%Y_%m_%d_%H_%M_%S")
-        if not os.path.exists("./" + self.logdir):
-            print("Creating log dir " + self.logdir)
-            os.makedirs(self.logdir)
-        self.logf = open(self.logdir + f"listener_log_{time_string}.txt", "a+")
         self.running = True
+        self.hsi_defs = HSIDefines()
         self.q = Queue()
         self.sock = socket.socket(socket.AF_INET,  # Internet
                                   socket.SOCK_DGRAM)  # UDP
@@ -66,15 +61,16 @@ class Listener():
         """
         self.running = False
         self.sock.sendto(bytes("", "ascii"), (self.udp_ip, self.udp_port))
-        self.logf.close()
+        # self.logf.close()
         sys.exit(1)
 
     def log(self, msg):
         """
         log, writes a msg to the log file.
         """
-        self.logf.write(msg + "\n")
-        self.logf.flush()
+        None
+        # self.logf.write(msg + "\n")
+        # self.logf.flush()
 
     def listen(self):
         """
@@ -83,7 +79,7 @@ class Listener():
         """
         try:
             while self.running:
-                data, addr = self.sock.recvfrom(1024)  # buffer size is 1024 bytes
+                data, addr = self.sock.recvfrom(1024)
                 now = datetime.datetime.now()
                 time_string = now.strftime("%Y_%m_%d_%H_%M_%S.%f")
                 time_string_disp = now.strftime("%M:%S.%f")
@@ -136,19 +132,27 @@ class Listener():
                     print(str_msg)
 
                 elif self.mode == "gui":
-                    data_split = str(data, "utf-8").split(":")
-                    #log the data
-                    str_msg = data.decode("ascii")
-                    self.log(str_msg)
-                    if len(data_split) == 8:
-                        name = data_split[1].strip()
-                        val = data_split[-1]
-                        el = ThrusterCommand.hsi.get(name)
-                        if el is not None:
-                            r = el.get("row")
-                            c = el.get("col")
-                            if r is not None and c is not None:
-                                wx.CallAfter(self.frame.write_display, r, c, val)
+                    #parse block hsi
+                    try:
+                        # loop through it once generate the string and then loop over it again to print it out
+                        parse_str = "<"
+                        for v in self.hsi_defs.block_hsi:
+                            parse_str += v.get("type").replace("<", "")
+                        raw_vals = struct.unpack_from(parse_str, data)
+                        for i, value in enumerate(self.hsi_defs.block_hsi):
+                            name = value.get("name")
+                            hex_en = value.get("hex")
+                            parsed_val = raw_vals[i]
+                            if hex_en:
+                                parsed_val = hex(parsed_val)
+                            el = self.hsi_defs.hsi.get(name)
+                            if el is not None:
+                                r = el.get("row")
+                                c = el.get("col")
+                                if r is not None and c is not None:
+                                    wx.CallAfter(self.frame.write_display, r, c, parsed_val)
+                    except Exception as e:
+                        print(f"Query Failed: {e}")
         except IndexError:
             None
 
