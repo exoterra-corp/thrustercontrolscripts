@@ -551,7 +551,7 @@ class ThrusterCommand:
                         except Exception as e:
                             self.mr_logger.log(LogType.SYS,f"{e}")
             except KeyboardInterrupt as e:
-                sys.exit(0)
+                self.exit(None)
 
     def help(self, args):
         """
@@ -569,7 +569,8 @@ class ThrusterCommand:
         self.mr_logger.close()
         self.thread_run = False
         self.running = False
-
+        self.node.sdo.abort() #abort the last message
+        self.network.disconnect()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -629,4 +630,4 @@ if __name__ == "__main__":
         try:
             thrus_cmd.console()
         except Exception as e:
-            print(traceback.print_tb())
+            print(traceback.print_exc())
