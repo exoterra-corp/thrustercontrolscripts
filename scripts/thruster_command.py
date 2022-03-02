@@ -569,7 +569,8 @@ class ThrusterCommand:
         self.mr_logger.close()
         self.thread_run = False
         self.running = False
-
+        self.node.sdo.abort()
+        self.network.disconnect()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
