@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 import canopen, argparse, struct, time, sys, socket, traceback, datetime
+import serial
 from serial.tools import list_ports
 from threading import Thread, Lock
 from os.path import exists
@@ -146,7 +147,11 @@ class ThrusterCommand:
             else:
                 if self.debug:
                     self.mr_logger.log(LogType.SYS, "Selected serial network type")
-                self.network.connect(bustype="exoserial", channel=self.serial_port, baudrate=115200)
+                try:
+                    self.network.connect(bustype="exoserial", channel=self.serial_port, baudrate=115200)
+                except serial.SerialException as e:
+                    print(f"{e}")
+                    sys.exit(1)
             self.node = self.network.add_node(self.system_id, self.eds_file)
             self.network.add_node(self.node)
             self.raw_q = self.node.network.bus.get_int_q()
