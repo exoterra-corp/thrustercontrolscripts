@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 """
 ExoTerra Resource Example Script
 description:

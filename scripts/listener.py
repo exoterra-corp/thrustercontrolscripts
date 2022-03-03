@@ -1,5 +1,10 @@
 #!/usr/bin/python3
-import socket, argparse, datetime, struct, os, sys, threading, wx, time
+import socket, argparse, datetime, struct, os, sys, threading, time
+try:
+    import wx
+except ModuleNotFoundError as e:
+    print("wxpython is not installed, please install it before continuing.")
+    sys.exit(1)
 from queue import Queue
 from HSIExcelWindow import HSIExcelWindow
 from src.hsi_defines import HSIDefines
@@ -31,7 +36,11 @@ class Listener():
         self.q = Queue()
         self.sock = socket.socket(socket.AF_INET,  # Internet
                                   socket.SOCK_DGRAM)  # UDP
-        self.sock.bind((self.udp_ip, int(self.udp_port)))
+        try:
+            self.sock.bind((self.udp_ip, int(self.udp_port)))
+        except os.error as e:
+            print(f"{e}")
+            sys.exit(1)
         t = threading.Thread(target=self.listen)
         if self.mode == "gui":
             print("gui enabled")
