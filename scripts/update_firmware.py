@@ -74,6 +74,7 @@ if __name__ == "__main__":
     parser.add_argument('system_id', action='store', type=str, help='The System Id for the connection usually 0x22.',
                         default=0x22)
     parser.add_argument('image_file', action='store', type=str, help='The SAM firmware image file.')
+    parser.add_argument('manifest', action='store', type=str, help='Verifies the update')
     parser.add_argument('-v', action='store_true', help='Run just the verify and install option.')
     args = parser.parse_args()
     try:

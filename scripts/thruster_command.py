@@ -506,7 +506,7 @@ class ThrusterCommand:
             finally:
                 self.write_mutex.release()
         else:
-            self.mr_logger.log(LogType.SYS, "Error with args to write function, check index and subindex")
+            self.mr_logger.log(LogType.SYS, f"Error with args to write function, check index - {index} and subindex - {subindex}")
         return None
 
     def get_trace_msg(self):
