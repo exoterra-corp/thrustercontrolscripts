@@ -153,9 +153,9 @@ class ThrusterCommand:
         print(count)
         r = int(count/3)
         for v in range(0, r):
-            seq_stat_cond = self.read(index, 0x4 + v, "<I", True)
+            seq_stat_cond = hex(self.read(index, 0x4 + v, "<I", True))
             elapsed_ms = self.read(index, 0x5 + v, "<I", True)
-            monitor_err = self.read(index, 0x6 + v, "<I", True)
+            monitor_err = hex(self.read(index, 0x6 + v, "<I", True))
             print(f"[{v}] seq_stat_cond-{seq_stat_cond}, elapsed_ms-{elapsed_ms}, monitor_err-{monitor_err}")
 
     def connect_to_ecp(self):
