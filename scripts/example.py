@@ -137,6 +137,8 @@ class Example:
                 print("Thruster in Steady State. Cntrl-c to shutdown and exit.", end="\r")
                 time.sleep(SLEEP_TIME)
 
+            self.node.disconnect()
+
         except KeyboardInterrupt:
             print("\nDetected Cntrl-c Returning to Pre-Operational.")
             self.node.nmt.send_command(NMT_STATE.GO_TO_PRE_OPERATIONAL.value)
