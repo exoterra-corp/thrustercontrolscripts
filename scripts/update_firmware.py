@@ -74,7 +74,6 @@ if __name__ == "__main__":
     parser.add_argument('system_id', action='store', type=str, help='The System Id for the connection usually 0x22.',
                         default=0x22)
     parser.add_argument('image_file', action='store', type=str, help='The SAM firmware image file.')
-    parser.add_argument('manifest', action='store', type=str, help='Verifies the update')
     parser.add_argument('-v', action='store_true', help='Run just the verify and install option.')
     args = parser.parse_args()
     try:
@@ -86,5 +85,9 @@ if __name__ == "__main__":
     updater = FirmwareUpdater(args.serial_port, args.system_id, args.image_file)
     try:
         updater.do_update(args)
+    except canopen.sdo.SdoCommunicationError as e:
+        print(f"Transfer Failed, please reboot device and try again. {e}")
+    except canopen.sdo.SdoAbortedError as e:
+        print(f"Transfer Failed, verify update file. {e}")
     except KeyboardInterrupt:
         print("Connection Aborted Mid-Update, please reset the PPU to INIT before trying another install.")

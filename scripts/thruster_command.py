@@ -128,15 +128,6 @@ class ThrusterCommand:
             "12": {"name": "Query Block HSI", "func": self.query_block_hsi,
                    "args": {"index": 0x3100, "subindex": 0x1, "type": "<I"},
                    "help": "Queries the HSI values using a block transfer"},
-            "13": {"name": "Read conditioning values", "func": self.read_cond_values,
-                   "args": {"index": 0x4001, "subindex": 0x0, "type": "<I"},
-                   "help": "reads the conditioning values based on the value returned in count"},
-            "14": {"name": "Clear Condition Stats", "func": self.get_write_value,
-                  "args": {"index": 0x4000, "subindex": 0x8, "type": "<I", "default": "0x1"},
-                  "help": "Reset Conditioning Stats."},
-            "15": {"name": "Print Stats", "func": self.print_conditoning_stats,
-                   "args": {"index": 0x4001, "subindex": 0x0, "type": "<I", "default": "0x1"},
-                   "help": "Reset Conditioning Stats."},
         }
         self.trace_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # trace port
         self.hsi_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # hsi port
