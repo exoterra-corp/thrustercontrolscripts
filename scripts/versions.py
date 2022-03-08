@@ -1,13 +1,12 @@
 #!/usr/bin/python3
-import sys,canopen, argparse
+import sys,canopen, argparse, os
 import serial.tools.list_ports
 import struct, datetime
 from os.path import exists
-from os import mkdir
 
 class Versions():
     def __init__(self, sys_id, device):
-        self.storage_path = "logs/versions/"
+        self.storage_path = "./logs/versions/"
         network = canopen.Network()
         self.sys_id = sys_id
         if device == "pcan":
@@ -29,7 +28,7 @@ class Versions():
         if not exists(folder_name):
             print(f"Creating {folder_name}.")
             try:
-                mkdir(folder_name)
+                os.mkdir(folder_name)
                 return True
             except OSError as e:
                 print(f"Error {folder_name} could not be created. {e}")
@@ -37,6 +36,7 @@ class Versions():
 
     def read_sw_version(self):
         try:
+            self.create_folder("./logs")
             self.create_folder(self.storage_path)
             now = datetime.datetime.now()
             time_string = now.strftime("%Y_%m_%d_%H_%M_%S")
