@@ -85,11 +85,11 @@ class Example:
 
             print(f"\nThruster State: {hex(self.thruster_state)}")
 
-            if self.thruster_state != THRUSTER_STATE.TCS_STANDBY.value:
-                    print("Device Failed to go to Standby.")
-                    exit(1)
-            else: 
-                    print("Device is set to Standby.")
+            if self.thruster_state == THRUSTER_STATE.TCS_STANDBY.value:
+                print("Device is set to Standby.")
+            else:
+                print("Device Failed to go to Standby.")
+                self.exit()
 
             #Set the PPU to run Ready Mode
             self.node.sdo.download(THRUSTER_COMMAND_INDEX, THRUSTER_COMMAND_SUBINDEX_READY_MODE, self.enable_val)
@@ -109,7 +109,7 @@ class Example:
                 self.thruster_state = struct.unpack("<I", self.thruster_state)[0]
                 print(f"\nThruster State: {hex(self.thruster_state)}")
                 self.node.nmt.send_command(NMT_STATE.GO_TO_PRE_OPERATIONAL.value)
-                exit(1)
+                self.exit()
             else:
                 print("Device is set to Ready Mode. ")
 
@@ -117,7 +117,7 @@ class Example:
             self.node.sdo.download(THRUSTER_COMMAND_INDEX, THRUSTER_COMMAND_SUBINDEX_STEADY_STATE, self.enable_val)
             self.thruster_state = 0
             while (self.thruster_state != THRUSTER_STATE.TCS_STEADY_STATE.value) and \
-                    (self.thruster_state != THRUSTER_STATE.TCS_STANDBY.value):
+                    (self.thruster_state != THRUSTER_STATE.TCS_READY_MODE.value):
                 time.sleep(SLEEP_TIME)
                 self.thruster_state = self.node.sdo.upload(THRUSTER_COMMAND_INDEX, THRUSTER_COMMAND_SUBINDEX_STATE)
                 self.thruster_state = struct.unpack("<I", self.thruster_state)[0]
@@ -127,6 +127,7 @@ class Example:
             
             if self.thruster_state != THRUSTER_STATE.TCS_STEADY_STATE.value:
                 print(f"Device Failed to go into Steady State. {self.thruster_state}")
+                self.exit()
             else:
                 print(f"Device in Steady State. {hex(self.thruster_state)}")
             stop = time.time()
@@ -148,6 +149,10 @@ class Example:
     
     def notify_bootup(self, can_id, data, timestamp):
         self.boot_msg = True
+
+    def exit(self):
+        self.node.nmt.send_command(NMT_STATE.GO_TO_PRE_OPERATIONAL.value)
+        exit(1)
 
 if __name__ == "__main__":
     serial_port = "/dev/ttyUSB0"
