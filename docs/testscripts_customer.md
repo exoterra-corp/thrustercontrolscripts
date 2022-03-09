@@ -105,6 +105,7 @@ The BITs are hard coded as followed:
 9 - Write Set Thrust : [Writes a throttle set point to the System Controller.]
 10 - Condition : [Run the conditioning sequence.]
 11 - Test : [Run the BIT sequence.]
+12 - Query Block HSI : [Queries the HSI values using a block transfer]
 2Ready Mode: 0x0: Steady State: 0x0: ThrusterStatus:0x8 Condition Status:0x0 Thrust Point:0x1  Bit Status: 0x1fff5
 System Controller Connected!
 [rm:0x0:ss:0x0:ts:0x2]> 11
