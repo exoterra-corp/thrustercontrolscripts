@@ -409,7 +409,6 @@ class ThrusterCommand:
             for v in self.hsi_defs.block_hsi:
                 parse_str += v.get("type").replace("<", "")
             data = self.node.sdo.upload(index, subindex)
-            # if len(data) % 2 == 0:
             raw_vals = struct.unpack_from(parse_str, data)
             for i,value in enumerate(self.hsi_defs.block_hsi):
                 name = value.get("name")
@@ -418,8 +417,6 @@ class ThrusterCommand:
                 if hex_en:
                     parsed_val = hex(parsed_val)
                 self.mr_logger.log(LogType.SYS,f"{name} - {parsed_val}")
-            else:
-                self.mr_logger.log(LogType.SYS, f"Cant parse the bytearray because its not divisable by 2.  Len Data: {len(data)}")
         except canopen.sdo.exceptions.SdoCommunicationError as comms_err: \
                 self.mr_logger.log(LogType.SYS,f"Query Failed: {comms_err}")
         except canopen.sdo.exceptions.SdoAbortedError as aborted_err: \

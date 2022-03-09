@@ -6,7 +6,7 @@ except ModuleNotFoundError as e:
     print("wxpython is not installed, please install it before continuing.")
     sys.exit(1)
 from queue import Queue
-from HSIExcelWindow import HSIExcelWindow
+from src.HSIExcelWindow import HSIExcelWindow
 from src.hsi_defines import HSIDefines
 
 """
