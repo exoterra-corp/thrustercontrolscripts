@@ -3,7 +3,7 @@ import sys, canopen, argparse, time
 
 BOOTUP_TIMEOUT = 10
 
-class FirmwareUpdater():
+class UpdateFirmware():
     def __init__(self, serial_port, system_id, image_file):
         self.bytes = bytearray()
         self.boot_msg_found = False
@@ -82,8 +82,12 @@ if __name__ == "__main__":
         print(f"{args.system_id} is an invalid system id.")
         exit(1)
         
-    updater = FirmwareUpdater(args.serial_port, args.system_id, args.image_file)
+    updater = UpdateFirmware(args.serial_port, args.system_id, args.image_file)
     try:
         updater.do_update(args)
+    except canopen.sdo.SdoCommunicationError as e:
+        print(f"Transfer Failed, please reboot device and try again. {e}")
+    except canopen.sdo.SdoAbortedError as e:
+        print(f"Transfer Failed, verify update file. {e}")
     except KeyboardInterrupt:
         print("Connection Aborted Mid-Update, please reset the PPU to INIT before trying another install.")

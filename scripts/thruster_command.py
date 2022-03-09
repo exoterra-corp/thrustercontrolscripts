@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 import canopen, argparse, struct, time, sys, socket, traceback, datetime
+import serial
 from serial.tools import list_ports
 from threading import Thread, Lock
 from os.path import exists
@@ -116,7 +117,7 @@ class ThrusterCommand:
                   "args": {"index": self.th_command_index},
                   "help": "Prints Status of Ready Mode, Steady State, and ThrusterStatus continuously."},
             "9": {"name": "Write Set Thrust", "func": self.get_write_value,
-                  "args": {"index": self.th_command_index, "subindex": "Thrust", "type": "<I"},
+                  "args": {"index": self.th_command_index, "subindex": "Throttle Point", "type": "<I"},
                   "help": "Writes a throttle set point to the System Controller."},
             "10": {"name": "Condition", "func": self.get_write_value,
                    "args": {"index": self.th_command_index, "subindex": "Condition", "type": "<I"},
@@ -126,12 +127,27 @@ class ThrusterCommand:
                    "help": "Run the BIT sequence."},
             "12": {"name": "Query Block HSI", "func": self.query_block_hsi,
                    "args": {"index": 0x3100, "subindex": 0x1, "type": "<I"},
-                   "help": "Run the BIT sequence."},
+                   "help": "Queries the HSI values using a block transfer"},
         }
         self.trace_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # trace port
         self.hsi_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # hsi port
         self.help(None)
         self.connect_to_ecp()
+
+    def print_conditoning_stats(self, args):
+        index = args.get("index")
+        subindex = args.get("subindex")
+
+        count = self.read(index, subindex, "<B", True)
+        step = self.read(index, 0x1, "<I", True)
+        step_status = self.read(index, 0x2, "<I", True)
+        print(count)
+        r = int(count/3)
+        for v in range(0, r):
+            seq_stat_cond = hex(self.read(index, 0x4 + v, "<I", True))
+            elapsed_ms = self.read(index, 0x5 + v, "<I", True)
+            monitor_err = hex(self.read(index, 0x6 + v, "<I", True))
+            print(f"[{v}] seq_stat_cond-{seq_stat_cond}, elapsed_ms-{elapsed_ms}, monitor_err-{monitor_err}")
 
     def connect_to_ecp(self):
         """
@@ -146,7 +162,11 @@ class ThrusterCommand:
             else:
                 if self.debug:
                     self.mr_logger.log(LogType.SYS, "Selected serial network type")
-                self.network.connect(bustype="exoserial", channel=self.serial_port, baudrate=115200)
+                try:
+                    self.network.connect(bustype="exoserial", channel=self.serial_port, baudrate=115200)
+                except serial.SerialException as e:
+                    print(f"{e}")
+                    sys.exit(1)
             self.node = self.network.add_node(self.system_id, self.eds_file)
             self.network.add_node(self.node)
             self.raw_q = self.node.network.bus.get_int_q()
@@ -268,6 +288,16 @@ class ThrusterCommand:
         self.send_udp_packet(message, self.trace_udp_ip, self.trace_udp_port)
         self.mr_logger.log(LogType.SYS, message)
 
+    def read_cond_values(self, args):
+        index = args.get("index")
+        subindex = args.get("subindex")
+
+        #get the count
+        cnt = self.read(index,subindex,python_type="<B")
+        for i in range(1, cnt):
+            val = self.read(index, subindex+i, python_type="<I")
+            print(hex(val))
+
     def get_status_index(self, args):
         """
         get_status_index, gets the status and checks to make sure that the threads are enabled if operational.
@@ -379,7 +409,6 @@ class ThrusterCommand:
             for v in self.hsi_defs.block_hsi:
                 parse_str += v.get("type").replace("<", "")
             data = self.node.sdo.upload(index, subindex)
-            # if len(data) % 2 == 0:
             raw_vals = struct.unpack_from(parse_str, data)
             for i,value in enumerate(self.hsi_defs.block_hsi):
                 name = value.get("name")
@@ -388,8 +417,6 @@ class ThrusterCommand:
                 if hex_en:
                     parsed_val = hex(parsed_val)
                 self.mr_logger.log(LogType.SYS,f"{name} - {parsed_val}")
-            else:
-                self.mr_logger.log(LogType.SYS, f"Cant parse the bytearray because its not divisable by 2.  Len Data: {len(data)}")
         except canopen.sdo.exceptions.SdoCommunicationError as comms_err: \
                 self.mr_logger.log(LogType.SYS,f"Query Failed: {comms_err}")
         except canopen.sdo.exceptions.SdoAbortedError as aborted_err: \
@@ -501,7 +528,7 @@ class ThrusterCommand:
             finally:
                 self.write_mutex.release()
         else:
-            self.mr_logger.log(LogType.SYS, "Error with args to write function, check index and subindex")
+            self.mr_logger.log(LogType.SYS, f"Error with args to write function, check index - {index} and subindex - {subindex}")
         return None
 
     def get_trace_msg(self):
