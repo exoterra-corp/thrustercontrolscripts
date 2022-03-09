@@ -3,45 +3,20 @@
 ## Installation and Setup
 - Tested on Ubuntu 20.04.2 Python 3.8.5
 
-## Installing git and python3
+## Installing git and python3, and supporting packages
 ```
-#For ubuntu 20.04 
-sudo apt update && sudo apt install -y git python3 python3-pip
-
-#for windows based platforms https://git-scm.com/download/win
-#download and follow the installer.
+# ubuntu 20.04.4
+sudo ./install.sh
 ```
 
-## Cloning the Repository
-Clone the Repository using the provided customer user name and token.
-```
-git clone https://gitlab.com/e2259/thruster-control-scripts.git
-Username for 'https://gitlab.com': "<username>"
-Password for 'https://user1-token@gitlab.com': "<token>"
-```
-
-```
-  #navigate into the folder
-  cd thruster-control-scripts
-
-  #Install the other packages wheel.
-  python3 -m pip install ./packages/python_can-4.0.11-py3-none-any.whl
-  python3 -m pip install ./packages/canopen-1.2.4-py3-none-any.whl
-  python3 -m pip install pyserial==3.5 wxpython==4.1.1 
-
-  #add the current user to the dialout group
-  sudo usermod -a -G dialout $USER
-  #logout of system and login
-  #or run every command with sudo
-  ```
-  
-
-
-## Thruster Command Documentation.
+## Thruster Command (thruster_command.py).
 ### Example Usage
 ```
 python3 thruster_command.py 0x22 /dev/ttyUSB0 
 ============= ExoTerra Thruster Command & Control =============
+Found ./conf/default.conf!
+Creating logs.
+Creating logs/unnamed_test__2022_03_09_14_29_05.
 ============= ExoTerra Thruster Command Help Menu =============
 0 - Exit : [Exits the Program]
 1 - Help : [Displays the help Menu]
@@ -55,9 +30,10 @@ python3 thruster_command.py 0x22 /dev/ttyUSB0
 9 - Write Set Thrust : [Writes a throttle set point to the System Controller.]
 10 - Condition : [Run the conditioning sequence.]
 11 - Test : [Run the BIT sequence.]
-Ready Mode: 0x0: Steady State: 0x0: ThrusterStatus:0x8 Condition Status:0x0 Thrust Point:0x1  Bit Status: 0x1fff5
+12 - Query Block HSI : [Queries the HSI values using a block transfer]
+Ready Mode: 0x1020005: Steady State: 0x40005: ThrusterStatus:0x2 Condition Status:0x0 Thrust Point:0x2  Bit Status: 0x0
 System Controller Connected!
-[rm:0:ss0:ts:0]> 
+[rm:0x1020005:ss:0x40005:ts:0x2]>
 ```
 
 ## System Controller Selectable Modes
@@ -166,7 +142,7 @@ Then menu item 8 which updates every second to poll mode statuses.  This status 
 
 
 
-## The Listener Script
+## The Listener Script (listener.py)
 The listener.py script allows for viewing and capturing of raw serial messages, trace, and telemetry messages.
 Thruster Command forwards msg traffic over UDP to the listener script on 3 ports, one for raw serial msgs, one for debug messages, and one for telemetry messages.  The UDP ports are 4000, 4002, 4001 respectively.
 ```
@@ -206,7 +182,7 @@ Trace Msg          | A print message from the system controller for more insight
 HSI Msg            | A health and status message from the system controller for direct viewing of status and state.
 Raw Msg            | These messages are raw serial messages in a structure as shown in the ICD.
 
-## Versions.py
+## Versions Script (versions.py)
 versions.py dumps the firmware from versions from the System Controller and writes them to a local file as well as displays them to the current terminal.  The versions script creates a log file with a timestamp in the local directory every time it runs, with the format shown below.
 ```
 python3 versions.py /dev/ttyUSB0 
@@ -223,10 +199,41 @@ Id: Version  :gitsha    :git sha 1 :Exec V 1  :git sha 2 :Exec V 2  :git sha 3 :
 ### Version IDs
 ![version device ids](images/version_descriptions.PNG)
 
+
+## Example Script (example.py)
+The example script shows how to go from power up to steady state.
+
+Error handling and telemetry have been omitted.
+
+```
+$ python3 ./example.py 
+Created can Network.
+Created Exoserial device.
+Created CANOpen Node.
+Added 0x22 to canopen Network.
+Resetting PPU.
+Waiting for boot msg...
+PPU Ready!
+Transitioning to Standby. Thruster State: 0x8
+Thruster State: 0x8
+Device is set to Standby.
+Transitioning to Ready Mode. Thruster State: 0xa
+Thruster State: 0xa
+Device is set to Ready Mode. 
+Transitioning to Steady State. Thruster State: 0xc
+Thruster State: 0xc
+Device in Steady State. 0xc
+PPU took 21.405359268188477 seconds from reset to steady state.
+Thruster in Steady State. Cntrl-c to shutdown and exit.
+^C
+Detected Cntrl-c Returning to Pre-Operational.
+Sent NMT change state Pre-Operational.
+```
+
 ## Errors and Explanations
 Error Code         | Error Description | Possible Solutions
 -------------------|------------------|-------------------
 Code 0x06010002 | Attempt to write a read only object | Make sure the System Controller is flashed to the correct firmware with versions.py or check to make sure it is in Operational Mode.
 Code 0x08000020 | Data cannot be transferred or stored to the application | Make sure the System Controller is in Operational Mode.
 
-version 0.0.6
+version 0.0.7

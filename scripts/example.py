@@ -70,7 +70,7 @@ class Example:
             self.node.nmt.send_command(NMT_STATE.GO_TO_INIT.value)
             
             #waiting for the PPU to boot.
-            print("waiting for boot msg...")
+            print("Waiting for boot msg...")
             while self.boot_msg == False:
                 time.sleep(SLEEP_TIME)
             print("PPU Ready!")
@@ -81,7 +81,7 @@ class Example:
                 time.sleep(SLEEP_TIME)
                 self.thruster_state = self.node.sdo.upload(THRUSTER_COMMAND_INDEX, THRUSTER_COMMAND_SUBINDEX_STATE)
                 self.thruster_state = struct.unpack("<I",self.thruster_state)[0]
-                print(f"Transitioning to Standby. Thruster State: {self.thruster_state}", end="\r")
+                print(f"Transitioning to Standby. Thruster State: {hex(self.thruster_state)}", end="\r")
 
             print(f"\nThruster State: {hex(self.thruster_state)}")
 
