@@ -128,6 +128,9 @@ class ThrusterCommand:
             "12": {"name": "Query Block HSI", "func": self.query_block_hsi,
                    "args": {"index": 0x3100, "subindex": 0x1, "type": "<I"},
                    "help": "Queries the HSI values using a block transfer"},
+            "15": {"name": "Print Stats", "func": self.print_conditoning_stats,
+                   "args": {"index": 0x4001, "subindex": 0x0, "type": "<I", "default": "0x1"},
+                   "help": "Reset Conditioning Stats."},
         }
         self.trace_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # trace port
         self.hsi_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # hsi port
@@ -135,6 +138,9 @@ class ThrusterCommand:
         self.connect_to_ecp()
 
     def print_conditoning_stats(self, args):
+        """
+        print_conditoning_stats, 
+        """
         index = args.get("index")
         subindex = args.get("subindex")
 
@@ -143,10 +149,12 @@ class ThrusterCommand:
         step_status = self.read(index, 0x2, "<I", True)
         print(count)
         r = int(count/3)
-        for v in range(0, r):
-            seq_stat_cond = hex(self.read(index, 0x4 + v, "<I", True))
-            elapsed_ms = self.read(index, 0x5 + v, "<I", True)
-            monitor_err = hex(self.read(index, 0x6 + v, "<I", True))
+        for v in range(0, r-1):
+            seq_stat_cond = self.read(index, 0x3 + (v*3), "<I", True)
+            elapsed_ms = self.read(index, 0x4 + (v*3), "<I", True)
+            monitor_err = self.read(index, 0x5 + (v*3), "<I", True)
+            seq_stat_cond = '0x' + hex(seq_stat_cond)[2:].zfill(8)
+            monitor_err = '0x' + hex(monitor_err)[2:].zfill(8)
             print(f"[{v}] seq_stat_cond-{seq_stat_cond}, elapsed_ms-{elapsed_ms}, monitor_err-{monitor_err}")
 
     def connect_to_ecp(self):
