@@ -1,11 +1,9 @@
 #!/usr/bin/venv python3
 from distutils.core import setup
-import os
 
-setup(name='testscripts',
-      version='1.4.0',
+setup(name='thrustercontrolscripts',
+      version='2.0.1',
       description='Python System Controller Support Library.',
       author='Jeremy Mitchell',
-      author_email='jmitchell@exoterracorp.com',
-      url='https://gitlab.com/e2259/thruster-control-scripts',
+      author_email='jmitchell@exoterracorp.com'
 )
