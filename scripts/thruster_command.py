@@ -117,7 +117,7 @@ class ThrusterCommand:
                   "args": {"index": self.th_command_index},
                   "help": "Prints Status of Ready Mode, Steady State, and ThrusterStatus continuously."},
             "9": {"name": "Write Set Thrust", "func": self.get_write_value,
-                  "args": {"index": self.th_command_index, "subindex": "Throttle Point", "type": "<I"},
+                  "args": {"index": self.th_command_index, "subindex": "Throttle Point", "type": "<I", "hex_en": False},
                   "help": "Writes a throttle set point to the System Controller."},
             "10": {"name": "Condition", "func": self.get_write_value,
                    "args": {"index": self.th_command_index, "subindex": "Condition", "type": "<I"},
@@ -452,6 +452,10 @@ class ThrusterCommand:
         subindex = args.get("subindex")
         python_type = args.get("type")
         default = args.get("default")
+        hex_en = args.get("hex_en")
+
+        if hex_en is not None:
+            hex_en = True
 
         if type(index) is str and type(subindex) is str:
             var = self.get_var(index, subindex)
@@ -461,7 +465,7 @@ class ThrusterCommand:
         valid = False
         if index != None and subindex != None and python_type != None:
             if default is not None:  # if we have a default value just write it and dont prompt user.
-                self.write(index, subindex, default, python_type)
+                self.write(index, subindex, default, python_type, hex_en)
             else:
                 while not valid:
                     self.mr_logger.log(LogType.SYS,
@@ -470,7 +474,7 @@ class ThrusterCommand:
                     if inp.lower() == "back" or inp.lower() == "x":
                         return
                     if len(inp) > 0:
-                        self.write(index, subindex, inp, python_type)
+                        self.write(index, subindex, inp, python_type, hex_en)
                         valid = True
 
     def write(self, index, subindex, val, python_type, hex_en=True):
