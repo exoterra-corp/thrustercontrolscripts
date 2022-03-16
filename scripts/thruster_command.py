@@ -105,13 +105,13 @@ class ThrusterCommand:
                   "args": {"nmt_state": "OPERATIONAL"},
                   "help": "Changes NMT STATE to OPERATIONAL."},
             "5": {"name": "Run Ready Mode", "func": self.get_write_value,
-                  "args": {"index": self.th_command_index, "subindex": "Ready Mode", "type": "<I", "default": "0x1"},
+                  "args": {"index": self.th_command_index, "subindex": "Ready Mode", "type": "<I", "default": "1"},
                   "help": "Writes a UINT-32 to the Thruster Ready Mode."},
             "6": {"name": "Run Steady State", "func": self.get_write_value,
                   "args": {"index": self.th_command_index, "subindex": "Steady State", "type": "<I"},
                   "help": "Writes a UINT-32 to the Thruster Steady State."},
             "7": {"name": "Thruster Shutdown", "func": self.get_write_value,
-                  "args": {"index": self.th_command_index, "subindex": "Shutdown", "type": "<B", "default": "0x1"},
+                  "args": {"index": self.th_command_index, "subindex": "Shutdown", "type": "<B", "default": "1"},
                   "help": "Shutdown down the thruster."},
             "8": {"name": "Status", "func": self.get_status_index,
                   "args": {"index": self.th_command_index},
@@ -129,7 +129,7 @@ class ThrusterCommand:
                    "args": {"index": 0x3100, "subindex": 0x1, "type": "<I"},
                    "help": "Queries the HSI values using a block transfer"},
             "15": {"name": "Print Stats", "func": self.print_conditoning_stats,
-                   "args": {"index": 0x4001, "subindex": 0x0, "type": "<I", "default": "0x1"},
+                   "args": {"index": 0x4001, "subindex": 0x0, "type": "<I", "default": "1"},
                    "help": "Reset Conditioning Stats."},
         }
         self.trace_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # trace port
@@ -577,7 +577,7 @@ class ThrusterCommand:
         """
         while self.running:
             try:
-                var_str = f"[rm:{self.mode_status}:ss:{self.state_status}:ts:{self.thruster_status}:tp:{self.thrust_point}]".zfill(10)
+                var_str = f"[rm:{self.mode_status}:ss:{self.state_status}:tp:{self.thrust_point}:ts:{self.thruster_status}]".zfill(10)
                 self.mr_logger.log(LogType.SYS, f"{var_str}>", end='', print_val=False)
                 inp = input(f"{var_str}>").lower().strip()
                 self.mr_logger.log(LogType.SYS, f"{inp}", end='', print_val=False)
