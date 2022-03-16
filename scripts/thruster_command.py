@@ -466,14 +466,14 @@ class ThrusterCommand:
                 while not valid:
                     self.mr_logger.log(LogType.SYS,
                                        "Enter hex value to send to ECP - or 'x' to return to previous menu.")
-                    inp = input("write> 0x")
+                    inp = input("write> ")
                     if inp.lower() == "back" or inp.lower() == "x":
                         return
                     if len(inp) > 0:
                         self.write(index, subindex, inp, python_type)
                         valid = True
 
-    def write(self, index, subindex, val, python_type):
+    def write(self, index, subindex, val, python_type, hex_en=True):
         """
         write, uses a index, subindex, and a type to ask for a hex value and then send this data over serial to the
         Engine System Controller.
@@ -481,7 +481,10 @@ class ThrusterCommand:
         try:
             self.write_mutex.acquire()
             if self.nmt_state != 0x4:  # check to see if stopped
-                int_val = int(val, 16)
+                if hex_en:
+                    int_val = int(val, 16)
+                else:
+                    int_val = int(val)
                 val = struct.pack(python_type, int_val)
                 self.node.sdo.download(index, subindex,
                                        bytearray(val))
@@ -523,7 +526,7 @@ class ThrusterCommand:
                     in_val = val
                     if python_type != "noparse":
                         in_val = struct.unpack(python_type, val)[0]
-                    return in_val
+                    return in_val            
             except canopen.sdo.exceptions.SdoCommunicationError as comms_err:
                 if show_failure:
                     self.mr_logger.log(LogType.SYS, f"Query Failed {hex(index)}:{hex(subindex)}: {comms_err}")
@@ -570,7 +573,7 @@ class ThrusterCommand:
         """
         while self.running:
             try:
-                var_str = f"[rm:{self.mode_status}:ss:{self.state_status}:ts:{self.thruster_status}]".zfill(10)
+                var_str = f"[rm:{self.mode_status}:ss:{self.state_status}:ts:{self.thruster_status}:tp:{self.thrust_point}]".zfill(10)
                 self.mr_logger.log(LogType.SYS, f"{var_str}>", end='', print_val=False)
                 inp = input(f"{var_str}>").lower().strip()
                 self.mr_logger.log(LogType.SYS, f"{inp}", end='', print_val=False)
