@@ -453,9 +453,13 @@ class ThrusterCommand:
         python_type = args.get("type")
         default = args.get("default")
         hex_en = args.get("hex_en")
+        val_type_str = "decimal"
 
         if hex_en is not None:
+            val_type_str = "hex"
             hex_en = True
+        else:
+            hex_en = False
 
         if type(index) is str and type(subindex) is str:
             var = self.get_var(index, subindex)
@@ -468,8 +472,7 @@ class ThrusterCommand:
                 self.write(index, subindex, default, python_type, hex_en)
             else:
                 while not valid:
-                    self.mr_logger.log(LogType.SYS,
-                                       "Enter hex value to send to ECP - or 'x' to return to previous menu.")
+                    self.mr_logger.log(LogType.SYS, f"Enter {val_type_str} value to send to ECP - or 'x' to return to previous menu.")
                     inp = input("write> ")
                     if inp.lower() == "back" or inp.lower() == "x":
                         return
