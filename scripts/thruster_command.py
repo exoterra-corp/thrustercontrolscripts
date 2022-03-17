@@ -455,7 +455,7 @@ class ThrusterCommand:
         hex_en = args.get("hex_en")
         val_type_str = "decimal"
 
-        if hex_en is not None:
+        if hex_en is not None and hex_en is not False:
             val_type_str = "hex"
             hex_en = True
         else:
