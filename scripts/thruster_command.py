@@ -127,7 +127,7 @@ class ThrusterCommand:
                    "help": "Run the BIT sequence."},
             "12": {"name": "Query Block HSI", "func": self.query_block_hsi,
                    "args": {"index": 0x3100, "subindex": 0x1, "type": "<I"},
-                   "help": "Queries the HSI values using a block transfer"},
+                   "help": "Queries the HSI values using a segmented transfer"},
             "15": {"name": "Print Stats", "func": self.print_conditoning_stats,
                    "args": {"index": 0x4001, "subindex": 0x0, "type": "<I", "default": "1"},
                    "help": "Reset Conditioning Stats."},
@@ -357,7 +357,7 @@ class ThrusterCommand:
         self.state_status = hex(state_status)
         self.thruster_status = hex(self.thruster_status_parsed)
         self.cond_status = hex(cond_status)
-        self.thrust_point = hex(thrust_point)
+        self.thrust_point = thrust_point
         self.bit_status = hex(bit_status)
 
         msg = f"Ready Mode: {self.mode_status}: Steady State: {self.state_status}: ThrusterStatus:{self.thruster_status} Condition Status:{self.cond_status} Thrust Point:{self.thrust_point}  Bit Status: {self.bit_status}"
@@ -403,6 +403,8 @@ class ThrusterCommand:
         data = self.node.sdo.upload(0x3100, 0x1)
         #save it to the log file
         self.mr_logger.log(LogType.HSI, f"{data}")
+        if self.hsi_status_ip != "127.0.0.1": #send it locally first
+            self.trace_sock.sendto(data, ("127.0.0.1", self.hsi_block_udp_port))
         self.trace_sock.sendto(data, (self.hsi_status_ip, self.hsi_block_udp_port))
 
     def query_block_hsi(self, args):
