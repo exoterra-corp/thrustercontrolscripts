@@ -79,34 +79,57 @@ class ErrorHandling:
     def fault_handler_change(self):
         inp = ""
         while inp != 'b':
-            print("Enter Error Code and New Fault Handler, 'd' to dump current fault configurations or 'b' to go back:")
+            print("Enter 'c' to read/write Error Code fault handler error codes, 'd' to dump current fault configurations or 'b' to go back:")
             inp = input(">>" )
             print(inp)
             if(inp != 'b'):
                 if(inp == 'd'):
                     self.fault_handler_config_dump()
-                else:
-                    index = self.node.object_dictionary['FaultReactionType'].index,
-                    subindex = self.node.object_dictionary['FaultReactionType']['FaultReactionSet'].subindex,
-                    inp = inp.split(',')
-                    data = bytearray([0, int(inp[0]), int(inp[1]),0 ])
-                    val = self.node.sdo.download(index[0], subindex[0], data)
-
-
-    def fault_handler_config_dump(self):
-        print("Dumping Fault Configurations...")
-        index = self.node.object_dictionary['FaultReactionType'].index,
-        subindex = self.node.object_dictionary['FaultReactionType']['FaultReactionType'].subindex,
-        val = self.node.sdo.upload(index[0], subindex[0])
-        val = val[1:len(val):2]
-        self.pretty_text(val, "FAULT_CONFIG", "<c") 
+                elif(inp == 'c'):
+                    print("Enter 'w fs fh' to write new fault config or 'r fs' to read fault config:")
+                    inp = input(">>>" )                   
+                    index_fault_code_select = self.node.object_dictionary['FaultReactionType'].index
+                    subindex_fault_code_select = self.node.object_dictionary['FaultReactionType']['FaultCodeSelect'].subindex
+                    index_fault_reaction_type = self.node.object_dictionary['FaultReactionType'].index
+                    subindex_fault_reaction_type = self.node.object_dictionary['FaultReactionType']['FaultReactionType'].subindex
+                    inp = inp.split(' ')
+                    cmd = inp[0]
+                    if(cmd == 'w'):
+                        fault_select = bytearray([int(inp[1])])
+                        fault_reaction_type = bytearray([int(inp[2])])
+                        val = self.node.sdo.download(index_fault_code_select, subindex_fault_code_select, fault_select)
+                        val = self.node.sdo.download(index_fault_reaction_type, subindex_fault_reaction_type, fault_reaction_type)
+                    elif(cmd == 'r'):
+                        fault_select = bytearray([int(inp[1])])
+                        val = self.node.sdo.download(index_fault_code_select, subindex_fault_code_select, fault_select)
+                        code = self.node.sdo.upload(index_fault_code_select, subindex_fault_code_select)
+                        fh   = self.node.sdo.upload(index_fault_reaction_type, subindex_fault_reaction_type)
+                        print("fault code = ", code, ", handler = ", fh)                         
 
     def fault_reaction_status_dump(self):
+        print("Enter 'd' to dump fault configs, or 'w x (x = 1,2,3,4,5)' to dump fault status words.")
+        inp = input(">")
+        inp = inp.split(' ')
+        if(inp[0] == 'd'):
+            print("Dumping Fault Configurations...")
+            index = self.node.object_dictionary['FaultStatus'].index,
+            subindex = self.node.object_dictionary['FaultStatus']['FaultStatus'].subindex,
+            val = self.node.sdo.upload(index[0], subindex[0])
+            self.pretty_text(val, "Fault Status", "<I")
+
+        elif(inp[0] == 'w'):
+            index = self.node.object_dictionary['FaultStatus'].index,
+            subindex = self.node.object_dictionary['FaultStatus'][int(inp[1]) + 1].subindex,
+            print(index, subindex)
+            val = self.node.sdo.upload(index[0], subindex[0])
+            print("status word ", inp[1], "= ", val) 
+
+    def fault_handler_config_dump(self):
         print("Dumping Fault Status...")
         index = self.node.object_dictionary['FaultStatus'].index,
         subindex = self.node.object_dictionary['FaultStatus']['FaultStatus'].subindex,
         val = self.node.sdo.upload(index[0], subindex[0])
-        self.pretty_text(val, "Fault Status", "<I")
+        self.pretty_text(val, "FAULT_CONFIG", "<c") 
 
     def help(self):
         """
