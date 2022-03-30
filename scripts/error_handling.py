@@ -167,10 +167,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description='Dumps Module Specific Error Logs, and Configures Fault Handlers')
     parser.add_argument('--action', action='store', type=str, help='dump module error log or configure fault handling')
-    parser.add_argument('system_id', action='store', type=str, help='The System Id for the connection usually 0x22.',
-                        default=0x22)
-    parser.add_argument('serial_port', action='store', type=str, help='The Serial Port to use for RS485, or use can to select the pcan',
-                        default="/dev/ttyUSB0")
+    parser.add_argument('serial_port', action='store', type=str, help='The Serial Port to use for RS485, or use can to select the pcan', default="/dev/ttyUSB0")
+    parser.add_argument('system_id', action='store', type=str, help='The System Id for the connection usually 0x22.', default=0x22)
     parser.add_argument('--debug', action='store_true', help='enable debug mode.')
     parser.add_argument('eds_file', action='store', type=str, help='The eds file used for communication.',
                         default="eds_file.eds")
