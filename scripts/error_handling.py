@@ -28,8 +28,7 @@ class ErrorHandling:
             "0": {"name": "Quit", "func":quit, "help": "Quit Script"},
             "1": {"name": "Dump Error Log", "func":self.error_log_dump, "help": "Dump a submodules error log", "args":"submodule"},
             "2": {"name": "Change Fault Handler", "func": self.fault_handler_change, "help": "Change a fault reaction for a fault type"},
-            "3": {"name": "Dump Fault Handler Configs", "func": self.fault_handler_config_dump, "help": "Dumps fault handler configured for each error code"},
-            "4": {"name": "Dump Fault Status", "func": self.fault_reaction_status_dump, "help": "Dump fault reaction status variable"}
+            "3": {"name": "Dump Fault Status", "func": self.fault_reaction_status_dump, "help": "Dump fault reaction status variable"}
         }
 
         self.submodules = {
@@ -81,55 +80,55 @@ class ErrorHandling:
     def fault_handler_change(self):
         inp = ""
         while inp != 'b':
-            print("Enter 'c' to read/write Error Code fault handler error codes, 'd' to dump current fault configurations or 'b' to go back:")
+            print("Enter 'w fault_code# fault_handler#' to write new fault config or 'r fault_code#' to read fault config, or 'b' to go back:")
             inp = input(">>" )
             print(inp)
             if(inp != 'b'):
-                if(inp == 'd'):
-                    self.fault_handler_config_dump()
-                elif(inp == 'c'):
-                    print("Enter 'w fs fh' to write new fault config or 'r fs' to read fault config:")
-                    inp = input(">>>" )                   
-                    index_fault_code_select = self.node.object_dictionary['FaultReactionType'].index
-                    subindex_fault_code_select = self.node.object_dictionary['FaultReactionType']['FaultCodeSelect'].subindex
-                    index_fault_reaction_type = self.node.object_dictionary['FaultReactionType'].index
-                    subindex_fault_reaction_type = self.node.object_dictionary['FaultReactionType']['FaultReactionType'].subindex
-                    inp = inp.split(' ')
-                    cmd = inp[0]
-                    if(cmd == 'w'):
-                        fault_select = bytearray([int(inp[1])])
-                        fault_reaction_type = bytearray([int(inp[2])])
-                        val = self.node.sdo.download(index_fault_code_select, subindex_fault_code_select, fault_select)
-                        val = self.node.sdo.download(index_fault_reaction_type, subindex_fault_reaction_type, fault_reaction_type)
-                    elif(cmd == 'r'):
-                        fault_select = bytearray([int(inp[1])])
-                        val = self.node.sdo.download(index_fault_code_select, subindex_fault_code_select, fault_select)
-                        code = self.node.sdo.upload(index_fault_code_select, subindex_fault_code_select)
-                        fh   = self.node.sdo.upload(index_fault_reaction_type, subindex_fault_reaction_type)
-                        print("fault code = ", code, ", handler = ", fh)                         
+                index_fault_code_select = self.node.object_dictionary['FaultReactionType'].index
+                subindex_fault_code_select = self.node.object_dictionary['FaultReactionType']['FaultCodeSelect'].subindex
+                index_fault_reaction_type = self.node.object_dictionary['FaultReactionType'].index
+                subindex_fault_reaction_type = self.node.object_dictionary['FaultReactionType']['FaultReactionType'].subindex
+                inp = inp.split(' ')
+                cmd = inp[0]
+                if(cmd == 'w'):
+                    fault_select = bytearray([int(inp[1], 16)])
+                    fault_reaction_type = bytearray([int(inp[2])])
+                    val = self.node.sdo.download(index_fault_code_select, subindex_fault_code_select, fault_select)
+                    val = self.node.sdo.download(index_fault_reaction_type, subindex_fault_reaction_type, fault_reaction_type)
+                elif(cmd == 'r'):
+                    fault_select = bytearray([int(inp[1], 16)])
+                    val = self.node.sdo.download(index_fault_code_select, subindex_fault_code_select, fault_select)
+                    code = self.node.sdo.upload(index_fault_code_select, subindex_fault_code_select)
+                    fh   = self.node.sdo.upload(index_fault_reaction_type, subindex_fault_reaction_type)
+                    print("fault code = ", code.hex(), ", handler = ",fh.hex())                         
 
     def fault_reaction_status_dump(self):
-        print("Enter 'd' to dump fault configs, or 'w x (x = 1,2,3,4,5)' to dump fault status words.")
+        print("Dumping Fault Status...")
+        # uncomment if we want to add individual word dumps back in
+        """
         inp = input(">")
         inp = inp.split(' ')
-        if(inp[0] == 'd'):
-            print("Dumping Fault Configurations...")
-            index = self.node.object_dictionary['FaultStatus'].index,
-            subindex = self.node.object_dictionary['FaultStatus']['FaultStatus'].subindex,
-            val = self.node.sdo.upload(index[0], subindex[0])
-            self.pretty_text(val, "Fault Status", "<I")
-
-        elif(inp[0] == 'w'):
-            index = self.node.object_dictionary['FaultStatus'].index,
-            subindex = self.node.object_dictionary['FaultStatus'][int(inp[1]) + 1].subindex,
-            print(index, subindex)
-            val = self.node.sdo.upload(index[0], subindex[0])
-            print("status word ", inp[1], "= ", val) 
-
-    def fault_handler_config_dump(self):
-        print("Dumping Fault Status...")
+        #if(inp[0] == 'd'):
+        """
+        print("Dumping Fault Configurations...")
         index = self.node.object_dictionary['FaultStatus'].index,
         subindex = self.node.object_dictionary['FaultStatus']['FaultStatus'].subindex,
+        val = self.node.sdo.upload(index[0], subindex[0])
+        self.pretty_text(val, "Fault Status", "<I")
+        # uncomment if we want to add individual word dumps back in
+        """ 
+        else:
+            index = self.node.object_dictionary['FaultStatus'].index,
+            subindex = self.node.object_dictionary['FaultStatus'][int(inp[0]) + 2].subindex,
+            val = self.node.sdo.upload(index[0], subindex[0])
+            val = struct.unpack("<I", val)[0]
+            val = (f"{hex(int(str(inp[0]).zfill(2)))} = 0x{hex(val)[2:].zfill(8)}")
+            print("status word", val)
+        """
+    def fault_handler_config_dump(self):
+        print("Dumping Fault Status...")
+        index = self.node.object_dictionary['FaultReactionType'].index,
+        subindex = self.node.object_dictionary['FaultReactionType']['FaultCodeSelect'].subindex,
         val = self.node.sdo.upload(index[0], subindex[0])
         self.pretty_text(val, "FAULT_CONFIG", "<c") 
 
