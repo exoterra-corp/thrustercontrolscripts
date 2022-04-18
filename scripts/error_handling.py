@@ -28,7 +28,8 @@ class ErrorHandling:
             "0": {"name": "Quit", "func":quit, "help": "Quit Script"},
             "1": {"name": "Dump Error Log", "func":self.error_log_dump, "help": "Dump a submodules error log", "args":"submodule"},
             "2": {"name": "Change Fault Handler", "func": self.fault_handler_change, "help": "Change a fault reaction for a fault type"},
-            "3": {"name": "Dump Fault Status", "func": self.fault_reaction_status_dump, "help": "Dump fault reaction status variable"}
+            "3": {"name": "Dump Fault Status", "func": self.fault_reaction_status_dump, "help": "Dump fault reaction status variable"},
+            "4": {"name": "Dump Error Register", "func": self.standard_error_field_dump, "help": "Dump Error Register (0x1001)"}
         }
 
         self.submodules = {
@@ -60,6 +61,15 @@ class ErrorHandling:
                 parsed_vals.append([name,val])
             print(tabulate(parsed_vals, [heading]))
 
+
+    def standard_error_field_dump(self):
+        print("Dumping ...")
+        for i in range(8):
+            val = self.node.sdo.upload(0x1003, i)
+            if i == 0:
+                 print("Error Count: ", val.hex())
+            else:
+                print("SEF ",i,":", val.hex())
 
     def error_log_dump(self): 
         inp = ""
