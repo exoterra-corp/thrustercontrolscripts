@@ -39,7 +39,7 @@ class ErrorHandling:
                 "3" : {"name":"Magnet Control", "index": self.node.object_dictionary['ErrorDetail'].index, "subindex": self.node.object_dictionary['ErrorDetail']['MagnetControl'].subindex},
                 "4" : {"name":"Memory Scrubber", "index": self.node.object_dictionary['ErrorDetail'].index, "subindex": self.node.object_dictionary['ErrorDetail']['MemoryScrubberSubmodule'].subindex},
                 "5" : {"name":"APP", "index": self.node.object_dictionary['ErrorDetail'].index, "subindex": self.node.object_dictionary['ErrorDetail']['AppSubmodule'].subindex},
-                
+                "6" : {"name":"Sequence", "index": self.node.object_dictionary['ErrorDetail'].index, "subindex": self.node.object_dictionary['ErrorDetail']['SqncControl'].subindex},               
         }
 
     def pretty_text(self, data, heading, formatting):
