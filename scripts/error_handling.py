@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-import canopen, argparse, struct, time, sys, socket, traceback, datetime, wx
+import canopen, argparse, struct, time, sys, socket, traceback, datetime
 from canopen.nmt import NmtError, NMT_STATES
 from serial.tools import list_ports
 from threading import Thread, Lock

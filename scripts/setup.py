@@ -8,5 +8,5 @@ setup(name='thrustercontrolscripts',
       author='Jeremy Mitchell',
       author_email='jmitchell@exoterracorp.com',
       scripts=['thruster_command.py', 'listener.py'],
-      packages=find_packages(),
+      packages=find_packages() #['tcsrc'],
 )

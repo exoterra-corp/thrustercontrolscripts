@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!python
 import canopen, argparse, struct, time, sys, socket, traceback, datetime
 import serial
 from serial.tools import list_ports

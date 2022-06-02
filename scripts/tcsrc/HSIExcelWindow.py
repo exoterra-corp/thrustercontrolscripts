@@ -1,4 +1,4 @@
-from src.AutogenTestScriptsGui import *
+from tcsrc.AutogenTestScriptsGui import *
 
 """
 ExoTerra Resource HSIExcelWindow.

@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!python
 import socket, argparse, datetime, struct, os, sys, threading, time
 try:
     import wx
