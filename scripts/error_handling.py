@@ -57,7 +57,7 @@ class ErrorHandling:
                 name =''
                 if formatting == "<c":
                     h = int.from_bytes(h, "little")
-                val = (f"{hex(int(str(i).zfill(2)))}: 0x{hex(h)[2:].zfill(bites*2)}")
+                val = (f"{hex(int(str(i + 1).zfill(2)))}: 0x{hex(h)[2:].zfill(bites*2)}")
                 parsed_vals.append([name,val])
             print(tabulate(parsed_vals, [heading]))
 
