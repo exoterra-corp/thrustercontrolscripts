@@ -117,7 +117,7 @@ class ThrusterCommand:
                   "args": {"index": self.th_command_index},
                   "help": "Prints Status of Ready Mode, Steady State, and ThrusterStatus continuously."},
             "9": {"name": "Write Set Thrust", "func": self.get_write_value,
-                  "args": {"index": self.th_command_index, "subindex": "Throttle Point", "type": "<I", "hex_en": False},
+                  "args": {"index": self.th_command_index, "subindex": "Thrust", "type": "<I", "hex_en": False},
                   "help": "Writes a throttle set point to the System Controller."},
             "10": {"name": "Condition", "func": self.get_write_value,
                    "args": {"index": self.th_command_index, "subindex": "Condition", "type": "<I"},
