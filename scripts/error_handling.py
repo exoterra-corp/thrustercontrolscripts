@@ -33,13 +33,10 @@ class ErrorHandling:
         }
 
         self.submodules = {
-                "0" : {"name":"Serial", "index": self.node.object_dictionary['ErrorDetail'].index, "subindex": self.node.object_dictionary['ErrorDetail']['SerialSubmodule'].subindex},
-                "1" : {"name":"Client Control", "index": self.node.object_dictionary['ErrorDetail'].index, "subindex": self.node.object_dictionary['ErrorDetail']['ClientControlSubmodule'].subindex},
-                "2" : {"name":"Anode Control", "index": self.node.object_dictionary['ErrorDetail'].index, "subindex": self.node.object_dictionary['ErrorDetail']['AnodeControl'].subindex},
-                "3" : {"name":"Magnet Control", "index": self.node.object_dictionary['ErrorDetail'].index, "subindex": self.node.object_dictionary['ErrorDetail']['MagnetControl'].subindex},
-                "4" : {"name":"Memory Scrubber", "index": self.node.object_dictionary['ErrorDetail'].index, "subindex": self.node.object_dictionary['ErrorDetail']['MemoryScrubberSubmodule'].subindex},
-                "5" : {"name":"APP", "index": self.node.object_dictionary['ErrorDetail'].index, "subindex": self.node.object_dictionary['ErrorDetail']['AppSubmodule'].subindex},
-                "6" : {"name":"Sequence", "index": self.node.object_dictionary['ErrorDetail'].index, "subindex": self.node.object_dictionary['ErrorDetail']['SqncControl'].subindex},               
+                "1" : {"name":"Serial", "index": self.node.object_dictionary['ErrorDetail'].index, "subindex": self.node.object_dictionary['ErrorDetail']['SerialSubmodule'].subindex},
+                "2" : {"name":"Client Control", "index": self.node.object_dictionary['ErrorDetail'].index, "subindex": self.node.object_dictionary['ErrorDetail']['ClientControlSubmodule'].subindex},
+                "3" : {"name":"Memory Scrubber", "index": self.node.object_dictionary['ErrorDetail'].index, "subindex": self.node.object_dictionary['ErrorDetail']['MemoryScrubberSubmodule'].subindex},
+                "4" : {"name":"APP", "index": self.node.object_dictionary['ErrorDetail'].index, "subindex": self.node.object_dictionary['ErrorDetail']['AppSubmodule'].subindex},
         }
 
     def pretty_text(self, data, heading, formatting):
