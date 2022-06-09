@@ -29,7 +29,8 @@ class ErrorHandling:
             "1": {"name": "Dump Error Log", "func":self.error_log_dump, "help": "Dump a submodules error log", "args":"submodule"},
             "2": {"name": "Change Fault Handler", "func": self.fault_handler_change, "help": "Change a fault reaction for a fault type"},
             "3": {"name": "Dump Fault Status", "func": self.fault_reaction_status_dump, "help": "Dump fault reaction status variable"},
-            "4": {"name": "Dump Error Register", "func": self.standard_error_field_dump, "help": "Dump Error Register (0x1001)"}
+            "4": {"name": "Dump Error History", "func": self.standard_error_field_dump, "help": "Dump Error History (0x1003)"},
+            "5": {"name": "Clear Error History", "func": self.standard_error_field_clear, "help": "Clear Error History (0x1003)"}
         }
 
         self.submodules = {
@@ -61,6 +62,14 @@ class ErrorHandling:
                 parsed_vals.append([name,val])
             print(tabulate(parsed_vals, [heading]))
 
+    def standard_error_field_clear(self):
+        val = input("Are you sure? (type 0x1234)")
+        if val == "0x1234":
+            print("Clearing...")
+            data = bytearray([0])
+            print(data)
+            self.node.sdo.download(0x1003, 0, data)
+            self.standard_error_field_dump()
 
     def standard_error_field_dump(self):
         print("Dumping ...")
