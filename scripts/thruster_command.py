@@ -267,23 +267,55 @@ class ThrusterCommand:
         change_nmt_state, is called by the NmtMaster callback when the state changes.
         """
         if self.debug:
+            self.thread_run = False
             self.mr_logger.log(LogType.SYS, "Thread Stopped")
+            self.listen_thread.join()
         state = args.get("nmt_state")
         if state == "OPERATIONAL":
             self.mr_logger.log(LogType.SYS, "Switching State Operational")
             self.node.nmt.send_command(0x1)
-            self.start_threads()
+            self.wait_for_thruster_state(TCS.TCS_STANDBY)
         elif state == "PREOPERATIONAL":
             self.mr_logger.log(LogType.SYS, "Switching State Pre-Operational")
             self.node.nmt.send_command(0x80)
-            self.start_threads()
+            self.wait_for_thruster_state(TCS.TCS_CO_PREOP)
         elif state == "INIT":
             self.mr_logger.log(LogType.SYS, "Switching State Init")
             self.node.nmt.send_command(0x81)
+            self.wait_for_thruster_state(TCS.TCS_CO_PREOP)
         elif state == "STOP":
             self.mr_logger.log(LogType.SYS, "Switching State Stop")
             self.thread_run = False
             self.node.nmt.send_command(0x2)
+
+        self.start_threads()
+
+
+    def wait_for_thruster_state(self, tcs_state:TCS, log_state=True, max_delay=20, poll_time=1):
+        """blocks until the correct thruster state is returned or the max delay is hit
+
+        Args:
+            tcs_state (TCS): the desired thruster state to look for.
+            log_state (bool, optional): will print the status of each read to the log !noisy!. Defaults to True.
+            max_delay (int, optional): the max amount of reads before the function exits ~15 seconds. Defaults to 15.
+            poll_time (int, optional): how fast to query the ecp for thruster state changes in seconds.
+        """
+        success = True
+        current_state = 0
+        cnt = 0
+        while (tcs_state.value != current_state) and cnt <= max_delay:
+            #query the unit, thrustercommand, status
+            current_state = self.read(0x4000, 0x5, "<I")
+            # if log_state:
+                # self.mr_logger.log(LogType.SYS,f"desired thruster_state: {tcs_state.value}, current_state: {current_state}")
+            cnt+=1
+            time.sleep(poll_time)
+
+        #check to make sure we didn't timeout, if we did return an error
+        if cnt >= max_delay:
+            success = False
+        return success        
+
 
     def handle_emcy(self, error):
         """
