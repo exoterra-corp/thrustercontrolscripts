@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-import canopen, argparse, struct, time, sys, socket, traceback, datetime
+import canopen, argparse, struct, time, sys, socket, traceback, datetime, operator
 import serial
 from serial.tools import list_ports
 from threading import Thread, Lock
@@ -303,7 +303,10 @@ class ThrusterCommand:
         success = True
         current_state = 0
         cnt = 0
-        while (tcs_state.value != current_state) and cnt <= max_delay:
+        comp = operator.is_not #default comparison unless in operational
+        if TCS.TCS_STANDBY:
+            comp = operator.gt
+        while comp(tcs_state.value,current_state) and cnt <= max_delay:
             #query the unit, thrustercommand, status
             current_state = self.read(0x4000, 0x5, "<I")
             # if log_state:
