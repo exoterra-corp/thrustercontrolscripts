@@ -180,7 +180,7 @@ class ThrusterCommand:
             self.raw_q = self.node.network.bus.get_int_q()
             self.mr_logger.set_raw_queue(self.raw_q)
             self.node.sdo.RESPONSE_TIMEOUT = 2
-            self.node.emcy.add_callback(self.handle_emcy)
+            self.node.emcy.add_callback(self.handle_emgcy)
             self.network.subscribe(0x722, self.notify_bootup)
 
             # check to see if device is connected
@@ -320,9 +320,9 @@ class ThrusterCommand:
         return success        
 
 
-    def handle_emcy(self, emgcy_error):
+    def handle_emgcy(self, emgcy_error):
         """
-        handle_emcy, on emcy msg this function prints the error to console and udp port
+        handle_emgcy, on emcy msg this function prints the error to console and udp port
         """
         data = emgcy_error.data.hex()
         code = hex(emgcy_error.code)
@@ -337,24 +337,25 @@ class ThrusterCommand:
         error_cnt = None
         if len(data) == 10:
             try:
-                line_num = struct.unpack("<I", int(data[4:8],16).to_bytes(4, 'little'))[0]
+                line_no_data = bytearray.fromhex(data[4:8])
+                line_num = struct.unpack("<H", line_no_data)[0]
             except ValueError as e:
                 self.mr_logger.log(LogType.SYS, e)
             error_type = data[0:2]
             fault_code = data[2:4]
             error_cnt = data[9:10]
-            # fault_code_str = self.error_parser.convert_code(fault_code)
+            fault_code_str = self.error_parser.convert_code(fault_code)
 
         if emgcy_error.code == 0x0:
-            self.mr_logger.log(LogType.SYS, f"Error Type: {error_type}")
-            self.mr_logger.log(LogType.SYS, f"Fault Code: {fault_code}")
+            self.mr_logger.log(LogType.SYS, f"Error Type: 0x{error_type}")
+            self.mr_logger.log(LogType.SYS, f"Fault Code: 0x{fault_code}")
             self.mr_logger.log(LogType.SYS, f"Fault Code: {fault_code_str}")
             self.mr_logger.log(LogType.SYS, f"Line NO: {line_num}")
             self.mr_logger.log(LogType.SYS, f"Error Cnt: {error_cnt}")
         else:
             self.success = False
-            self.mr_logger.log(LogType.SYS, f"Error Type: {error_type}")
-            self.mr_logger.log(LogType.SYS, f"Fault Code: {fault_code}")
+            self.mr_logger.log(LogType.SYS, f"Error Type: 0x{error_type}")
+            self.mr_logger.log(LogType.SYS, f"Fault Code: 0x{fault_code}")
             self.mr_logger.log(LogType.SYS, f"Fault Code: {fault_code_str}")
             self.mr_logger.log(LogType.SYS, f"Line NO: {line_num}")
             self.mr_logger.log(LogType.SYS, f"Error Cnt: {error_cnt}")
