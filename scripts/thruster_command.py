@@ -309,6 +309,8 @@ class ThrusterCommand:
         while comp(tcs_state.value,current_state) and cnt <= max_delay:
             #query the unit, thrustercommand, status
             current_state = self.read(0x4000, 0x5, "<I")
+            if current_state is None:
+                current_state = TCS.TCS_CO_INVALID.value #set to invalid state if we don't know what it is
             # if log_state:
                 # self.mr_logger.log(LogType.SYS,f"desired thruster_state: {tcs_state.value}, current_state: {current_state}")
             cnt+=1
@@ -318,6 +320,7 @@ class ThrusterCommand:
         if cnt >= max_delay:
             success = False
         return success        
+
 
 
     def handle_emcy(self, error):
