@@ -1,4 +1,4 @@
-# Change Log
+# ExoTerra Thruster Control Scripts Change Log
 
 ## [2_1_1_a] - 7-13-2022
 
