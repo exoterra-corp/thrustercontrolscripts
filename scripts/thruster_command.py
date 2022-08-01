@@ -440,7 +440,7 @@ class ThrusterCommand:
         """
         data = self.node.sdo.upload(0x3100, 0x1)
         #save it to the log file
-        self.mr_logger.log(LogType.HSI, f"{data}")
+        self.mr_logger.log(LogType.HSI, data)
         if self.hsi_status_ip != "127.0.0.1": #send it locally first
             self.trace_sock.sendto(data, ("127.0.0.1", self.hsi_block_udp_port))
         self.trace_sock.sendto(data, (self.hsi_status_ip, self.hsi_block_udp_port))

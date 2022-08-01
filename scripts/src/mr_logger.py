@@ -52,7 +52,7 @@ class MrLogger:
         if len(log_name) > 0:  # create a custom test folder
             self.log_dir = root_dir + f"/{log_name}_{time_string}"
         self.create_folder(self.log_dir)
-        self.hsi_log = open(self.log_dir + f"/{time_string}_{log_name}_hsi_log.txt", "w+")
+        self.hsi_log = open(self.log_dir + f"/{time_string}_{log_name}_hsi_log.bin", "wb+")
         self.trace_log = open(self.log_dir + f"/{time_string}_{log_name}_trace_log.txt", "w+")
         self.raw_log = open(self.log_dir + f"/{time_string}_{log_name}_raw_serial_log.txt", "w+")
         self.sys_log = open(self.log_dir + f"/{time_string}_{log_name}_sys_log.txt", "w+")
@@ -113,7 +113,7 @@ class MrLogger:
                         type = m.get("type").value
                         msg = m.get("msg")
                         if type == LogType.HSI.value:
-                            self.hsi_log.write(f"{msg}\n")
+                            self.hsi_log.write(msg)
                         elif type == LogType.TRACE.value:
                             decoded_msg = f"{msg.decode('ascii')}\n"
                             self.trace_log.write(decoded_msg)
