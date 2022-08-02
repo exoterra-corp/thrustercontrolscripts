@@ -66,6 +66,7 @@ class ThrusterCommand:
         self.cond_status = 0
         self.thrust_point = 0
         self.bootup_msg = False
+        self.thread_lock = Lock()
 
         #read default config variables
         self.udp_enable = self.conf_man.get("DEFAULT", "UDP_ENABLE", bool)
@@ -266,10 +267,7 @@ class ThrusterCommand:
         """
         change_nmt_state, is called by the NmtMaster callback when the state changes.
         """
-        if self.debug:
-            self.thread_run = False
-            self.mr_logger.log(LogType.SYS, "Thread Stopped")
-            self.listen_thread.join()
+        self.thread_lock.acquire()
         state = args.get("nmt_state")
         if state == "OPERATIONAL":
             self.mr_logger.log(LogType.SYS, "Switching State Operational")
@@ -287,9 +285,8 @@ class ThrusterCommand:
             self.mr_logger.log(LogType.SYS, "Switching State Stop")
             self.thread_run = False
             self.node.nmt.send_command(0x2)
-
+        self.thread_lock.release()
         self.start_threads()
-
 
     def wait_for_thruster_state(self, tcs_state:TCS, log_state=True, max_delay=20, poll_time=1):
         """blocks until the correct thruster state is returned or the max delay is hit
@@ -320,8 +317,6 @@ class ThrusterCommand:
         if cnt >= max_delay:
             success = False
         return success        
-
-
 
     def handle_emcy(self, error):
         """
@@ -423,6 +418,7 @@ class ThrusterCommand:
         if self.debug:
             self.mr_logger.log(LogType.SYS, "Starting Query Thread")
         while getattr(self, "thread_run"):
+            self.thread_lock.acquire()
             if self.nmt_state != "Stopped":
                 statuses = self.get_status(self.th_command_index, True)
                 if statuses[2] is not None:
@@ -432,6 +428,7 @@ class ThrusterCommand:
                         self.get_block_hsi()
                     except Exception as e:
                         self.mr_logger.log(LogType.SYS, f"{e}", )
+            self.thread_lock.release()
             time.sleep(self.trace_sleep_time)
 
     def get_block_hsi(self):
