@@ -296,7 +296,7 @@ class ThrusterCommand:
         for i in range(0,5):
             subidx = 2+i
             val = self.read(0x2831, subidx, "<I")
-            print(f"{i}:{val}")
+            print(f"{i}:{hex(val)}")
             faults.append(val)
         return faults
 
