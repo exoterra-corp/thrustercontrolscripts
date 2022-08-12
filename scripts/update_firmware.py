@@ -90,4 +90,6 @@ if __name__ == "__main__":
     except canopen.sdo.SdoAbortedError as e:
         print(f"Transfer Failed, verify update file. {e}")
     except KeyboardInterrupt:
+        self.node.sdo.abort()
         print("Connection Aborted Mid-Update, please reset the PPU to INIT before trying another install.")
+        raise KeyboardInterrupt
