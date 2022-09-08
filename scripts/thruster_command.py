@@ -331,16 +331,49 @@ class ThrusterCommand:
             success = False
         return success        
 
-    def handle_emcy(self, error):
+    def handle_emcy(self, emgcy_error):
         """
         handle_emcy, on emcy msg this function prints the error to console and udp port
         """
-        message = f"EMCYTimestamp: {error.timestamp}, EMCYCode: {error.code}," \
-                  f" EMCYData: 0x{error.data.hex()}"
+        message = f"EMCYTimestamp: {emgcy_error.timestamp}, EMCYCode: {emgcy_error.code}," \
+                  f" EMCYData: 0x{emgcy_error.data.hex()}"
 
+        code = hex(emgcy_error.code)
+
+        #parse data from emgcy msg data section
+        error_type = None
+        fault_code = None
+        fault_code_str = None
+        line_num = None
+        error_cnt = None
+        data = emgcy_error.data.hex()
+        if len(data) == 10:
+            self.mr_logger.log(LogType.SYS,"Parsing data from emgcy msg ")
+            try:
+                line_num = struct.unpack("<I", int(data[4:8],16).to_bytes(4, 'little'))[0]
+            except ValueError as e:
+                self.mr_logger.log(LogType.SYS,e)
+            error_type = data[0:2]
+            fault_code = data[2:4]
+            error_cnt = data[9:10]
+            if (self.error_parser != None):
+                fault_code_str = self.error_parser.convert_code(fault_code)
+        reg = hex(emgcy_error.register)
+        time = emgcy_error.timestamp
+
+        self.mr_logger.log(LogType.SYS,code)
+        self.mr_logger.log(LogType.SYS,data)
+        self.mr_logger.log(LogType.SYS,reg)
+        self.mr_logger.log(LogType.SYS,time)
+
+        self.mr_logger.log(LogType.SYS,f"Error Type: {error_type}")
+        self.mr_logger.log(LogType.SYS,f"Fault Code: {fault_code}")
+        self.mr_logger.log(LogType.SYS,f"Fault Code: {fault_code_str}")
+        self.mr_logger.log(LogType.SYS,f"Line NO: {line_num}")
+        self.mr_logger.log(LogType.SYS,f"Error Cnt: {error_cnt}")
 
         self.send_udp_packet(message, self.trace_udp_ip, self.trace_udp_port)
-        self.mr_logger.log(LogType.SYS, message)
+        # self.mr_logger.log(LogType.SYS, message)
 
     def read_cond_values(self, args):
         index = args.get("index")
