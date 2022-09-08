@@ -181,8 +181,9 @@ class ThrusterCommand:
                     sys.exit(1)
             self.node = self.network.add_node(self.system_id, self.eds_file)
             self.network.add_node(self.node)
-            self.raw_q = self.node.network.bus.get_int_q()
-            self.mr_logger.set_raw_queue(self.raw_q)
+            if self.serial_port != "can":
+                self.raw_q = self.node.network.bus.get_int_q()
+                self.mr_logger.set_raw_queue(self.raw_q)
             self.node.sdo.RESPONSE_TIMEOUT = 2
             self.node.emcy.add_callback(self.handle_emcy)
             self.network.subscribe(0x722, self.notify_bootup)
