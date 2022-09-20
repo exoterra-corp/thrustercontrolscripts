@@ -271,25 +271,25 @@ class ThrusterCommand:
         """
         change_nmt_state, is called by the NmtMaster callback when the state changes.
         """
-        self.thread_lock.acquire()
+        # self.thread_lock.acquire()
         state = args.get("nmt_state")
         if state == "OPERATIONAL":
             self.mr_logger.log(LogType.SYS, "Switching State Operational")
             self.node.nmt.send_command(0x1)
-            self.wait_for_thruster_state(TCS.TCS_STANDBY)
+            # self.wait_for_thruster_state(TCS.TCS_STANDBY)
         elif state == "PREOPERATIONAL":
             self.mr_logger.log(LogType.SYS, "Switching State Pre-Operational")
             self.node.nmt.send_command(0x80)
-            self.wait_for_thruster_state(TCS.TCS_CO_PREOP)
+            # self.wait_for_thruster_state(TCS.TCS_CO_PREOP)
         elif state == "INIT":
             self.mr_logger.log(LogType.SYS, "Switching State Init")
             self.node.nmt.send_command(0x81)
-            self.wait_for_thruster_state(TCS.TCS_CO_PREOP)
+            # self.wait_for_thruster_state(TCS.TCS_CO_PREOP)
         elif state == "STOP":
             self.mr_logger.log(LogType.SYS, "Switching State Stop")
             self.thread_run = False
             self.node.nmt.send_command(0x2)
-        self.thread_lock.release()
+        # self.thread_lock.release()
         self.start_threads()
 
     def read_fault_status(self, args):
@@ -331,16 +331,41 @@ class ThrusterCommand:
             success = False
         return success        
 
-    def handle_emcy(self, error):
+    def handle_emcy(self, emgcy_error):
         """
         handle_emcy, on emcy msg this function prints the error to console and udp port
         """
-        message = f"EMCYTimestamp: {error.timestamp}, EMCYCode: {error.code}," \
-                  f" EMCYData: 0x{error.data.hex()}"
+        message = f"EMCYTimestamp: {emgcy_error.timestamp}, EMCYCode: {emgcy_error.code}," \
+                  f" EMCYData: 0x{emgcy_error.data.hex()}"
 
+        code = hex(emgcy_error.code)
+
+        #parse data from emgcy msg data section
+        error_type = None
+        fault_code = None
+        fault_code_str = None
+        line_num = None
+        error_cnt = None
+        data = emgcy_error.data.hex()
+        if len(data) == 10:
+            self.mr_logger.log(LogType.SYS,"EMERGENCY MESSAGE")
+            try:
+                line_num = struct.unpack("<I", int(data[4:8],16).to_bytes(4, 'little'))[0]
+            except ValueError as e:
+                self.mr_logger.log(LogType.SYS,e)
+            error_type = data[0:2]
+            fault_code = data[2:4]
+            error_cnt = data[9:10]
+        reg = hex(emgcy_error.register)
+        time = emgcy_error.timestamp
+
+        self.mr_logger.log(LogType.SYS,f"Error Type: {error_type}")
+        self.mr_logger.log(LogType.SYS,f"Fault Code: {fault_code}")
+        self.mr_logger.log(LogType.SYS,f"Line NO: {line_num}")
+        self.mr_logger.log(LogType.SYS,f"Error Cnt: {error_cnt}")
 
         self.send_udp_packet(message, self.trace_udp_ip, self.trace_udp_port)
-        self.mr_logger.log(LogType.SYS, message)
+        # self.mr_logger.log(LogType.SYS, message)
 
     def read_cond_values(self, args):
         index = args.get("index")
@@ -431,7 +456,7 @@ class ThrusterCommand:
         if self.debug:
             self.mr_logger.log(LogType.SYS, "Starting Query Thread")
         while getattr(self, "thread_run"):
-            self.thread_lock.acquire()
+            # self.thread_lock.acquire()
             if self.nmt_state != "Stopped":
                 statuses = self.get_status(self.th_command_index, True)
                 if statuses[2] is not None:
@@ -441,7 +466,7 @@ class ThrusterCommand:
                         self.get_block_hsi()
                     except Exception as e:
                         self.mr_logger.log(LogType.SYS, f"{e}", )
-            self.thread_lock.release()
+            # self.thread_lock.release()
             time.sleep(self.trace_sleep_time)
 
     def get_block_hsi(self):
