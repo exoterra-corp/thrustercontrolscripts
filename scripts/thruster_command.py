@@ -222,7 +222,7 @@ class ThrusterCommand:
     def notify_bootup(self, can_id, data, timestamp):
         self.bootup_msg = True
 
-    def get_var(self, index_str, subindex_str) -> {}:
+    def get_var(self, index_str, subindex_str):
         """
         get_var takes in a str index and subindex and returns an int index and subindex.
         """

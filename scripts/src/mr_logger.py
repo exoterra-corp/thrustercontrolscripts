@@ -18,7 +18,7 @@ from time import sleep
 from traceback import extract_tb
 from struct import unpack
 from enum import Enum
-import time, datetime
+import time, datetime, struct
 
 class LogType(Enum):
     """
@@ -39,6 +39,7 @@ class MrLogger:
         init, creates 2 threads for mr logger one for raw serial messages, the other for trace, hsi, and sys messages.
         It also creates a folder for each startup and under this folder 4 files are created to store each type of log message.
         """
+        HSI_HEADER = struct.pack("<I", 0xEE01)
         self.raw_q = Queue()
         self.q = Queue(10)
         self.conf_man = conf_man
@@ -54,8 +55,7 @@ class MrLogger:
             self.log_dir = root_dir + f"/{log_name}_{time_string}"
         self.create_folder(self.log_dir)
         self.hsi_log = open(self.log_dir + f"/{time_string}_{log_name}_hsi_log.bin", "wb+")
-        #write header to hsi bin, version1 #version 0 doesn't have a header
-        self.hsi_log.write(bytes(0xabcd1))
+        self.hsi_log.write(HSI_HEADER)
         self.trace_log = open(self.log_dir + f"/{time_string}_{log_name}_trace_log.txt", "w+")
         self.raw_log = open(self.log_dir + f"/{time_string}_{log_name}_raw_serial_log.txt", "w+")
         self.sys_log = open(self.log_dir + f"/{time_string}_{log_name}_sys_log.txt", "w+")
@@ -119,10 +119,17 @@ class MrLogger:
                         ts = m.get("timestamp")
                         str_time = datetime.datetime.fromtimestamp(ts) #convert time
                         if type == LogType.HSI.value:
-                            by = int(ts*1000).to_bytes(8, "big")+msg
-                            print(len(msg))
-                            print(len(by))
+                            #split up the timing string
+                            ts_split = str(ts).split(".")
+                            date_packed = struct.pack("<I", int(ts_split[0]))
+                            ms_packed = struct.pack("<I", int(ts_split[1]))
+                            
+                            by = bytearray()
+                            by+=date_packed
+                            by+=ms_packed
+                            by+=msg
                             self.hsi_log.write(by)
+
                         elif type == LogType.TRACE.value:
                             decoded_msg = f"{str_time}:{msg.decode('ascii')}\n"
                             self.trace_log.write(decoded_msg)
@@ -149,7 +156,7 @@ class MrLogger:
                 data = self.raw_q.get()
             else:
                 continue
-            now = datetime.now()
+            now = datetime.datetime.now()
             time_string = now.strftime("%Y_%m_%d_%H_%M_%S.%f")
             time_string_disp = now.strftime("%M:%S.%f")
             if data[0] == 0xA:
