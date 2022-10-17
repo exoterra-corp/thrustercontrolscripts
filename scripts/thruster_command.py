@@ -25,7 +25,7 @@ class ThrusterCommand:
     communicate with.
     """
 
-    def __init__(self, ecp_id, ser_port, eds_file, listen_mode, debug, test_name):
+    def __init__(self, ecp_id, ser_port, eds_file, listen_mode, debug, test_name, telem_en):
         """
         __init__, sets up serial port and cmds definitions and launches the help menu.
         """
@@ -67,6 +67,7 @@ class ThrusterCommand:
         self.thrust_point = 0
         self.bootup_msg = False
         self.thread_lock = Lock()
+        self.telem_en = telem_en
 
         #read default config variables
         self.udp_enable = self.conf_man.get("DEFAULT", "UDP_ENABLE", bool)
@@ -461,9 +462,10 @@ class ThrusterCommand:
                 statuses = self.get_status(self.th_command_index, True)
                 if statuses[2] is not None:
                     try:
-                        self.notify_updated_state(int(statuses[2], 16))
-                        self.get_trace_msg()
-                        self.get_block_hsi()
+                        if self.telem_en:
+                            self.notify_updated_state(int(statuses[2], 16))
+                            self.get_trace_msg()
+                            self.get_block_hsi()
                     except Exception as e:
                         self.mr_logger.log(LogType.SYS, f"{e}", )
             # self.thread_lock.release()
@@ -705,6 +707,7 @@ if __name__ == "__main__":
     parser.add_argument('--listen', action='store', type=str, help='sends requests to udp port.')
     parser.add_argument('--debug', action='store_true', help='enable debug mode.')
     parser.add_argument('--hsi', action='store', help='Overrides localhost hsi target.', default="127.0.0.1")
+    parser.add_argument('--notelem', action='store_true', help='Enable or Disable Telemetry', default="")
     parser.add_argument('--testname', action='store',
                         help='Overwrites the default log file name and puts the log data in its own folder.')
     args = parser.parse_args()
@@ -746,7 +749,7 @@ if __name__ == "__main__":
             HSI_UDP_IP = args.hsi
         if args.testname is None:
             args.testname = "unnamed_test_"
-        thrus_cmd = ThrusterCommand(id, args.serial_port, args.eds_file, listen_mode, debug, args.testname)
+        thrus_cmd = ThrusterCommand(id, args.serial_port, args.eds_file, listen_mode, debug, args.testname, args.telem_en)
         try:
             thrus_cmd.console()
         except Exception as e:
