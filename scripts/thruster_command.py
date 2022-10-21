@@ -749,7 +749,7 @@ if __name__ == "__main__":
             HSI_UDP_IP = args.hsi
         if args.testname is None:
             args.testname = "unnamed_test_"
-        thrus_cmd = ThrusterCommand(id, args.serial_port, args.eds_file, listen_mode, debug, args.testname, args.telem_en)
+        thrus_cmd = ThrusterCommand(id, args.serial_port, args.eds_file, listen_mode, debug, args.testname, not args.notelem)
         try:
             thrus_cmd.console()
         except Exception as e:
