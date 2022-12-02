@@ -133,9 +133,12 @@ class ThrusterCommand:
             "13": {"name": "Read Fault Status", "func": self.read_fault_status,
                    "args": {"index": 0x2831, "subindex": 0x1, "type": "<I"},
                    "help": "Read the Error Stats."},
-            "15": {"name": "Print Stats", "func": self.print_conditoning_stats,
+            "14": {"name": "Print Stats", "func": self.print_conditoning_stats,
                    "args": {"index": 0x4001, "subindex": 0x0, "type": "<I", "default": "1"},
                    "help": "Reset Conditioning Stats."},
+            "15": {"name": "Send ON Command", "func": self.get_write_value,
+                   "args": {"index": 0x4000, "subindex": 0x9, "type": "<I"},
+                   "help": "Asks the user for the throttle point and sends it with the on command."},
         }
         self.trace_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # trace port
         self.hsi_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # hsi port
