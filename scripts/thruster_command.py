@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-import canopen, argparse, struct, time, sys, socket, traceback, datetime
+import canopen, argparse, struct, time, sys, socket, traceback, datetime, operator
 import serial
 from serial.tools import list_ports
 from threading import Thread, Lock
@@ -25,7 +25,7 @@ class ThrusterCommand:
     communicate with.
     """
 
-    def __init__(self, ecp_id, ser_port, eds_file, listen_mode, debug, test_name):
+    def __init__(self, ecp_id, ser_port, eds_file, listen_mode, debug, test_name, telem_en):
         """
         __init__, sets up serial port and cmds definitions and launches the help menu.
         """
@@ -66,6 +66,8 @@ class ThrusterCommand:
         self.cond_status = 0
         self.thrust_point = 0
         self.bootup_msg = False
+        self.thread_lock = Lock()
+        self.telem_en = telem_en
 
         #read default config variables
         self.udp_enable = self.conf_man.get("DEFAULT", "UDP_ENABLE", bool)
@@ -105,19 +107,19 @@ class ThrusterCommand:
                   "args": {"nmt_state": "OPERATIONAL"},
                   "help": "Changes NMT STATE to OPERATIONAL."},
             "5": {"name": "Run Ready Mode", "func": self.get_write_value,
-                  "args": {"index": self.th_command_index, "subindex": "Ready Mode", "type": "<I", "default": "0x1"},
+                  "args": {"index": self.th_command_index, "subindex": "ReadyMode", "type": "<I", "default": "1"},
                   "help": "Writes a UINT-32 to the Thruster Ready Mode."},
             "6": {"name": "Run Steady State", "func": self.get_write_value,
-                  "args": {"index": self.th_command_index, "subindex": "Steady State", "type": "<I"},
+                  "args": {"index": self.th_command_index, "subindex": "SteadyState", "type": "<I"},
                   "help": "Writes a UINT-32 to the Thruster Steady State."},
             "7": {"name": "Thruster Shutdown", "func": self.get_write_value,
-                  "args": {"index": self.th_command_index, "subindex": "Shutdown", "type": "<B", "default": "0x1"},
+                  "args": {"index": self.th_command_index, "subindex": "Shutdown", "type": "<B", "default": "1"},
                   "help": "Shutdown down the thruster."},
             "8": {"name": "Status", "func": self.get_status_index,
                   "args": {"index": self.th_command_index},
                   "help": "Prints Status of Ready Mode, Steady State, and ThrusterStatus continuously."},
             "9": {"name": "Write Set Thrust", "func": self.get_write_value,
-                  "args": {"index": self.th_command_index, "subindex": "Throttle Point", "type": "<I"},
+                  "args": {"index": self.th_command_index, "subindex": "Thrust", "type": "<I", "hex_en": False},
                   "help": "Writes a throttle set point to the System Controller."},
             "10": {"name": "Condition", "func": self.get_write_value,
                    "args": {"index": self.th_command_index, "subindex": "Condition", "type": "<I"},
@@ -127,7 +129,13 @@ class ThrusterCommand:
                    "help": "Run the BIT sequence."},
             "12": {"name": "Query Block HSI", "func": self.query_block_hsi,
                    "args": {"index": 0x3100, "subindex": 0x1, "type": "<I"},
-                   "help": "Queries the HSI values using a block transfer"},
+                   "help": "Queries the HSI values using a segmented transfer"},
+            "13": {"name": "Read Fault Status", "func": self.read_fault_status,
+                   "args": {"index": 0x2831, "subindex": 0x1, "type": "<I"},
+                   "help": "Read the Error Stats."},
+            "15": {"name": "Print Stats", "func": self.print_conditoning_stats,
+                   "args": {"index": 0x4001, "subindex": 0x0, "type": "<I", "default": "1"},
+                   "help": "Reset Conditioning Stats."},
         }
         self.trace_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # trace port
         self.hsi_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # hsi port
@@ -135,6 +143,9 @@ class ThrusterCommand:
         self.connect_to_ecp()
 
     def print_conditoning_stats(self, args):
+        """
+        print_conditoning_stats, 
+        """
         index = args.get("index")
         subindex = args.get("subindex")
 
@@ -143,10 +154,12 @@ class ThrusterCommand:
         step_status = self.read(index, 0x2, "<I", True)
         print(count)
         r = int(count/3)
-        for v in range(0, r):
-            seq_stat_cond = hex(self.read(index, 0x4 + v, "<I", True))
-            elapsed_ms = self.read(index, 0x5 + v, "<I", True)
-            monitor_err = hex(self.read(index, 0x6 + v, "<I", True))
+        for v in range(0, r-1):
+            seq_stat_cond = self.read(index, 0x3 + (v*3), "<I", True)
+            elapsed_ms = self.read(index, 0x4 + (v*3), "<I", True)
+            monitor_err = self.read(index, 0x5 + (v*3), "<I", True)
+            seq_stat_cond = '0x' + hex(seq_stat_cond)[2:].zfill(8)
+            monitor_err = '0x' + hex(monitor_err)[2:].zfill(8)
             print(f"[{v}] seq_stat_cond-{seq_stat_cond}, elapsed_ms-{elapsed_ms}, monitor_err-{monitor_err}")
 
     def connect_to_ecp(self):
@@ -169,8 +182,9 @@ class ThrusterCommand:
                     sys.exit(1)
             self.node = self.network.add_node(self.system_id, self.eds_file)
             self.network.add_node(self.node)
-            self.raw_q = self.node.network.bus.get_int_q()
-            self.mr_logger.set_raw_queue(self.raw_q)
+            if self.serial_port != "can":
+                self.raw_q = self.node.network.bus.get_int_q()
+                self.mr_logger.set_raw_queue(self.raw_q)
             self.node.sdo.RESPONSE_TIMEOUT = 2
             self.node.emcy.add_callback(self.handle_emcy)
             self.network.subscribe(0x722, self.notify_bootup)
@@ -209,7 +223,7 @@ class ThrusterCommand:
     def notify_bootup(self, can_id, data, timestamp):
         self.bootup_msg = True
 
-    def get_var(self, index_str, subindex_str) -> {}:
+    def get_var(self, index_str, subindex_str):
         """
         get_var takes in a str index and subindex and returns an int index and subindex.
         """
@@ -258,35 +272,101 @@ class ThrusterCommand:
         """
         change_nmt_state, is called by the NmtMaster callback when the state changes.
         """
-        if self.debug:
-            self.mr_logger.log(LogType.SYS, "Thread Stopped")
+        # self.thread_lock.acquire()
         state = args.get("nmt_state")
         if state == "OPERATIONAL":
             self.mr_logger.log(LogType.SYS, "Switching State Operational")
             self.node.nmt.send_command(0x1)
-            self.start_threads()
+            # self.wait_for_thruster_state(TCS.TCS_STANDBY)
         elif state == "PREOPERATIONAL":
             self.mr_logger.log(LogType.SYS, "Switching State Pre-Operational")
             self.node.nmt.send_command(0x80)
-            self.start_threads()
+            # self.wait_for_thruster_state(TCS.TCS_CO_PREOP)
         elif state == "INIT":
             self.mr_logger.log(LogType.SYS, "Switching State Init")
             self.node.nmt.send_command(0x81)
+            # self.wait_for_thruster_state(TCS.TCS_CO_PREOP)
         elif state == "STOP":
             self.mr_logger.log(LogType.SYS, "Switching State Stop")
             self.thread_run = False
             self.node.nmt.send_command(0x2)
+        # self.thread_lock.release()
+        self.start_threads()
 
-    def handle_emcy(self, error):
+    def read_fault_status(self, args):
+        faults = []
+        for i in range(0,5):
+            subidx = 2+i
+            val = self.read(0x2831, subidx, "<I")
+            print(f"{i}:{hex(val)}")
+            faults.append(val)
+        return faults
+
+    def wait_for_thruster_state(self, tcs_state:TCS, log_state=True, max_delay=20, poll_time=1):
+        """blocks until the correct thruster state is returned or the max delay is hit
+
+        Args:
+            tcs_state (TCS): the desired thruster state to look for.
+            log_state (bool, optional): will print the status of each read to the log !noisy!. Defaults to True.
+            max_delay (int, optional): the max amount of reads before the function exits ~15 seconds. Defaults to 15.
+            poll_time (int, optional): how fast to query the ecp for thruster state changes in seconds.
+        """
+        success = True
+        current_state = 0
+        cnt = 0
+        comp = operator.is_not #default comparison unless in operational
+        if TCS.TCS_STANDBY:
+            comp = operator.gt
+        while comp(tcs_state.value,current_state) and cnt <= max_delay:
+            #query the unit, thrustercommand, status
+            current_state = self.read(0x4000, 0x5, "<I")
+            if current_state is None:
+                current_state = TCS.TCS_CO_INVALID.value #set to invalid state if we don't know what it is
+            # if log_state:
+                # self.mr_logger.log(LogType.SYS,f"desired thruster_state: {tcs_state.value}, current_state: {current_state}")
+            cnt+=1
+            time.sleep(poll_time)
+
+        #check to make sure we didn't timeout, if we did return an error
+        if cnt >= max_delay:
+            success = False
+        return success        
+
+    def handle_emcy(self, emgcy_error):
         """
         handle_emcy, on emcy msg this function prints the error to console and udp port
         """
-        message = f"EMCYTimestamp: {error.timestamp}, EMCYCode: {error.code}," \
-                  f" EMCYData: 0x{error.data.hex()}"
+        message = f"EMCYTimestamp: {emgcy_error.timestamp}, EMCYCode: {emgcy_error.code}," \
+                  f" EMCYData: 0x{emgcy_error.data.hex()}"
 
+        code = hex(emgcy_error.code)
+
+        #parse data from emgcy msg data section
+        error_type = None
+        fault_code = None
+        fault_code_str = None
+        line_num = None
+        error_cnt = None
+        data = emgcy_error.data.hex()
+        if len(data) == 10:
+            self.mr_logger.log(LogType.SYS,"EMERGENCY MESSAGE")
+            try:
+                line_num = struct.unpack("<I", int(data[4:8],16).to_bytes(4, 'little'))[0]
+            except ValueError as e:
+                self.mr_logger.log(LogType.SYS,e)
+            error_type = data[0:2]
+            fault_code = data[2:4]
+            error_cnt = data[9:10]
+        reg = hex(emgcy_error.register)
+        time = emgcy_error.timestamp
+
+        self.mr_logger.log(LogType.SYS,f"Error Type: {error_type}")
+        self.mr_logger.log(LogType.SYS,f"Fault Code: {fault_code}")
+        self.mr_logger.log(LogType.SYS,f"Line NO: {line_num}")
+        self.mr_logger.log(LogType.SYS,f"Error Cnt: {error_cnt}")
 
         self.send_udp_packet(message, self.trace_udp_ip, self.trace_udp_port)
-        self.mr_logger.log(LogType.SYS, message)
+        # self.mr_logger.log(LogType.SYS, message)
 
     def read_cond_values(self, args):
         index = args.get("index")
@@ -349,7 +429,7 @@ class ThrusterCommand:
         self.state_status = hex(state_status)
         self.thruster_status = hex(self.thruster_status_parsed)
         self.cond_status = hex(cond_status)
-        self.thrust_point = hex(thrust_point)
+        self.thrust_point = thrust_point
         self.bit_status = hex(bit_status)
 
         msg = f"Ready Mode: {self.mode_status}: Steady State: {self.state_status}: ThrusterStatus:{self.thruster_status} Condition Status:{self.cond_status} Thrust Point:{self.thrust_point}  Bit Status: {self.bit_status}"
@@ -377,15 +457,18 @@ class ThrusterCommand:
         if self.debug:
             self.mr_logger.log(LogType.SYS, "Starting Query Thread")
         while getattr(self, "thread_run"):
+            # self.thread_lock.acquire()
             if self.nmt_state != "Stopped":
                 statuses = self.get_status(self.th_command_index, True)
                 if statuses[2] is not None:
                     try:
-                        self.notify_updated_state(int(statuses[2], 16))
-                        self.get_trace_msg()
-                        self.get_block_hsi()
+                        if self.telem_en:
+                            self.notify_updated_state(int(statuses[2], 16))
+                            self.get_trace_msg()
+                            self.get_block_hsi()
                     except Exception as e:
                         self.mr_logger.log(LogType.SYS, f"{e}", )
+            # self.thread_lock.release()
             time.sleep(self.trace_sleep_time)
 
     def get_block_hsi(self):
@@ -394,7 +477,9 @@ class ThrusterCommand:
         """
         data = self.node.sdo.upload(0x3100, 0x1)
         #save it to the log file
-        self.mr_logger.log(LogType.HSI, f"{data}")
+        self.mr_logger.log(LogType.HSI, data)
+        if self.hsi_status_ip != "127.0.0.1": #send it locally first
+            self.trace_sock.sendto(data, ("127.0.0.1", self.hsi_block_udp_port))
         self.trace_sock.sendto(data, (self.hsi_status_ip, self.hsi_block_udp_port))
 
     def query_block_hsi(self, args):
@@ -444,6 +529,14 @@ class ThrusterCommand:
         subindex = args.get("subindex")
         python_type = args.get("type")
         default = args.get("default")
+        hex_en = args.get("hex_en")
+        val_type_str = "decimal"
+
+        if hex_en is not None and hex_en is not False:
+            val_type_str = "hex"
+            hex_en = True
+        else:
+            hex_en = False
 
         if type(index) is str and type(subindex) is str:
             var = self.get_var(index, subindex)
@@ -453,19 +546,18 @@ class ThrusterCommand:
         valid = False
         if index != None and subindex != None and python_type != None:
             if default is not None:  # if we have a default value just write it and dont prompt user.
-                self.write(index, subindex, default, python_type)
+                self.write(index, subindex, default, python_type, hex_en)
             else:
                 while not valid:
-                    self.mr_logger.log(LogType.SYS,
-                                       "Enter hex value to send to ECP - or 'x' to return to previous menu.")
-                    inp = input("write> 0x")
+                    self.mr_logger.log(LogType.SYS, f"Enter {val_type_str} value to send to ECP - or 'x' to return to previous menu.")
+                    inp = input("write> ")
                     if inp.lower() == "back" or inp.lower() == "x":
                         return
                     if len(inp) > 0:
-                        self.write(index, subindex, inp, python_type)
+                        self.write(index, subindex, inp, python_type, hex_en)
                         valid = True
 
-    def write(self, index, subindex, val, python_type):
+    def write(self, index, subindex, val, python_type, hex_en=True):
         """
         write, uses a index, subindex, and a type to ask for a hex value and then send this data over serial to the
         Engine System Controller.
@@ -473,7 +565,10 @@ class ThrusterCommand:
         try:
             self.write_mutex.acquire()
             if self.nmt_state != 0x4:  # check to see if stopped
-                int_val = int(val, 16)
+                if hex_en:
+                    int_val = int(val, 16)
+                else:
+                    int_val = int(val)
                 val = struct.pack(python_type, int_val)
                 self.node.sdo.download(index, subindex,
                                        bytearray(val))
@@ -515,7 +610,7 @@ class ThrusterCommand:
                     in_val = val
                     if python_type != "noparse":
                         in_val = struct.unpack(python_type, val)[0]
-                    return in_val
+                    return in_val            
             except canopen.sdo.exceptions.SdoCommunicationError as comms_err:
                 if show_failure:
                     self.mr_logger.log(LogType.SYS, f"Query Failed {hex(index)}:{hex(subindex)}: {comms_err}")
@@ -562,7 +657,7 @@ class ThrusterCommand:
         """
         while self.running:
             try:
-                var_str = f"[rm:{self.mode_status}:ss:{self.state_status}:ts:{self.thruster_status}]".zfill(10)
+                var_str = f"[rm:{self.mode_status}:ss:{self.state_status}:tp:{self.thrust_point}:ts:{self.thruster_status}]".zfill(10)
                 self.mr_logger.log(LogType.SYS, f"{var_str}>", end='', print_val=False)
                 inp = input(f"{var_str}>").lower().strip()
                 self.mr_logger.log(LogType.SYS, f"{inp}", end='', print_val=False)
@@ -612,6 +707,7 @@ if __name__ == "__main__":
     parser.add_argument('--listen', action='store', type=str, help='sends requests to udp port.')
     parser.add_argument('--debug', action='store_true', help='enable debug mode.')
     parser.add_argument('--hsi', action='store', help='Overrides localhost hsi target.', default="127.0.0.1")
+    parser.add_argument('--notelem', action='store_true', help='Enable or Disable Telemetry', default="")
     parser.add_argument('--testname', action='store',
                         help='Overwrites the default log file name and puts the log data in its own folder.')
     args = parser.parse_args()
@@ -653,7 +749,7 @@ if __name__ == "__main__":
             HSI_UDP_IP = args.hsi
         if args.testname is None:
             args.testname = "unnamed_test_"
-        thrus_cmd = ThrusterCommand(id, args.serial_port, args.eds_file, listen_mode, debug, args.testname)
+        thrus_cmd = ThrusterCommand(id, args.serial_port, args.eds_file, listen_mode, debug, args.testname, not args.notelem)
         try:
             thrus_cmd.console()
         except Exception as e:

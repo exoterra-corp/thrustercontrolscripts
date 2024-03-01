@@ -19,7 +19,7 @@ class TCS(Enum): #Thruster Control State
     TCS_STEADY_STATE            = 0xC
     TCS_CONDITIONING            = 0xD
     TCS_BIT_TEST                = 0xE
-    TCS_STATE_NUM               = 0xF
+    TCS_LOCKOUT                 = 0xF
 
 class HSIDefines:
     """

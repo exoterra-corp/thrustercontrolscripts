@@ -18,6 +18,7 @@ from time import sleep
 from traceback import extract_tb
 from struct import unpack
 from enum import Enum
+import time, datetime, struct
 
 class LogType(Enum):
     """
@@ -38,6 +39,7 @@ class MrLogger:
         init, creates 2 threads for mr logger one for raw serial messages, the other for trace, hsi, and sys messages.
         It also creates a folder for each startup and under this folder 4 files are created to store each type of log message.
         """
+        HSI_HEADER = struct.pack("<I", 0xEE01)
         self.raw_q = Queue()
         self.q = Queue(10)
         self.conf_man = conf_man
@@ -46,13 +48,14 @@ class MrLogger:
         self.raw_udp_port = self.conf_man.get("RAW", "RAW_UDP_PORT", type = int)
         # create logging dir
         self.create_folder(root_dir)
-        now = datetime.now()
+        now = datetime.datetime.now()
         time_string = now.strftime("%Y_%m_%d_%H_%M_%S")
         self.log_dir = root_dir + f"/unnamed_{time_string}"
         if len(log_name) > 0:  # create a custom test folder
             self.log_dir = root_dir + f"/{log_name}_{time_string}"
         self.create_folder(self.log_dir)
-        self.hsi_log = open(self.log_dir + f"/{time_string}_{log_name}_hsi_log.txt", "w+")
+        self.hsi_log = open(self.log_dir + f"/{time_string}_{log_name}_hsi_log.bin", "wb+")
+        self.hsi_log.write(HSI_HEADER)
         self.trace_log = open(self.log_dir + f"/{time_string}_{log_name}_trace_log.txt", "w+")
         self.raw_log = open(self.log_dir + f"/{time_string}_{log_name}_raw_serial_log.txt", "w+")
         self.sys_log = open(self.log_dir + f"/{time_string}_{log_name}_sys_log.txt", "w+")
@@ -93,8 +96,9 @@ class MrLogger:
         end: str, what to put at the end of a msg, default newline.
         print_Val: bool, whether or not to print the logged message.
         """
-        if log_type.value >= 0 and log_type.value <= 3:  # valid log mesage
-            self.q.put({"type": log_type, "msg": msg})
+        if log_type.value >= 0 and log_type.value <= 3:
+            ts = time.time()
+            self.q.put({"type": log_type, "msg": msg, "timestamp": ts})
             if log_type.value == LogType.SYS.value and print_val:
                 print(msg, end=end)
             return True
@@ -112,14 +116,26 @@ class MrLogger:
                     try:
                         type = m.get("type").value
                         msg = m.get("msg")
+                        ts = m.get("timestamp")
+                        str_time = datetime.datetime.fromtimestamp(ts) #convert time
                         if type == LogType.HSI.value:
-                            self.hsi_log.write(f"{msg}\n")
+                            #split up the timing string
+                            ts_split = str(ts).split(".")
+                            date_packed = struct.pack("<I", int(ts_split[0]))
+                            ms_packed = struct.pack("<I", int(ts_split[1]))
+                            
+                            by = bytearray()
+                            by+=date_packed
+                            by+=ms_packed
+                            by+=msg
+                            self.hsi_log.write(by)
+
                         elif type == LogType.TRACE.value:
-                            decoded_msg = f"{msg.decode('ascii')}\n"
+                            decoded_msg = f"{str_time}:{msg.decode('ascii')}\n"
                             self.trace_log.write(decoded_msg)
                             self.trace_log.flush()
                         elif type == LogType.SYS.value:
-                            self.sys_log.write(f"{msg}\n")
+                            self.sys_log.write(f"{str_time}:{msg}\n")
                             self.sys_log.flush()
                     except KeyError:
                         None
@@ -140,7 +156,7 @@ class MrLogger:
                 data = self.raw_q.get()
             else:
                 continue
-            now = datetime.now()
+            now = datetime.datetime.now()
             time_string = now.strftime("%Y_%m_%d_%H_%M_%S.%f")
             time_string_disp = now.strftime("%M:%S.%f")
             if data[0] == 0xA:
