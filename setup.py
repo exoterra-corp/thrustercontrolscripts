@@ -2,7 +2,7 @@
 from distutils.core import setup
 
 setup(name='thrustercontrolscripts',
-      version='2.0.3',
+      version='3.0.0',
       description='Python System Controller Support Library.',
       author='Jeremy Mitchell',
       author_email='jmitchell@exoterracorp.com'
