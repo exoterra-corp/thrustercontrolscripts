@@ -231,6 +231,36 @@ Detected Cntrl-c Returning to Pre-Operational.
 Sent NMT change state Pre-Operational.
 ```
 
+## Error Handler Script (error_handler.py)
+Options:
+```
+Dump Error Log
+Change Fault Handler
+Dump Fault Status
+Dump Error History
+Clear Error History
+```
+
+## Calibration Data Editor Script (calibration_data_editor.py)
+Read/Write Calibration Offset and Scaling Factor
+```
+positional arguments:
+  serial_port      The Serial Port to use for RS485, or use can to select the pcan
+  system_id        The System Id for the connection usually 0x22.
+
+options:
+  -h, --help       show this help message and exit
+```
+Actions:
+```
+Write Calibration Offset
+Read Calibration Offset
+Write Calibration Scaling Factor
+Read Calibration Scaling Factor
+Erase Calibration Data
+```
+
+
 ## Errors and Explanations
 Error Code         | Error Description | Possible Solutions
 -------------------|------------------|-------------------

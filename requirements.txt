@@ -1,6 +1,7 @@
-#canopen == 1.2.4
-#python-can == 4.0.12
+./packages/canopen-1.2.4-py2.py3-none-any.whl
+./packages/python_can-4.0.16-py3-none-any.whl
 pyserial==3.5
 toml
 pandas
 crcengine==0.2.0
+tabulate==0.9.0
