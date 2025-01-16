@@ -5,9 +5,13 @@ Is located under `/docs/testscripts_customer.md`
 
 ## Running the installer
 ```
-#Tested on Ubuntu 20.04 Python 3.8
+#Tested on Ubuntu 22.04 Python 3.10.12
 chmod +x ./install.sh
 sudo ./install.sh
+```
+This installs everything into a virtualenv .venv folder.  Make sure to source this folder before running scripts
+```
+source .venv/bin/activate
 ```
 
 This script will attempt to install the required python packages and then add the user to the dialout group for serial 
