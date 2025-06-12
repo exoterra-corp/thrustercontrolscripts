@@ -259,7 +259,11 @@ Write Calibration Scaling Factor
 Read Calibration Scaling Factor
 Erase Calibration Data
 ```
-
+## Parse HSI Script (parse_hsi.py)
+Will parse the .bin telemetry logs to a human readable .csv file
+```
+usage: parse_hsi.py [-h] input_filename output_filename
+```
 
 ## Errors and Explanations
 Error Code         | Error Description | Possible Solutions
