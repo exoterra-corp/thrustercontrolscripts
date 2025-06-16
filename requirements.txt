@@ -1,5 +1,7 @@
-./packages/canopen-1.2.4-py2.py3-none-any.whl
-./packages/python_can-4.0.16-py3-none-any.whl
+#canopen == 1.2.4
+git+https://github.com/exoterra-corp/pycanopen.git
+#python-can == 4.0.12
+git+https://github.com/exoterra-corp/python-can.git
 pyserial==3.5
 toml
 pandas
