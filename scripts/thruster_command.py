@@ -152,7 +152,7 @@ class ThrusterCommand:
         count = self.read(index, subindex, "<B", True)
         step = self.read(index, 0x1, "<I", True)
         step_status = self.read(index, 0x2, "<I", True)
-        print(count)
+        self.mr_logger.log(LogType.SYS, count)
         r = int(count/3)
         for v in range(0, r-1):
             seq_stat_cond = self.read(index, 0x3 + (v*3), "<I", True)
@@ -160,7 +160,7 @@ class ThrusterCommand:
             monitor_err = self.read(index, 0x5 + (v*3), "<I", True)
             seq_stat_cond = '0x' + hex(seq_stat_cond)[2:].zfill(8)
             monitor_err = '0x' + hex(monitor_err)[2:].zfill(8)
-            print(f"[{v}] seq_stat_cond-{seq_stat_cond}, elapsed_ms-{elapsed_ms}, monitor_err-{monitor_err}")
+            self.mr_logger.log(LogType.SYS, f"[{v}] seq_stat_cond-{seq_stat_cond}, elapsed_ms-{elapsed_ms}, monitor_err-{monitor_err}")
 
     def connect_to_ecp(self):
         """
@@ -178,7 +178,7 @@ class ThrusterCommand:
                 try:
                     self.network.connect(bustype="exoserial", channel=self.serial_port, baudrate=115200)
                 except serial.SerialException as e:
-                    print(f"{e}")
+                    self.mr_logger.log(LogType.SYS, f"{e}")
                     sys.exit(1)
             self.node = self.network.add_node(self.system_id, self.eds_file)
             self.network.add_node(self.node)
@@ -298,7 +298,7 @@ class ThrusterCommand:
         for i in range(0,5):
             subidx = 2+i
             val = self.read(0x2831, subidx, "<I")
-            print(f"{i}:{hex(val)}")
+            self.mr_logger.log(LogType.SYS, f"{i}:{hex(val)}")
             faults.append(val)
         return faults
 
@@ -376,7 +376,7 @@ class ThrusterCommand:
         cnt = self.read(index,subindex,python_type="<B")
         for i in range(1, cnt):
             val = self.read(index, subindex+i, python_type="<I")
-            print(hex(val))
+            self.mr_logger.log(LogType.SYS, hex(val))
 
     def get_status_index(self, args):
         """
