@@ -121,5 +121,9 @@ if __name__ == "__main__":
         print("Available Serial Ports:")
         for p in ports:
             print(p.name)
-    err_handler = CalibrationData(id, args.serial_port)
+    try:
+        err_handler = CalibrationData(id, args.serial_port)
+    except:
+        print("Failed to connect to communication device")
+        exit(1)
     err_handler.console()

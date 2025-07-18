@@ -85,6 +85,11 @@ if __name__ == "__main__":
     except ValueError as e:
         print(f"Check system_id, {args.system_id} is not a  hex number.")
         sys.exit(1)
-    err_reg = Versions(system_id, device=args.device)
+    try:
+        err_reg = Versions(system_id, device=args.device)
+    except:
+        print("Failed to connect to communication device")
+        exit(1)
+    
     version_sw = err_reg.read_sw_version()
 
