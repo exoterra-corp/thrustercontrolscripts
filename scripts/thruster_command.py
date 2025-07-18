@@ -14,8 +14,7 @@ description:
 Allows Communications (Queries and Writes) with the Engine System Controller - Thruster Command Sections over Serial.
 
 contact:
-joshua.meyers@exoterracorp.com 
-jeremy.mitchell@exoterracorp.com
+jmitchell@exoterra.com
 """
 
 class ThrusterCommand:
@@ -39,7 +38,7 @@ class ThrusterCommand:
         self.mr_logger = MrLogger(self.conf_man, "logs", test_name)
         self.hsi_defs = HSIDefines()
         #passed in params
-        self.version = "0.0.8"
+        self.version = "0.0.9"
         self.serial_port = ser_port
         self.eds_file = eds_file
         # main loop control
@@ -462,10 +461,9 @@ class ThrusterCommand:
                 statuses = self.get_status(self.th_command_index, True)
                 if statuses[2] is not None:
                     try:
-                        if self.telem_en:
-                            self.notify_updated_state(int(statuses[2], 16))
-                            self.get_trace_msg()
-                            self.get_block_hsi()
+                      self.notify_updated_state(int(statuses[2], 16))
+                      self.get_trace_msg()
+                      self.get_block_hsi()
                     except Exception as e:
                         self.mr_logger.log(LogType.SYS, f"{e}", )
             # self.thread_lock.release()
@@ -518,7 +516,8 @@ class ThrusterCommand:
                 self.mr_logger.log(LogType.SYS, f"Starting Trace / Status thread. Sending HSI to {self.hsi_status_ip}:{self.hsi_block_udp_port}.")
             self.thread_run = True
             self.listen_thread = Thread(target=self.gather_status_and_trace, daemon=True)
-            self.listen_thread.start()
+            if self.telem_en:
+              self.listen_thread.start()
 
     def get_write_value(self, args):
         """
