@@ -24,7 +24,7 @@ class ThrusterCommand:
     communicate with.
     """
 
-    def __init__(self, ecp_id, ser_port, eds_file, listen_mode, debug, test_name, telem_en):
+    def __init__(self, ecp_id, ser_port, eds_file, listen_mode, debug, test_name, telem_en, half_duplex):
         """
         __init__, sets up serial port and cmds definitions and launches the help menu.
         """
@@ -67,6 +67,7 @@ class ThrusterCommand:
         self.bootup_msg = False
         self.thread_lock = Lock()
         self.telem_en = telem_en
+        self.half_duplex = half_duplex
 
         #read default config variables
         self.udp_enable = self.conf_man.get("DEFAULT", "UDP_ENABLE", bool)
@@ -188,17 +189,33 @@ class ThrusterCommand:
             self.node.emcy.add_callback(self.handle_emcy)
             self.network.subscribe(0x722, self.notify_bootup)
 
+            # activate half duplex mode if specified
+            if self.half_duplex:
+                try:
+                    self.network.bus.half_duplex_mode()
+                except AttributeError:
+                    self.mr_logger.log(LogType.SYS, "The installed version of python-can does not support half-duplex ExoSerialCan connections")
+
             # check to see if device is connected
-            attemps = 0
-            while self.nmt_state is None and attemps < 3:
+            attempts = 0
+            while self.nmt_state is None and attempts < 3:
                 self.nmt_state = self.read(self.th_command_index, self.thruster_status_subindex, "<I")
-                attemps += 1
+                attempts += 1
+
             # check to see if msg was recieved
             if self.nmt_state is None:
-                self.mr_logger.log(LogType.SYS, "System Controller Failed to Connect.  Waiting for bootup msg.")
-                while not self.bootup_msg:
-                    time.sleep(0.01)
-                self.mr_logger.log(LogType.SYS, "System Controller Connected!")
+                self.mr_logger.log(LogType.SYS, "System Controller Failed to Connect.")
+                if self.half_duplex:
+                    # Failed connection is fatal in half-duplex mode
+                    self.mr_logger.log(LogType.SYS, "Exiting...")
+                    time.sleep(2)
+                    exit(1)
+                else:
+                    # Wait for bootup message if running full-duplex
+                    self.mr_logger.log(LogType.SYS, "Waiting for bootup message.")
+                    while not self.bootup_msg:
+                        time.sleep(0.01)
+                    self.mr_logger.log(LogType.SYS, "System Controller Connected!")
 
             # read the state on bootup
             self.get_status(self.th_command_index)
@@ -709,6 +726,7 @@ if __name__ == "__main__":
     parser.add_argument('--notelem', action='store_true', help='Enable or Disable Telemetry', default="")
     parser.add_argument('--testname', action='store',
                         help='Overwrites the default log file name and puts the log data in its own folder.')
+    parser.add_argument('--half-duplex', action='store_true', help='Enable Half Duplex Mode for the Exoserial CAN Bus.',)
     args = parser.parse_args()
 
     print("============= ExoTerra Thruster Command & Control =============")
@@ -748,7 +766,7 @@ if __name__ == "__main__":
             HSI_UDP_IP = args.hsi
         if args.testname is None:
             args.testname = "unnamed_test_"
-        thrus_cmd = ThrusterCommand(id, args.serial_port, args.eds_file, listen_mode, debug, args.testname, not args.notelem)
+        thrus_cmd = ThrusterCommand(id, args.serial_port, args.eds_file, listen_mode, debug, args.testname, not args.notelem, args.half_duplex)
         try:
             thrus_cmd.console()
         except Exception as e:
