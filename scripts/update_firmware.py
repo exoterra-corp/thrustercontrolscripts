@@ -81,8 +81,13 @@ if __name__ == "__main__":
     except ValueError:
         print(f"{args.system_id} is an invalid system id.")
         exit(1)
-        
-    updater = UpdateFirmware(args.serial_port, args.system_id, args.image_file)
+    
+    try:
+        updater = UpdateFirmware(args.serial_port, args.system_id, args.image_file)
+    except:
+        print("Failed to connect to communication device")
+        exit(1)
+    
     try:
         updater.do_update(args)
     except canopen.sdo.SdoCommunicationError as e:

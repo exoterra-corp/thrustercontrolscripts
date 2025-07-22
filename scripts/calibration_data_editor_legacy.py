@@ -127,3 +127,4 @@ if __name__ == "__main__":
         print("Failed to connect to communication device")
         exit(1)
     err_handler.console()
+

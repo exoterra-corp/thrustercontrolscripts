@@ -210,5 +210,10 @@ if __name__ == "__main__":
         print("Available Serial Ports:")
         for p in ports:
             print(p.name)
-    err_handler = ErrorHandling(id, args.serial_port, args.eds_file)
+    try:
+        err_handler = ErrorHandling(id, args.serial_port, args.eds_file)
+    except:
+        print("Failed to connect to communication device")
+        exit(1)
+    
     err_handler.console()
