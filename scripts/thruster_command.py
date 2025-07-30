@@ -232,7 +232,8 @@ class ThrusterCommand:
                     cur_state = "Bootup - Init"
                 self.nmt_state_str = cur_state
                 self.mr_logger.log(LogType.SYS, "System Controller Connected!")
-
+        except KeyboardInterrupt:
+            exit(0)
         except Exception as a:
             self.mr_logger.log(LogType.SYS, traceback.print_exc())
 
