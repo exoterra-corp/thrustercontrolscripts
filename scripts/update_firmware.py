@@ -41,6 +41,7 @@ class UpdateFirmware():
                     print("Image Flashed; Waiting for 0x722 NMT msg from PPU.")
                     while cnt <= BOOTUP_TIMEOUT and not self.boot_msg_found:
                         time.sleep(0.1)
+                        cnt += 0.1
 
                     if not self.boot_msg_found:
                         print("PPU Failed to boot.")
@@ -90,6 +91,7 @@ if __name__ == "__main__":
     
     try:
         updater.do_update(args)
+        exit(0)
     except canopen.sdo.SdoCommunicationError as e:
         print(f"Transfer Failed, please reboot device and try again. {e}")
     except canopen.sdo.SdoAbortedError as e:
@@ -98,3 +100,7 @@ if __name__ == "__main__":
         self.node.sdo.abort()
         print("Connection Aborted Mid-Update, please reset the PPU to INIT before trying another install.")
         raise KeyboardInterrupt
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+        raise e
+    exit(1)
