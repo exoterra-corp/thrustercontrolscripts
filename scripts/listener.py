@@ -36,6 +36,7 @@ class Listener():
         self.q = Queue()
         self.sock = socket.socket(socket.AF_INET,  # Internet
                                   socket.SOCK_DGRAM)  # UDP
+        self.send_count = 0
         try:
             self.sock.bind((self.udp_ip, int(self.udp_port)))
         except os.error as e:
@@ -106,7 +107,8 @@ class Listener():
                             extended_id = (tx_bytes[2] & 0x40) >> 6
                             data_length = (tx_bytes[2] & 0xF)
                             data = tx_bytes[3:11]
-                            msg = f" id:{hex(cob_id)}: dl:{data_length}: d:{data.hex()}"
+                            self.send_count += 1
+                            msg = f" id:{hex(cob_id)}: dl:{data_length}: d:{data.hex()}: cnt:{self.send_count}"
 
                             self.log(f"[S:{time_string}]:{tx_bytes.hex()}:{msg}")
                             print(f"S:{time_string_disp}:{tx_bytes.hex()}:{msg}")
