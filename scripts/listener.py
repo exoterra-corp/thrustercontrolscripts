@@ -171,12 +171,12 @@ class Listener():
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description='Listens for exoserial data on the local network (udp).')
-    parser.add_argument('-trace', action='store_true', help='Enables Trace Mode.')
-    parser.add_argument('-hsi', action='store_true', help='Enables HSI Mode.')
-    parser.add_argument('-gui', action='store_true', help='Enables Gui.')
-    parser.add_argument('-socket', action='store', type=str, help='The Network host to bind to.',
+    parser.add_argument('--trace', action='store_true', help='Enables Trace Mode.')
+    parser.add_argument('--hsi', action='store_true', help='Enables HSI Mode.')
+    parser.add_argument('--gui', action='store_true', help='Enables Gui.')
+    parser.add_argument('--socket', action='store', type=str, help='The Network host to bind to.',
                         default="127.0.0.1", required=False)
-    parser.add_argument('-port', action='store', type=str, help='The port to listen on.',
+    parser.add_argument('--port', action='store', type=str, help='The port to listen on.',
                         default=4000, required=False)
     args = parser.parse_args()
     mode = "raw"
