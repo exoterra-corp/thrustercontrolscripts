@@ -21,7 +21,7 @@ class CalibrationData:
 
 
         self.calibration_cmds = {
-            "0": {"name": "Quit", "func":quit, "help": "Quit Script"},
+            "0": {"name": "Quit", "func":self.quit, "help": "Quit Script"},
             "1": {"name": "Write Transducer Select (0 = Tank, 1 = Regulator, 2 = Cathode, 3 = Anode)", "func": self.rw_transducer_select,"action":"w", "what":"ts", "help": "Write Transducer Select"},
             "2": {"name": "Read Transducer Select", "func": self.rw_transducer_select, "action":"r", "what":"ts", "help": "Read Transucer Select"},
             "3": {"name": "Write Calibration Offset", "func": self.rw_calibration_data,"action":"w", "what":"offset", "help": "Write Calibration Offset"},
@@ -30,6 +30,11 @@ class CalibrationData:
             "6": {"name": "Read Calibration Scaling Factor", "func": self.rw_calibration_data, "action":"r", "what":"sf","help": "Read Calibration Scaling Factor"},
             "7": {"name": "Erase Calibration Data", "func": self.rw_calibration_data, "action":"e", "what":"all", "help": "Erase Current Calibration Data"}
         }
+
+    def quit(self, args, what):
+        self.node.sdo.abort() #abort the last message
+        self.network.disconnect()
+        exit(0)
 
     def rw_transducer_select(self, action, what):
         self.subidx = 1
