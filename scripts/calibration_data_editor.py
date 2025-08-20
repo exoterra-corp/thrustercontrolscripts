@@ -21,24 +21,40 @@ class CalibrationData:
 
 
         self.calibration_cmds = {
-            "0": {"name": "Quit", "func":self.quit, "help": "Quit Script"},
-            "1": {"name": "Write Calibration Offset", "func": self.rw_calibration_data,"action":"w", "what":"offset", "help": "Write Calibration Offset"},
-            "2": {"name": "Read Calibration Offset", "func": self.rw_calibration_data, "action":"r", "what":"offset", "help": "Read Calibration Offset"},
-            "3": {"name": "Write Calibration Scaling Factor", "func": self.rw_calibration_data, "action":"w", "what":"sf","help": "Write Calibration Scaling Factor"},
-            "4": {"name": "Read Calibration Scaling Factor", "func": self.rw_calibration_data, "action":"r", "what":"sf","help": "Read Calibration Scaling Factor"},
-            "5": {"name": "Erase Calibration Data", "func": self.rw_calibration_data, "action":"e", "what":"all", "help": "Erase Current Calibration Data"}
+            "0": {"name": "Quit", "func":quit, "help": "Quit Script"},
+            "1": {"name": "Write Transducer Select (0 = Tank, 1 = Regulator, 2 = Cathode, 3 = Anode)", "func": self.rw_transducer_select,"action":"w", "what":"ts", "help": "Write Transducer Select"},
+            "2": {"name": "Read Transducer Select", "func": self.rw_transducer_select, "action":"r", "what":"ts", "help": "Read Transucer Select"},
+            "3": {"name": "Write Calibration Offset", "func": self.rw_calibration_data,"action":"w", "what":"offset", "help": "Write Calibration Offset"},
+            "4": {"name": "Read Calibration Offset", "func": self.rw_calibration_data, "action":"r", "what":"offset", "help": "Read Calibration Offset"},
+            "5": {"name": "Write Calibration Scaling Factor", "func": self.rw_calibration_data, "action":"w", "what":"sf","help": "Write Calibration Scaling Factor"},
+            "6": {"name": "Read Calibration Scaling Factor", "func": self.rw_calibration_data, "action":"r", "what":"sf","help": "Read Calibration Scaling Factor"},
+            "7": {"name": "Erase Calibration Data", "func": self.rw_calibration_data, "action":"e", "what":"all", "help": "Erase Current Calibration Data"}
         }
 
-    def quit(self, action, what):
-        exit(0)
+    def rw_transducer_select(self, action, what):
+        self.subidx = 1
+        if action == 'r':
+            self.r_msg = "transducer select: "
+            ret = self.node.sdo.upload(self.idx, self.subidx)   
+            ret = struct.unpack('<I', ret)[0]
+            print(self.r_msg,ret, type(ret))
+        if action == 'w':
+            self.w_msg = "enter transucer selection (0 = Tank, 1 = Regulator, 2 = Cathode, 3 = Anode): "
+            data = input(self.w_msg)
+            data = int(data)
+            if data != 'b':
+                data = struct.pack('<I', data)
+                print("data = ", data)
+                self.node.sdo.download(self.idx, self.subidx, data)   
+                print(data)
 
     def rw_calibration_data(self, action, what):
         if what == 'offset':
-            self.subidx = 2 
+            self.subidx = 3 
             self.w_msg = "enter offset in PSI (ex: 0.123) or 'b' to go back: "
             self.r_msg = "offset in PSI: "
         elif what == 'sf':
-            self.subidx = 1
+            self.subidx = 2
             self.w_msg = "enter scaling factor (ex: 0.1922) or 'b' to go back: " 
             self.r_msg = "scaling factor: " 
 
@@ -51,6 +67,7 @@ class CalibrationData:
             if data != 'b':
                 data = float(data)
                 data = struct.pack('<f', data)
+                print("data = ", data)
                 self.node.sdo.download(self.idx, self.subidx, data)   
                 print(data)
         if action == 'e':
@@ -63,6 +80,7 @@ class CalibrationData:
         """
         help, reads the predefined cmds and prints them in a table.
         """
+        print("============= ExoTerra Error Handling Help Menu =============")
         for v in self.calibration_cmds:
             x = self.calibration_cmds.get(v)
             print(f"{v} - {x.get('name')} : [{x.get('help')}]")
@@ -82,6 +100,7 @@ class CalibrationData:
                     action = cmd.get("action")
                     what   = cmd.get("what")
                     if func != None:
+                        print(f"{func}")
                         try:
                             func(action, what)
                         except Exception as e:
@@ -121,9 +140,5 @@ if __name__ == "__main__":
         print("Available Serial Ports:")
         for p in ports:
             print(p.name)
-    try:
-        err_handler = CalibrationData(id, args.serial_port)
-    except:
-        print("Failed to connect to communication device")
-        exit(1)
+    err_handler = CalibrationData(id, args.serial_port)
     err_handler.console()
