@@ -357,18 +357,17 @@ class ThrusterCommand:
                   f" EMCYData: 0x{emgcy_error.data.hex()}"
 
         code = hex(emgcy_error.code)
-
         #parse data from emgcy msg data section
         error_type = None
         fault_code = None
-        fault_code_str = None
         line_num = None
         error_cnt = None
         data = emgcy_error.data.hex()
         if len(data) == 10:
             self.mr_logger.log(LogType.SYS,"EMERGENCY MESSAGE")
             try:
-                line_num = struct.unpack("<I", int(data[4:8],16).to_bytes(4, 'little'))[0]
+                line_in_bytes = bytes.fromhex(data[4:8])
+                line_num = struct.unpack("<H", line_in_bytes)[0]
             except ValueError as e:
                 self.mr_logger.log(LogType.SYS,e)
             error_type = data[0:2]
