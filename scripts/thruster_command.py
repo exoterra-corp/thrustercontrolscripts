@@ -231,6 +231,7 @@ class ThrusterCommand:
                 elif self.nmt_state == 0x1:
                     cur_state = "Bootup - Init"
                 self.nmt_state_str = cur_state
+                self.read_serial_number()
                 self.mr_logger.log(LogType.SYS, "System Controller Connected!")
         except KeyboardInterrupt:
             exit(0)
@@ -523,6 +524,34 @@ class ThrusterCommand:
                 self.mr_logger.log(LogType.SYS,f"Query Failed: {aborted_err}")
         except Exception as e:
             self.mr_logger.log(LogType.SYS,f"Query Failed: {e}")
+    
+    def read_serial_number(self):
+        """
+            Reads the 128bit serial number from the NodeID index 
+            and returns the hex number.
+        """
+        try:
+            index = 0x5022
+            if index is not None:
+                ser = bytearray()
+                ser0 = self.read(index,2,"noparse")
+                ser1 = self.read(index,3,"noparse")
+                ser2 = self.read(index,4,"noparse")
+                ser3 = self.read(index,5,"noparse")
+                ser.extend(ser0)
+                ser.extend(ser1)
+                ser.extend(ser2)
+                ser.extend(ser3)
+                if len(ser) == 16:
+                    vals = struct.unpack_from("<IIII", ser)
+                    serial_num = (vals[0] << 96) | (vals[1] << 64) | (vals[2] << 32) | vals[3]
+                    hex_result = hex(serial_num) 
+                    self.mr_logger.log(LogType.SYS, f"Unit Serial Number: {hex_result}")
+                    return hex_result
+                else:
+                    self.mr_logger.log(LogType.SYS, "Failed to log Serial Number from the unit.")
+        except Exception as e:
+                    self.mr_logger.log(LogType.SYS, "Failed to log Serial Number from the unit. f{e}")
 
     def start_threads(self):
         """
