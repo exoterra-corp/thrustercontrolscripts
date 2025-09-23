@@ -549,7 +549,8 @@ class ThrusterCommand:
                     self.mr_logger.log(LogType.SYS, f"Unit Serial Number: {hex_result}")
                     return hex_result
                 else:
-                    self.mr_logger.log(LogType.SYS, "Failed to log Serial Number from the unit.")
+                    None
+                    # self.mr_logger.log(LogType.SYS, "Failed to log Serial Number from the unit.")
         except Exception as e:
                     self.mr_logger.log(LogType.SYS, "Failed to log Serial Number from the unit. f{e}")
 
