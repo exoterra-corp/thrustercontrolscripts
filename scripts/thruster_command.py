@@ -528,7 +528,7 @@ class ThrusterCommand:
     def read_serial_number(self):
         """
             Reads the 128bit serial number from the NodeID index 
-            and returns the hex number.
+            and returns the hex number.  Returns None on failure.
         """
         try:
             index = 0x5022
@@ -549,8 +549,7 @@ class ThrusterCommand:
                     self.mr_logger.log(LogType.SYS, f"Unit Serial Number: {hex_result}")
                     return hex_result
                 else:
-                    None
-                    # self.mr_logger.log(LogType.SYS, "Failed to log Serial Number from the unit.")
+                    return None
         except Exception as e:
                     self.mr_logger.log(LogType.SYS, "Failed to log Serial Number from the unit. f{e}")
 
