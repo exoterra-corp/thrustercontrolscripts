@@ -1,18 +1,19 @@
 
            Copyright (C) 2021 ExoTerra Corp - All Rights Reserved
 
- Unauthorized copying of this file, via any medium is strictly prohibited
- Proprietary and confidential.  Any unauthorized use, duplication, transmission,
- distribution, or disclosure of this software is expressly forbidden.
+The software and associated documentation files (the "Software") are provided for 
+demonstration purposes and are not meant for production or qualification purposes
+outside of ExoTerra Corp. The software and any derivitives are not intended for 
+commerial use or distribution.
 
- This Copyright notice may not be removed or modified without prior written
- consent of ExoTerra Corp.  ExoTerra Corp reserves the right to modify this software without notice.
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software, not inclusive of third-party 
+libraries.
 
- ExoTerra Corp
- 7640 S. Alkire Pl.
- Littleton, CO 80127
- USA
-
- Voice:  +1 1 (720) 788-2010
- http:   www.exoterracorp.com
- email:  contact@exoterracorp.com
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. 
