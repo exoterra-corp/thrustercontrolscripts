@@ -80,6 +80,7 @@ Thruster Shutdown
 To run a BIT test make sure the Thruster Control State is Standby, select the bit menu item.  Then when prompted select the bit number you want to run.
 
 The BITs are hard coded as followed:
+0. Cancel BIT Test
 1. RESERVED 
 2. sequence_bit_latch_valve_open 
 3. sequence_bit_latch_valve_close
@@ -90,6 +91,9 @@ The BITs are hard coded as followed:
 8. sequence_outer_coil_test 
 9. sequence_keeper_test 
 10. sequence_anode_test
+11. sequence_cathode_lf_check_ambient
+12. sequence_anode_valve_check_ambient
+13. sequence_open_all_valves
 ```
 ============= ExoTerra Thruster Command & Control =============
 ============= ExoTerra Thruster Command Help Menu =============
