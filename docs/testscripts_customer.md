@@ -201,6 +201,24 @@ Id: Version  :gitsha    :git sha 1 :Exec V 1  :git sha 2 :Exec V 2  :git sha 3 :
 6 : 00000100 : 770c450c : 770c450c : 00000100 : 770c450c : 00000100 : 770c450c : 00000100
 ```
 
+## Update Script (update_firmware.py)
+update_firmware.py, handles the updates for the PPU and EDU.  The update file can be two types
+
+PPU VERSION STR
+15600 30207
+EDU VERSION STR
+15601 30207
+
+```
+python3 update_firmware.py /dev/ttyUSB0 0x22 1560030207.bin
+Updating Firmware.  This will take a few minutes. A y/n install prompt will be shown to finish the install.
+...
+15 mins later
+install image? y/n $ y
+Image Flashed; Waiting for 0x722 NMT msg from PPU.
+PPU Booted Successfully.
+```
+
 ### Version IDs
 ![version device ids](images/version_descriptions.PNG)
 
