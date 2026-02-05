@@ -1,18 +1,18 @@
 # EXOTERRA System Controller Software Documentation
 
 ## Installation and Setup
-- Tested on Ubuntu 20.04.2 Python 3.8.5
+Tested on Ubuntu 20.04.2 with Python 3.8.5 (also compatible with Ubuntu 22.04 and Python 3.10.12)
 
-## Installing git and python3, and supporting packages
+## Installing Git, Python3, and Supporting Packages
 ```
-# ubuntu 20.04.4
+# Ubuntu 20.04.4 or Ubuntu 22.04
 sudo ./install.sh
 ```
 
-## Thruster Command (thruster_command.py).
+## Thruster Command (thruster_command.py)
 ### Example Usage
 ```
-python3 thruster_command.py 0x22 /dev/ttyUSB0 
+python3 thruster_command.py /dev/ttyUSB0 0x22 ./conf/default.conf
 ============= ExoTerra Thruster Command & Control =============
 Found ./conf/default.conf!
 Creating logs.
@@ -54,14 +54,14 @@ NMT State PRE-OPERATIONAL
 NMT State OPERATIONAL
 [rm:0:ss:0:ts:8]> 
 ```
-*Note - state is refreshed when enter is pressed*
+*Note: State is refreshed when Enter is pressed*
 
 ### Thruster States
 ![Thruster Command Table](images/thruster_states.PNG)
 
 
 ## Thruster Control Commands
-Commands to the system are run shown as below.  The index subindex and value associated with the command are echoed on the screen.
+Commands to the system are executed as shown below. The index, subindex, and value associated with each command are displayed on the screen.
 
 ```
 [rm:0:ss0:ts:0]> <menu selection> 
@@ -77,7 +77,7 @@ Thruster Shutdown
 
 
 ## BIT Tests
-To run a BIT test make sure the Thruster Control State is Standby, select the bit menu item.  Then when prompted select the bit number you want to run.
+To run a BIT (Built-In Test), ensure the Thruster Control State is in Standby, then select the BIT menu item. When prompted, select the desired BIT test number.
 
 The BITs are hard coded as followed:
 0. Cancel BIT Test
@@ -122,9 +122,10 @@ Status
 Ready Mode: 0x0: Steady State: 0x0: ThrusterStatus:0x8 Condition Status:0x0 Thrust Point:0x1  Bit Status: 0x1fff5
 ```
 
-The most IMPORTANT part is the last digit which shows the status of the BIT running.
+The most important information is the last digit, which indicates the status of the running BIT.
 
-## BIT tests can be aborted with menu item 11 and value 0 (write 0 to index - 0x4000, subindex - 0x7).
+### Aborting BIT Tests
+BIT tests can be aborted by selecting menu item 11 and entering value 0 (writes 0 to index 0x4000, subindex 0x7).
 ```
 [rm:0x0:ss:0x0:ts:0x8]> 11
 Test
@@ -135,23 +136,24 @@ write> 0x0
 Status
 Ready Mode: 0x0: Steady State: 0x0: ThrusterStatus:0x8 Condition Status:0x0 Thrust Point:0x1  Bit Status: 0x1fff4
 ```
-This will result in an aborted code for Bit Status, which is shown by the last digit 4.
+This will result in an aborted status code for BIT Status, indicated by the last digit (4).
 
 ## Mode Status
-This applies to Ready Mode, Steady State, Conditioning, and BIT modes.  These are read at index 0x4000, subindex 0x1,0x2,0x6, and 0x7 respectively.
+Mode status information applies to Ready Mode, Steady State, Conditioning, and BIT modes. These values are read from index 0x4000 at subindices 0x1, 0x2, 0x6, and 0x7 respectively.
 
-Then menu item 8 which updates every second to poll mode statuses.  This status is broken into a few parts as follows.
+Menu item 8 provides continuous status updates every second to poll mode statuses. The status information is structured as follows:
 
 ### Mode Status Breakdown
 ![Sequence Status Breakdown](images/seq_status_breakdown_customer.PNG)
 
 
 
-## The Listener Script (listener.py)
-The listener.py script allows for viewing and capturing of raw serial messages, trace, and telemetry messages.
-Thruster Command forwards msg traffic over UDP to the listener script on 3 ports, one for raw serial msgs, one for debug messages, and one for telemetry messages.  The UDP ports are 4000, 4002, 4001 respectively.
+## Listener Script (listener.py)
+The listener.py script provides viewing and capturing functionality for raw serial messages, trace messages, and telemetry data. The Thruster Command script forwards message traffic over UDP to the listener on three separate ports: 4000 for raw serial messages, 4001 for telemetry messages, and 4002 for debug messages.
+
+### Usage
 ```
-python .\listener.py -h
+python3 listener.py -h
 usage: listener.py [-h] [-trace] [-hsi] [-gui] [-socket SOCKET] [-port PORT]
 
 Listens for exoserial data on the local network (udp).
@@ -163,35 +165,50 @@ optional arguments:
   -gui            Enables Gui.
   -socket SOCKET  The Network host to bind to.
   -port PORT      The port to listen on.
+```
 
+### Examples
+```
+# Listening to trace msgs
+python3 ./listener.py -trace
 
-#Listening to trace msgs
-python .\listener.py -trace
+# Listening to hsi msgs
+python3 ./listener.py -hsi
 
-#Listening to hsi msgs
-python .\listener.py -hsi
+# Listening to hsi msgs with gui
+python3 ./listener.py -gui
 
-#Listening to hsi msgs with gui
-python .\listener.py -gui
-
-#Listening to raw msgs
-python .\listener.py 
+# Listening to raw msgs
+python3 ./listener.py 
 ```
 
 ### Script Message Diagram
 ![Scripts Diagram](images/ScriptsDiagram.png)
 
-Msg Type           | Description  
+### Message Types
+
+Message Type       | Description  
 -------------------|-------------------
-Trace Msg          | A print message from the system controller for more insight into debugging.
-HSI Msg            | A health and status message from the system controller for direct viewing of status and state.
-Raw Msg            | These messages are raw serial messages in a structure as shown in the ICD.
+Trace Message      | Debug print message from the System Controller providing insight for troubleshooting
+HSI Message        | Health and Status Interface message containing real-time status and state information
+Raw Message        | Raw serial messages following the structure defined in the ICD
 
 ## Versions Script (versions.py)
-versions.py dumps the firmware from versions from the System Controller and writes them to a local file as well as displays them to the current terminal.  The versions script creates a log file with a timestamp in the local directory every time it runs, with the format shown below.
+The versions.py script retrieves firmware version information from the System Controller and writes it to a timestamped log file. The script creates a log file in the `./logs/versions/` directory with the format `sw_version_YYYY_MM_DD_HH_MM_SS.txt`.
+
+### Usage
 ```
-python3 versions.py /dev/ttyUSB0 
-Id: Version  :gitsha    :git sha 1 :Exec V 1  :git sha 2 :Exec V 2  :git sha 3 :Exec V 3 
+python3 versions.py <device> <system_id>
+```
+
+### Arguments
+- `device`: Serial port device (e.g., `/dev/ttyUSB0`, `COM3`) or `pcan` for PCAN interface
+- `system_id`: System identifier in hexadecimal format (typically `0x22`)
+
+### Example
+```
+python3 versions.py /dev/ttyUSB0 0x22
+Id: Version  : gitsha   : git sha 1 : Exec V 1  : git sha 2 : Exec V 2  : git sha 3 : Exec V 3 : Device Name  
 0 : 00010300 : 770c450c : 770c450c : 00010300 : 770c450c : 00010300 : 770c450c : 00010300
 1 : 00000101 : 7b4af855 : 7b4af855 : 00000101 : 7b4af855 : 00000101 : 7b4af855 : 00000101
 2 : 00000202 : fdf28164 : fdf28164 : 00000202 : fdf28164 : 00000202 : fdf28164 : 00000202
@@ -201,19 +218,36 @@ Id: Version  :gitsha    :git sha 1 :Exec V 1  :git sha 2 :Exec V 2  :git sha 3 :
 6 : 00000100 : 770c450c : 770c450c : 00000100 : 770c450c : 00000100 : 770c450c : 00000100
 ```
 
-## Update Script (update_firmware.py)
-update_firmware.py, handles the updates for the PPU and EDU.  The update file can be two types
+## Update Firmware Script (update_firmware.py)
+The update_firmware.py script handles firmware updates for the PPU (Power Processing Unit) and EDU (Engine Drive Unit). The script downloads the firmware image to the device, verifies the transfer, and installs the new firmware upon user confirmation.
 
-PPU VERSION STR
-15600 30207
-EDU VERSION STR
-15601 30207
+### Usage
+```
+python3 update_firmware.py <serial_port> <system_id> <image_file> [--v]
+```
 
+### Arguments
+- `serial_port`: Serial port device (e.g., `/dev/ttyUSB0`, `COM3`) or `can` for PCAN interface
+- `system_id`: System identifier in hexadecimal format (typically `0x22`)
+- `image_file`: Path to the firmware binary file (e.g., `1560030207.bin`)
+
+### Options
+- `--v`: Skip the download phase and proceed directly to verify and install (useful if download already completed)
+
+### Firmware Update Process
+The update process consists of three phases:
+1. **Download**: Transfers the firmware image to the device
+2. **Verify**: Validates the transferred image integrity
+3. **Install**: Flashes the firmware and reboots the device
+
+After verification, the script prompts for user confirmation before installing. Upon successful installation, the device will reboot and the script will wait for the bootup message (NMT message 0x722) to confirm successful operation.
+
+### Example
 ```
 python3 update_firmware.py /dev/ttyUSB0 0x22 1560030207.bin
 Updating Firmware.  This will take a few minutes. A y/n install prompt will be shown to finish the install.
 ...
-15 mins later
+(approximately 15 minutes later)
 install image? y/n $ y
 Image Flashed; Waiting for 0x722 NMT msg from PPU.
 PPU Booted Successfully.
@@ -224,11 +258,17 @@ PPU Booted Successfully.
 
 
 ## Example Script (example.py)
-The example script shows how to go from power up to steady state.
+The example.py script demonstrates the complete sequence for powering up and operating the thruster from initialization to steady state. This script serves as a reference implementation with hardcoded parameters.
 
-Error handling and telemetry have been omitted.
-
+### Usage
 ```
+python3 ./example.py
+```
+
+### Note
+This script does not accept command line arguments. Serial port and system ID are hardcoded in the script (defaults: `/dev/ttyUSB0`, `0x22`). Error handling and telemetry have been omitted for clarity.
+
+### Example Output
 $ python3 ./example.py 
 Created can Network.
 Created Exoserial device.
@@ -247,14 +287,30 @@ Transitioning to Steady State. Thruster State: 0xc
 Thruster State: 0xc
 Device in Steady State. 0xc
 PPU took 21.405359268188477 seconds from reset to steady state.
-Thruster in Steady State. Cntrl-c to shutdown and exit.
+Thruster in Steady State. Press Ctrl-C to shutdown and exit.
 ^C
-Detected Cntrl-c Returning to Pre-Operational.
+Detected Ctrl-C. Returning to Pre-Operational.
 Sent NMT change state Pre-Operational.
 ```
 
-## Error Handler Script (error_handler.py)
-Options:
+## Error Handling Script (error_handling.py)
+The error_handling.py script provides access to error logs, fault handlers, and fault status information from the System Controller.
+
+### Usage
+```
+python3 error_handling.py <serial_port> <system_id> <eds_file> [--action ACTION] [--debug]
+```
+
+### Arguments
+- `serial_port`: Serial port device (e.g., `/dev/ttyUSB0`, `COM3`) or `can` for PCAN interface
+- `system_id`: System identifier in hexadecimal format (typically `0x22`)
+- `eds_file`: Path to the EDS (Electronic Data Sheet) file for communication
+
+### Options
+- `--action ACTION`: Specify action for error log dump or fault handler configuration
+- `--debug`: Enable debug mode for detailed output
+
+### Available Actions
 ```
 Dump Error Log
 Change Fault Handler
@@ -264,17 +320,24 @@ Clear Error History
 ```
 
 ## Calibration Data Editor Script (calibration_data_editor.py)
-Read/Write Calibration Offset and Scaling Factor
-```
-positional arguments:
-  serial_port      The Serial Port to use for RS485, or use can to select the pcan
-  system_id        The System Id for the connection usually 0x22.
+The calibration_data_editor.py script provides read and write access to calibration offsets and scaling factors for pressure transducers.
 
-options:
-  -h, --help       show this help message and exit
+### Usage
 ```
-Actions:
+python3 calibration_data_editor.py <serial_port> <system_id> [--action ACTION]
 ```
+
+### Arguments
+- `serial_port`: Serial port device (e.g., `/dev/ttyUSB0`, `COM3`) or `can` for PCAN interface
+- `system_id`: System identifier in hexadecimal format (typically `0x22`)
+
+### Options
+- `--action ACTION`: Specify action for calibration data operations
+
+### Available Actions
+```
+Write Transducer Select (0 = Tank, 1 = Regulator, 2 = Cathode, 3 = Anode)
+Read Transducer Select
 Write Calibration Offset
 Read Calibration Offset
 Write Calibration Scaling Factor
@@ -282,15 +345,22 @@ Read Calibration Scaling Factor
 Erase Calibration Data
 ```
 ## Parse HSI Script (parse_hsi.py)
-Will parse the .bin telemetry logs to a human readable .csv file
+The parse_hsi.py script converts binary telemetry log files into human-readable CSV format for analysis.
+
+### Usage
 ```
-usage: parse_hsi.py [-h] input_filename output_filename
+python3 parse_hsi.py <input_filename> <output_filename>
 ```
 
+### Arguments
+- `input_filename`: Path to the binary HSI telemetry file
+- `output_filename`: Desired path for the output CSV file
+
 ## Errors and Explanations
-Error Code         | Error Description | Possible Solutions
--------------------|------------------|-------------------
-Code 0x06010002 | Attempt to write a read only object | Make sure the System Controller is flashed to the correct firmware with versions.py or check to make sure it is in Operational Mode.
-Code 0x08000020 | Data cannot be transferred or stored to the application | Make sure the System Controller is in Operational Mode.
+
+Error Code     | Error Description                                        | Possible Solutions
+---------------|----------------------------------------------------------|-------------------
+0x06010002     | Attempt to write a read-only object                      | Verify the System Controller firmware is correct using versions.py and ensure the device is in Operational Mode
+0x08000020     | Data cannot be transferred or stored to the application  | Ensure the System Controller is in Operational Mode
 
 version 0.0.7

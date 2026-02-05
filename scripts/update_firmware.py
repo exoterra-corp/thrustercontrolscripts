@@ -69,7 +69,7 @@ class UpdateFirmware():
         self.node.sdo.download(0x5500, 3, data, force_segment=False)
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Update firmware uploads the firmware to the SAM over RS458.')
+    parser = argparse.ArgumentParser(description='Update firmware uploads the firmware to the SAM over RS485.')
     parser.add_argument('serial_port', action='store', type=str, help='The Serial Port to use for RS485.',
                         default="/dev/ttyUSB0")
     parser.add_argument('system_id', action='store', type=str, help='The System Id for the connection usually 0x22.',
