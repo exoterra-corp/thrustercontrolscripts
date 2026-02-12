@@ -12,7 +12,7 @@ sudo ./install.sh
 ## Thruster Command (thruster_command.py)
 ### Example Usage
 ```
-python3 thruster_command.py /dev/ttyUSB0 0x22 ./conf/default.conf
+python3 thruster_command.py /dev/ttyUSB0 0x22 ./obj.eds
 ============= ExoTerra Thruster Command & Control =============
 Found ./conf/default.conf!
 Creating logs.
@@ -35,6 +35,7 @@ Ready Mode: 0x1020005: Steady State: 0x40005: ThrusterStatus:0x2 Condition Statu
 System Controller Connected!
 [rm:0x1020005:ss:0x40005:ts:0x2]>
 ```
+The obj.eds file is something that can be providied on request.  It is necessary to connect to the unit.
 
 ## System Controller Selectable Modes
 Mode               | Mode Description  
