@@ -153,6 +153,26 @@ class ThrusterCommand:
         index = 0
         subindex = 0
         limit_value = 0
+        sleep_time = 1
+        while not valid:
+            print("Enable Lightning mode? (faster prompting and updates)")
+            print("+++ It is recommened to disable lightning mode on first use +++")
+            lightning_mode = input("y/n> ")
+            if lightning_mode.lower() == "back":
+                return
+            if lightning_mode.lower() == "y":
+                sleep_time = 0
+                valid = True
+            elif lightning_mode.lower() == "n":
+                valid = True
+                sleep_time = 1
+            else:
+                print("\n 'y' or 'n' you goose") 
+
+        valid = False
+        index = 0
+        subindex = 0
+        limit_value = 0
         while not valid:
             print("Enter setpoint number to edit: (example: setpoint> 2 to edit setpoint 2)")
             setpoint = input("setpoint> ")
@@ -169,7 +189,7 @@ class ThrusterCommand:
                 print("setting setpoint: ... ", setpoint_payload)
                 print("\nwait for it...")
                 self.node.sdo.download(index, subindex, setpoint_payload)
-                time.sleep(1)
+                time.sleep(sleep_time)
                 val = self.node.sdo.upload(index, subindex)
                 in_val = int.from_bytes(val, "little")        
                 if in_val == setpoint:
@@ -197,7 +217,7 @@ class ThrusterCommand:
                 print("\n\nsetting anode pressure: ... ", aps_payload)
                 print("\nwait for it...")
                 self.node.sdo.download(index, subindex, aps_payload)
-                time.sleep(1)
+                time.sleep(sleep_time)
                 val = self.node.sdo.upload(index, subindex)
                 in_val = struct.unpack('<f', val)      
                 if round(in_val[0], 1) == anode_pressure_step:
@@ -218,12 +238,12 @@ class ThrusterCommand:
                 return
             if bolstered_ignition.lower() == "y" or bolstered_ignition.lower() == "n":
                 valid = True
-                print("good choice\n")
+                print("right on\n")
             else:
                 print("\n I said 'y' or 'n' you goose\n") 
-        
+        time.sleep(sleep_time) 
         print("+++ One order of soft start to setpoint ", setpoint, " with an anode pressure step size = ", anode_pressure_step, " and a bolstered ignition ('", bolstered_ignition, "') coming right up... +++\n")
-
+        time.sleep(sleep_time)
         valid = False
         if good_1 == 1 and good_2 == 1:
             while not valid:
@@ -242,17 +262,90 @@ class ThrusterCommand:
             
 
         if valid:
+            time.sleep(sleep_time)
             print("\nIn the words of the great Rick Moranis...\n")
-            time.sleep(1)
+            time.sleep(sleep_time)
             print("LUDICROUS SPEED!!\n\n\n") 
-            time.sleep(1)
+            time.sleep(sleep_time)
             print("GO!!!!!\n")
+            time.sleep(sleep_time)
             self.soft_start_go(setpoint, anode_pressure_step, bolstered_ignition)
 
     def soft_start_go(self, setpoint, anode_pressure_step_size, bolstered_ignition):
             print("sofstart go") 
             anode_ps = anode_pressure_step_size
             ignition_stable = 0
+
+            if bolstered_ignition.lower() == "y" or bolstered_ignition.lower() == "n":
+                print("bolstering ignition initializing...")
+                index = 0x4200 
+                subindex = 4 
+                #Select the Steady State Sequence:
+                cmd = 1 
+                cmd_payload = bytearray(struct.pack("<I", cmd))
+                print(cmd_payload)
+                print("select steady state")
+                self.node.sdo.download(index, subindex, cmd_payload)
+                #######################################################
+
+                subindex = 5 
+                #Select the 14th step of the sequence:
+                #(to confirm we’re on the right step, read 0x4200, 6, should be 0x01040706 )
+                cmd = 14
+                cmd_payload = bytearray(struct.pack("<I", cmd))
+                print(cmd_payload)
+                print("select step 14")
+                self.node.sdo.download(index, subindex, cmd_payload)
+
+                if bolstered_ignition.lower() == "y":
+                    ########################################################
+                    subindex = 6 
+ 
+                    cmd = 16910086 # 0x01020706 = adjust keeper current command code in sequence engine 
+                    cmd_payload = bytearray(struct.pack("<I", cmd))
+
+                    print(cmd_payload)
+                    print("change sequence step to 'adjust keeper current' command code...")
+                    self.node.sdo.download(index, subindex, cmd_payload)
+
+
+                    ##########################################################
+                    subindex = 7 
+ 
+                    cmd =  500# 500 milli amps 
+                    cmd_payload = bytearray(struct.pack("<I", cmd))
+                    print(cmd_payload)
+                    print("set keeper current to 500 milliamps")
+                    self.node.sdo.download(index, subindex, cmd_payload)
+                    ###########################################################
+                    
+                    time.sleep(1)
+
+                    print("\n\n ... Keeper armed and ready ... \n\n")
+                else:
+                    ########################################################
+                    subindex = 6 
+ 
+                    cmd = 17041158 # 0x01040706 = turn keeper off command code 
+                    cmd_payload = bytearray(struct.pack("<I", cmd))
+
+                    print(cmd_payload)
+                    print("change sequence step to 'turn keeper off' command code...")
+                    self.node.sdo.download(index, subindex, cmd_payload)
+
+
+                    ##########################################################
+                    subindex = 7 
+ 
+                    cmd =  0# 500 milli amps 
+                    cmd_payload = bytearray(struct.pack("<I", cmd))
+                    print(cmd_payload)
+                    print("ignored argument")
+                    self.node.sdo.download(index, subindex, cmd_payload)
+                    ###########################################################
+                    
+                    time.sleep(1)
+                    print("\n\n ... Bolstering ignition disabled ... \n\n")
             while(anode_ps < 14.0 and not ignition_stable):
                 print("anode pressure = ", anode_ps)
 
@@ -263,6 +356,20 @@ class ThrusterCommand:
                 #           yes: edit sequence to turn keeper current to 0.5A
                 #           no:  edit sequence to turn keeper off 
                 #    no: take it to the top 
+                index = 0x4002
+                subindex = 4
+                
+                aps_payload = bytearray(struct.pack("<f", anode_ps))
+                print("\n\nsetting anode pressure: ... ", aps_payload)
+                print("\nwait for it...")
+                self.node.sdo.download(index, subindex, aps_payload)
+                time.sleep(1)
+                val = self.node.sdo.upload(index, subindex)
+                in_val = struct.unpack('<f', val)      
+                if round(in_val[0], 1) == anode_ps:
+                    print("anode pressure set successfully! pressure written: ", anode_ps, "pressure read: ", in_val[0], "\n\n")
+                else:
+                    print("anode pressure set failed: anode pressure written: ", anode_ps, "anode pressure read: ", in_val[0], "\n\n");
 
                 index = 0x4000
                 subindex = 2
@@ -270,32 +377,41 @@ class ThrusterCommand:
                 cmd_payload = bytearray(struct.pack("<I", cmd))
                 print(cmd_payload)
                 self.node.sdo.download(index, subindex, cmd_payload)
-                time.sleep(1)
-                for i in range(0, 10):
+                time.sleep(3)
+
+                print("================= Ignition attempt at ", anode_ps, " PSI ===================")
+                subindex = 5
+                val = self.node.sdo.upload(index, subindex)
+                in_val = int.from_bytes(val, "little")
+                while in_val == 11:
                     index = 0x4000 
                     subindex = 5 
-                    print("\n\nchecking thruster state...")
                     val = self.node.sdo.upload(index, subindex)
                     in_val = int.from_bytes(val, "little") 
-                    print("in_val = ", in_val)
                     # 0xB = 11 = transitioning to steady state
                     if in_val == 11:
-                        print("\n\nthruster state is: transitioning to steady state...\n\n")
+                        print("thruster state is: transitioning to steady state...")
                     # 0xC = 12 = steady state
                     if in_val == 12:
-                        print("\n\nthruster state is: steady state\n\n")
+                        print("thruster state is: steady state")
                         time.sleep(1)
-                        print("\n\nHouston, we have successful ignition")
+                        print("Houston, we have successful ignition \n\n")
                         ignition_stable = 1
                         break
                     # 0xAC = 172 - steady state with keeper on
                     if in_val == 172:
-                        print("\n\nthruster state is: steady state, and that KEEPER IS ON BABY!!\n\n")
+                        print("thruster state is: steady state, and that KEEPER IS ON BABY!!")
                         time.sleep(1)
-                        print("\n\nHouston, we have successful bolstered ignition")
+                        print("Houston, we have successful bolstered ignition \n\n")
                         ignition_stable = 1
                         break
-                    time.sleep(3)
+                    # 0xA = 10 - ready mode
+                    if in_val == 10:
+                        print("ignition timed out")
+                        time.sleep(1)
+                        ignition_stable = 0
+                        break
+                    time.sleep(2)
 
 
                 anode_ps += anode_pressure_step_size
