@@ -136,11 +136,174 @@ class ThrusterCommand:
             "15": {"name": "Print Stats", "func": self.print_conditoning_stats,
                    "args": {"index": 0x4001, "subindex": 0x0, "type": "<I", "default": "1"},
                    "help": "Reset Conditioning Stats."},
+            "16":  {"name": "Soft Starter Kit", "func": self.run_soft_start,
+                   "args": {"index": 0x4000, "subindex": 0x2, "type": "<I", "default": "1"},
+                   "help": "Attempt a soft start(TM)."},
         }
         self.trace_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # trace port
         self.hsi_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # hsi port
         self.help(None)
         self.connect_to_ecp()
+
+    def run_soft_start(self, args):
+        print("\n\nHello you talented and good looking operator ;)\n\n")  
+        time.sleep(1) 
+        print("\nThis is a script that will help you perform a soft start(TM) and enable the keeper when attempting a 'bolstered ignition'(TM pending).\n\n")
+        valid = False
+        index = 0
+        subindex = 0
+        limit_value = 0
+        while not valid:
+            print("Enter setpoint number to edit: (example: setpoint> 2 to edit setpoint 2)")
+            setpoint = input("setpoint> ")
+            if setpoint.lower() == "back":
+                return
+            if len(setpoint) > 0 and int(setpoint) > 0 and int(setpoint) <= 10:
+                valid = True
+                print("nice\n")
+                good = 0
+                index = 0x4002
+                subindex = 2
+                setpoint = int(setpoint)
+                setpoint_payload = bytearray(struct.pack("<I", setpoint))
+                print("setting setpoint: ... ", setpoint_payload)
+                print("\nwait for it...")
+                self.node.sdo.download(index, subindex, setpoint_payload)
+                time.sleep(1)
+                val = self.node.sdo.upload(index, subindex)
+                in_val = int.from_bytes(val, "little")        
+                if in_val == setpoint:
+                    print("\nsetpoint set successfully! setpoint written: ", setpoint, "setpoint read: ", in_val, "\n\n")
+                    good_1 = 1
+                else:
+                    print("setpoint set failed: setpoint written: ", setpoint, "setpoint read: ", in_val);
+            else:
+                print("\n!!!!!! invalid setpoint: ", setpoint) 
+                print("!!!!!! setpoint must be >0 and <= 10\n")
+
+        valid = False
+        while not valid:
+            print("enter anode pressure step size as a decimal to the tenths place (example: anode pressure step> 1.5 for 1.5 PSI step size): - or 'back' to return to main menu.")
+            anode_pressure_step = input("anode pressure step> ")
+            if anode_pressure_step.lower() == "back":
+                return
+            if len(anode_pressure_step) > 0 and float(anode_pressure_step) > 0.0 and float(anode_pressure_step) < 5.0:
+                valid = True
+                print("sick\n")
+                index = 0x4002
+                subindex = 4
+                anode_pressure_step = float(anode_pressure_step)
+                aps_payload = bytearray(struct.pack("<f", anode_pressure_step))
+                print("\n\nsetting anode pressure: ... ", aps_payload)
+                print("\nwait for it...")
+                self.node.sdo.download(index, subindex, aps_payload)
+                time.sleep(1)
+                val = self.node.sdo.upload(index, subindex)
+                in_val = struct.unpack('<f', val)      
+                if round(in_val[0], 1) == anode_pressure_step:
+                    print("anode pressure set successfully! pressure written: ", anode_pressure_step, "pressure read: ", in_val[0])
+                    good_2 = 1
+                else:
+                    print("anode pressure set failed: anode pressure written: ", anode_pressure_step, "anode pressure read: ", in_val[0]);
+            else:
+                print("\n!!!!!! invalid pressure step: ", anode_pressure_step) 
+                print("!!!!!! pressure step must be >0.0 and <= 5.0\n")
+       
+
+        valid = False
+        while not valid:
+            print("\n\nWould you like to bolster your ignition today?")
+            bolstered_ignition = input("turn keeper on at ignition? 'y' or 'n'> ")
+            if bolstered_ignition.lower() == "back":
+                return
+            if bolstered_ignition.lower() == "y" or bolstered_ignition.lower() == "n":
+                valid = True
+                print("good choice\n")
+            else:
+                print("\n I said 'y' or 'n' you goose\n") 
+        
+        print("+++ One order of soft start to setpoint ", setpoint, " with an anode pressure step size = ", anode_pressure_step, " and a bolstered ignition ('", bolstered_ignition, "') coming right up... +++\n")
+
+        valid = False
+        if good_1 == 1 and good_2 == 1:
+            while not valid:
+                print("\n\nsay when...")
+                print("enter 'y' to attempt the softstart - or 'back' to return to main menu.")
+                go = input("punch it? > ")
+                if go.lower() == "back":
+                    return
+                if go.lower() == "y":
+                    valid = True
+                else:
+                    print("I said 'y' or 'back' you goose")
+
+        else:
+            print("\n!!!!!!! something went wrong, see the above error messages or contact Ben: 720 243 1744 !!!!!!")
+            
+
+        if valid:
+            print("\nIn the words of the great Rick Moranis...\n")
+            time.sleep(1)
+            print("LUDICROUS SPEED!!\n\n\n") 
+            time.sleep(1)
+            print("GO!!!!!\n")
+            self.soft_start_go(setpoint, anode_pressure_step, bolstered_ignition)
+
+    def soft_start_go(self, setpoint, anode_pressure_step_size, bolstered_ignition):
+            print("sofstart go") 
+            anode_ps = anode_pressure_step_size
+            ignition_stable = 0
+            while(anode_ps < 14.0 and not ignition_stable):
+                print("anode pressure = ", anode_ps)
+
+                #attempt ignition
+                #check state for 25 seconds
+                #ignition_stable?
+                #    yes: bolstering ignition?
+                #           yes: edit sequence to turn keeper current to 0.5A
+                #           no:  edit sequence to turn keeper off 
+                #    no: take it to the top 
+
+                index = 0x4000
+                subindex = 2
+                cmd=1 # does nothing
+                cmd_payload = bytearray(struct.pack("<I", cmd))
+                print(cmd_payload)
+                self.node.sdo.download(index, subindex, cmd_payload)
+                time.sleep(1)
+                for i in range(0, 10):
+                    index = 0x4000 
+                    subindex = 5 
+                    print("\n\nchecking thruster state...")
+                    val = self.node.sdo.upload(index, subindex)
+                    in_val = int.from_bytes(val, "little") 
+                    print("in_val = ", in_val)
+                    # 0xB = 11 = transitioning to steady state
+                    if in_val == 11:
+                        print("\n\nthruster state is: transitioning to steady state...\n\n")
+                    # 0xC = 12 = steady state
+                    if in_val == 12:
+                        print("\n\nthruster state is: steady state\n\n")
+                        time.sleep(1)
+                        print("\n\nHouston, we have successful ignition")
+                        ignition_stable = 1
+                        break
+                    # 0xAC = 172 - steady state with keeper on
+                    if in_val == 172:
+                        print("\n\nthruster state is: steady state, and that KEEPER IS ON BABY!!\n\n")
+                        time.sleep(1)
+                        print("\n\nHouston, we have successful bolstered ignition")
+                        ignition_stable = 1
+                        break
+                    time.sleep(3)
+
+
+                anode_ps += anode_pressure_step_size
+                time.sleep(1)
+            if not ignition_stable:
+                print("\n\nLooks like that didn't work, you may need to refine your search to a smaller anode pressure step size")
+                print("\n\nDon't Give Up! Lighting a thruster is a bit about probabilities, but I won't tell you the odds you swashbuckling space pirate\n\n")
+
 
     def print_conditoning_stats(self, args):
         """
@@ -724,7 +887,6 @@ class ThrusterCommand:
         """
         help, reads the predefined cmds and prints them in a table.
         """
-        self.mr_logger.log(LogType.SYS, "============= ExoTerra Thruster Command Help Menu =============")
         for v in self.hsi_cmds:
             x = self.hsi_cmds.get(v)
             self.mr_logger.log(LogType.SYS, f"{v} - {x.get('name')} : [{x.get('help')}]")
