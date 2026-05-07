@@ -144,6 +144,7 @@ class ThrusterCommand:
         self.hsi_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # hsi port
         self.help(None)
         self.connect_to_ecp()
+        self.abort_ignition = False
 
     def run_soft_start(self, args):
         print("\n\nHello you talented and good looking operator ;)\n\n")  
@@ -154,6 +155,7 @@ class ThrusterCommand:
         subindex = 0
         limit_value = 0
         sleep_time = 1
+        self.abort_ignition = False
         while not valid:
             print("Enable Lightning mode? (faster prompting and updates)")
             print("+++ It is recommened to disable lightning mode on first use +++")
@@ -180,7 +182,6 @@ class ThrusterCommand:
                 return
             if len(setpoint) > 0 and int(setpoint) > 0 and int(setpoint) <= 10:
                 valid = True
-                print("nice\n")
                 good = 0
                 index = 0x4002
                 subindex = 2
@@ -194,6 +195,7 @@ class ThrusterCommand:
                 in_val = int.from_bytes(val, "little")        
                 if in_val == setpoint:
                     print("\nsetpoint set successfully! setpoint written: ", setpoint, "setpoint read: ", in_val, "\n\n")
+                    print("nice\n")
                     good_1 = 1
                 else:
                     print("setpoint set failed: setpoint written: ", setpoint, "setpoint read: ", in_val);
@@ -209,7 +211,6 @@ class ThrusterCommand:
                 return
             if len(anode_pressure_step) > 0 and float(anode_pressure_step) > 0.0 and float(anode_pressure_step) < 5.0:
                 valid = True
-                print("sick\n")
                 index = 0x4002
                 subindex = 4
                 anode_pressure_step = float(anode_pressure_step)
@@ -222,6 +223,7 @@ class ThrusterCommand:
                 in_val = struct.unpack('<f', val)      
                 if round(in_val[0], 1) == anode_pressure_step:
                     print("anode pressure set successfully! pressure written: ", anode_pressure_step, "pressure read: ", in_val[0])
+                    print("sick\n")
                     good_2 = 1
                 else:
                     print("anode pressure set failed: anode pressure written: ", anode_pressure_step, "anode pressure read: ", in_val[0]);
@@ -265,16 +267,25 @@ class ThrusterCommand:
             time.sleep(sleep_time)
             print("\nIn the words of the great Rick Moranis...\n")
             time.sleep(sleep_time)
-            print("LUDICROUS SPEED!!\n\n\n") 
+            print("\n\nLUDICROUS SPEED!!\n\n\n") 
             time.sleep(sleep_time)
-            print("GO!!!!!\n")
-            time.sleep(sleep_time)
+            print("GO!!!!!\n\n")
+            time.sleep(sleep_time + 1)
             self.soft_start_go(setpoint, anode_pressure_step, bolstered_ignition)
+
+    
+    def abort_thread(self):
+        inpt = input("\n\n\n +++ You can abort the ignition at any time by entering any key stroke +++ \n\n\n")
+
+        if inpt or inpt == '':
+            self.abort_ignition = True
 
     def soft_start_go(self, setpoint, anode_pressure_step_size, bolstered_ignition):
             print("sofstart go") 
             anode_ps = anode_pressure_step_size
             ignition_stable = 0
+            abort_thread = Thread(target=self.abort_thread)
+            abort_thread.start()
 
             if bolstered_ignition.lower() == "y" or bolstered_ignition.lower() == "n":
                 print("bolstering ignition initializing...")
@@ -346,7 +357,7 @@ class ThrusterCommand:
                     
                     time.sleep(1)
                     print("\n\n ... Bolstering ignition disabled ... \n\n")
-            while(anode_ps < 14.0 and not ignition_stable):
+            while(anode_ps < 14.0 and not ignition_stable and not self.abort_ignition):
                 print("anode pressure = ", anode_ps)
 
                 #attempt ignition
@@ -383,7 +394,7 @@ class ThrusterCommand:
                 subindex = 5
                 val = self.node.sdo.upload(index, subindex)
                 in_val = int.from_bytes(val, "little")
-                while in_val == 11:
+                while in_val == 11 and self.abort_ignition == False:
                     index = 0x4000 
                     subindex = 5 
                     val = self.node.sdo.upload(index, subindex)
@@ -418,9 +429,10 @@ class ThrusterCommand:
                 time.sleep(1)
             if not ignition_stable:
                 print("\n\nLooks like that didn't work, you may need to refine your search to a smaller anode pressure step size")
+            if not ignition_stable or self.abort_ignition == True:
                 print("\n\nDon't Give Up! Lighting a thruster is a bit about probabilities, but I won't tell you the odds you swashbuckling space pirate\n\n")
 
-
+            
     def print_conditoning_stats(self, args):
         """
         print_conditoning_stats, 
