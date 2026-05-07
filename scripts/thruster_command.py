@@ -221,9 +221,9 @@ class ThrusterCommand:
                 time.sleep(sleep_time)
                 val = self.node.sdo.upload(index, subindex)
                 in_val = struct.unpack('<f', val)      
-                if round(in_val[0], 1) == anode_pressure_step:
+                if round(in_val[0], 1) == round(anode_pressure_step, 1):
                     print("anode pressure set successfully! pressure written: ", anode_pressure_step, "pressure read: ", in_val[0])
-                    print("sick\n")
+                    print("\n\nsick dude\n")
                     good_2 = 1
                 else:
                     print("anode pressure set failed: anode pressure written: ", anode_pressure_step, "anode pressure read: ", in_val[0]);
@@ -377,7 +377,7 @@ class ThrusterCommand:
                 time.sleep(1)
                 val = self.node.sdo.upload(index, subindex)
                 in_val = struct.unpack('<f', val)      
-                if round(in_val[0], 1) == anode_ps:
+                if round(in_val[0], 1) == round(anode_ps, 1):
                     print("anode pressure set successfully! pressure written: ", anode_ps, "pressure read: ", in_val[0], "\n\n")
                 else:
                     print("anode pressure set failed: anode pressure written: ", anode_ps, "anode pressure read: ", in_val[0], "\n\n");
