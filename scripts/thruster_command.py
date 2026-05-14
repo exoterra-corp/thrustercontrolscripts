@@ -150,6 +150,7 @@ class ThrusterCommand:
         print("\n\nHello you talented and good looking operator ;)\n\n")  
         time.sleep(1) 
         print("\nThis is a script that will help you perform a soft start(TM) and enable the keeper when attempting a 'bolstered ignition'(TM pending).\n\n")
+        print("\n\n!!!!!! YOU MUST BE IN READY MODE TO RUN THIS SCRIPT !!!!!!\n\n")
         valid = False
         index = 0
         subindex = 0
@@ -157,19 +158,19 @@ class ThrusterCommand:
         sleep_time = 1
         self.abort_ignition = False
         while not valid:
-            print("Enable Lightning mode? (faster prompting and updates)")
-            print("+++ It is recommened to disable lightning mode on first use +++")
-            lightning_mode = input("y/n> ")
+            print("Disable Lightning mode? (faster prompting and updates)")
+            print("+++ It is recommened to Disable lightning mode on first use +++")
+            lightning_mode = input("y/n/back> ")
             if lightning_mode.lower() == "back":
                 return
             if lightning_mode.lower() == "y":
-                sleep_time = 0
+                sleep_time = 1
                 valid = True
             elif lightning_mode.lower() == "n":
                 valid = True
-                sleep_time = 1
+                sleep_time = 0
             else:
-                print("\n 'y' or 'n' you goose") 
+                print("\n 'y','n' or 'back' you goose") 
 
         valid = False
         index = 0
@@ -223,14 +224,50 @@ class ThrusterCommand:
                 in_val = struct.unpack('<f', val)      
                 if round(in_val[0], 1) == round(anode_pressure_step, 1):
                     print("anode pressure set successfully! pressure written: ", anode_pressure_step, "pressure read: ", in_val[0])
-                    print("\n\nsick dude\n")
+                    print("\nsick\n")
                     good_2 = 1
                 else:
                     print("anode pressure set failed: anode pressure written: ", anode_pressure_step, "anode pressure read: ", in_val[0]);
             else:
                 print("\n!!!!!! invalid pressure step: ", anode_pressure_step) 
                 print("!!!!!! pressure step must be >0.0 and <= 5.0\n")
-       
+
+            valid = False
+            index = 0
+            subindex = 0
+            limit_value = 0
+            while not valid:
+                print("\n\nIs your thruster oscillating in steady state and ruining everything yet?")
+                osc = input("y/n > ")
+                if osc.lower() == "back":
+                    return
+                if osc.lower() == "y":
+                    print("\nBummer, would you like to increase the upper power control band to setpoint_power + 30W? This seemed to help with the wiggles.")
+                    pb = input("y/n > ")
+                    if pb.lower() == "back":
+                        return
+                    if pb.lower() == "y":
+                        valid = True
+                        good = 0
+                        index = 0x5100
+                        subindex = 6
+                        pb_band = 30000 
+                        pb_payload = bytearray(struct.pack("<I", pb_band))
+                        print("\nOpening Power Band: ... ", pb_payload)
+                        print("\nWait for it...")
+                        self.node.sdo.download(index, subindex, pb_payload)
+                        time.sleep(sleep_time)
+                        val = self.node.sdo.upload(index, subindex)
+                        in_val = int.from_bytes(val, "little")        
+                        if in_val == pb_band:
+                            print("Power band opened successfully") 
+                        else:
+                            print("Power band failed to open.  Wrote: ", pb_band, ", Read: ", in_val)
+                            print("your thruster may still oscillate")
+                        valid = True
+                else:
+                    print("\nnice\n")
+                    valid = True
 
         valid = False
         while not valid:
@@ -246,6 +283,7 @@ class ThrusterCommand:
         time.sleep(sleep_time) 
         print("+++ One order of soft start to setpoint ", setpoint, " with an anode pressure step size = ", anode_pressure_step, " and a bolstered ignition ('", bolstered_ignition, "') coming right up... +++\n")
         time.sleep(sleep_time)
+
         valid = False
         if good_1 == 1 and good_2 == 1:
             while not valid:
