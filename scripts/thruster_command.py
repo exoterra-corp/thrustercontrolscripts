@@ -139,12 +139,48 @@ class ThrusterCommand:
             "16":  {"name": "Soft Starter Kit", "func": self.run_soft_start,
                    "args": {"index": 0x4000, "subindex": 0x2, "type": "<I", "default": "1"},
                    "help": "Attempt a soft start(TM)."},
+            "17": {"name": "Run Auto Start", "func": self.get_write_value,
+                   "args": {"index": self.th_command_index, "subindex": "AutoStart", "type": "<I"},
+                   "help": "Writes a UINT-32 to the Thruster Auto Start."},
+            "18": {"name": "Classic/Soft Start Select ", "func": self.classic_start_enable,
+                   "args": {"index": self.th_command_index, "subindex": "AutoStart", "type": "<I"},
+                   "help": "Writes a UINT-32 to the Thruster Auto Start."}       
         }
         self.trace_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # trace port
         self.hsi_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # hsi port
         self.help(None)
         self.connect_to_ecp()
         self.abort_ignition = False
+
+    def classic_start_enable(self, args):
+        psi = 0
+        index = 0x4002
+        subindex = 0x10
+        val = self.node.sdo.upload(index, subindex)
+        in_val = int.from_bytes(val, "little")
+        print("\n\n+++ Which ignition method would you like to use? +++");
+        print("currently configured: ",  "Classic Start" if  in_val == 0 else "Soft Start")
+        select = input("1 = Soft Start    2 = Classic Start>" )
+        if select == "1":
+            psi = input("Enter soft start increment in PSI: ")
+        psi = int(float(psi) * 1000)
+
+        msg = "Enable Classic Start"
+        if psi != 0:
+            msg = "Enable Soft Start with increment: " 
+        setpoint = psi   
+        setpoint_payload = bytearray(struct.pack("<I", setpoint))
+        print(msg, setpoint, "(mpsi)")
+        print("\njust a moment...")
+        self.node.sdo.download(index, subindex, setpoint_payload)
+        val = self.node.sdo.upload(index, subindex)
+        in_val = int.from_bytes(val, "little")        
+        if in_val == setpoint:
+            print("\nIgnition Method Enabled! written: ", setpoint, " read: ", in_val, "\n\n")
+            print("\n")
+            good_1 = 1
+        else:
+            print("\nIgnition method Enable Failed!: written: ", setpoint, " read: ", in_val, "\n\n");
 
     def run_soft_start(self, args):
         print("\n\nHello you talented and good looking operator ;)\n\n")  
@@ -440,18 +476,44 @@ class ThrusterCommand:
         index = args.get("index")
         subindex = args.get("subindex")
 
+             
         count = self.read(index, subindex, "<B", True)
         step = self.read(index, 0x1, "<I", True)
         step_status = self.read(index, 0x2, "<I", True)
         self.mr_logger.log(LogType.SYS, count)
         r = int(count/3)
         for v in range(0, r-1):
-            seq_stat_cond = self.read(index, 0x3 + (v*3), "<I", True)
-            elapsed_ms = self.read(index, 0x4 + (v*3), "<I", True)
-            monitor_err = self.read(index, 0x5 + (v*3), "<I", True)
+            seq_stat_cond = self.read(index, 0x2 + (v*3), "<I", True)
+            elapsed_ms = self.read(index, 0x3 + (v*3), "<I", True)
+            monitor_err = self.read(index, 0x4 + (v*3), "<I", True)
             seq_stat_cond = '0x' + hex(seq_stat_cond)[2:].zfill(8)
             monitor_err = '0x' + hex(monitor_err)[2:].zfill(8)
             self.mr_logger.log(LogType.SYS, f"[{v}] seq_stat_cond-{seq_stat_cond}, elapsed_ms-{elapsed_ms}, monitor_err-{monitor_err}")
+
+        print("Erase Conditioning Stats?")
+        erase = input("y/n> ")
+        if erase == "y":
+            print("Are you sure?..")
+            erase = input("y/n> ")       
+        if erase == "y":
+            val = struct.pack("<I", 0x63637772)
+            #Write to conditioning clear CANopen object (0x5401, 1)
+            self.node.sdo.download(0x5401, 1,
+                                       bytearray(val))
+            print("Erasing Conditioning Stats...")
+
+            count = self.read(index, subindex, "<B", True)
+            step = self.read(index, 0x1, "<I", True)
+            step_status = self.read(index, 0x2, "<I", True)
+            self.mr_logger.log(LogType.SYS, count)
+            r = int(count/3)
+            for v in range(0, r-1):
+                seq_stat_cond = self.read(index, 0x2 + (v*3), "<I", True)
+                elapsed_ms = self.read(index, 0x3 + (v*3), "<I", True)
+                monitor_err = self.read(index, 0x4 + (v*3), "<I", True)
+                seq_stat_cond = '0x' + hex(seq_stat_cond)[2:].zfill(8)
+                monitor_err = '0x' + hex(monitor_err)[2:].zfill(8)
+                self.mr_logger.log(LogType.SYS, f"[{v}] seq_stat_cond-{seq_stat_cond}, elapsed_ms-{elapsed_ms}, monitor_err-{monitor_err}")
 
     def connect_to_ecp(self):
         """
@@ -889,9 +951,16 @@ class ThrusterCommand:
                     inp = input("write> ")
                     if inp.lower() == "back" or inp.lower() == "x":
                         return
+                    print("\n\n!!!!!!!! timeout = 0 for Conditioning and Throttling !!!!!!!\n\n")
+                    timeout = input("timeout? ( 0 for no, or timeout in seconds (max 65535)):")
+                    if timeout.lower() == "back" or timeout.lower() == "x":
+                        return
+                    # python "shift" of 16 bits
+                    inp = str(int(inp) + (int(timeout)<<16))                     
                     if len(inp) > 0:
                         self.write(index, subindex, inp, python_type, hex_en)
                         valid = True
+
 
     def write(self, index, subindex, val, python_type, hex_en=True):
         """
