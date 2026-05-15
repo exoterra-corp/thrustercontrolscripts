@@ -498,7 +498,7 @@ class ThrusterCommand:
         if erase == "y":
             val = struct.pack("<I", 0x63637772)
             #Write to conditioning clear CANopen object (0x5401, 1)
-            self.node.sdo.download(0x5401, 1,
+            self.node.sdo.download(0x4000, 8,
                                        bytearray(val))
             print("Erasing Conditioning Stats...")
 
