@@ -951,12 +951,15 @@ class ThrusterCommand:
                     inp = input("write> ")
                     if inp.lower() == "back" or inp.lower() == "x":
                         return
-                    print("\n\n!!!!!!!! timeout = 0 for Conditioning and Throttling !!!!!!!\n\n")
-                    timeout = input("timeout? ( 0 for no, or timeout in seconds (max 65535)):")
-                    if timeout.lower() == "back" or timeout.lower() == "x":
-                        return
-                    # python "shift" of 16 bits
-                    inp = str(int(inp) + (int(timeout)<<16))                     
+                    # filter for steady state (2) or auto start (9) commands.  If it is either of these commands, they need a duration time
+                    if index == 0x4000 and subindex == 2 or subindex == 9:
+                        print("\n\n!!!!!!!! ONLY APPLICABLE FOR STEADY STATE BURNS. Enter timeout = 0 for Conditioning, Throttling and BITs !!!!!!!\n\n")
+                        print("set a burn duration timeout? ( 0 for no, or timeout in seconds (max 65535)):")
+                        timeout = input("timeout in seconds>")
+                        if timeout.lower() == "back" or timeout.lower() == "x":
+                            return
+                        # python "shift" of 16 bits
+                        inp = str(int(inp) + (int(timeout)<<16))                     
                     if len(inp) > 0:
                         self.write(index, subindex, inp, python_type, hex_en)
                         valid = True
