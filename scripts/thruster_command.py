@@ -97,6 +97,9 @@ class ThrusterCommand:
         self.hsi_cmds = {
             "0": {"name": "Exit", "func": self.exit, "help": "Exits the Program"},
             "1": {"name": "Help", "func": self.help, "help": "Displays the help Menu"},
+            "2a":{"name": "NMT STATE STOPPED", "func": self.change_nmt_state,
+                  "args": {"nmt_state": "STOP"},
+                  "help": "Changes NMT STATE to STOP."},
             "2": {"name": "NMT STATE INIT", "func": self.change_nmt_state,
                   "args": {"nmt_state": "INIT"},
                   "help": "Changes NMT STATE to INIT."},
@@ -538,7 +541,7 @@ class ThrusterCommand:
             if self.serial_port != "can":
                 self.raw_q = self.node.network.bus.get_int_q()
                 self.mr_logger.set_raw_queue(self.raw_q)
-            self.node.sdo.RESPONSE_TIMEOUT = 2
+            self.node.sdo.RESPONSE_TIMEOUT = 5 
             self.node.emcy.add_callback(self.handle_emcy)
             self.network.subscribe(0x722, self.notify_bootup)
 
@@ -953,7 +956,6 @@ class ThrusterCommand:
                         return
                     # filter for steady state (2) or auto start (9) commands.  If it is either of these commands, they need a duration time
                     if index == 0x4000 and subindex == 2 or subindex == 9:
-                        print("\n\n!!!!!!!! ONLY APPLICABLE FOR STEADY STATE BURNS. Enter timeout = 0 for Conditioning, Throttling and BITs !!!!!!!\n\n")
                         print("set a burn duration timeout? ( 0 for no, or timeout in seconds (max 65535)):")
                         timeout = input("timeout in seconds>")
                         if timeout.lower() == "back" or timeout.lower() == "x":
