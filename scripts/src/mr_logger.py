@@ -18,7 +18,8 @@ from time import sleep
 from traceback import extract_tb
 from struct import unpack
 from enum import Enum
-import time, datetime, struct
+from src.hsi_defines import HSIDefines
+import time, datetime, struct, csv
 
 class LogType(Enum):
     """
@@ -55,7 +56,10 @@ class MrLogger:
             self.log_dir = root_dir + f"/{log_name}_{time_string}"
         self.create_folder(self.log_dir)
         self.hsi_log = open(self.log_dir + f"/{time_string}_{log_name}_hsi_log.bin", "wb+")
-        self.hsi_log.write(HSI_HEADER)
+        self.hsi_csv = open(self.log_dir + f"/{time_string}_{log_name}_hsi_log.csv", "w+", newline="")
+        self.hsi_def = HSIDefines()
+        self.hsi_csv_w = csv.DictWriter(self.hsi_csv, fieldnames=["timestamp"]+[x.get("name") for x in self.hsi_def.block_hsi])
+        self.hsi_csv_w.writeheader()
         self.trace_log = open(self.log_dir + f"/{time_string}_{log_name}_trace_log.txt", "w+")
         self.raw_log = open(self.log_dir + f"/{time_string}_{log_name}_raw_serial_log.txt", "w+")
         self.sys_log = open(self.log_dir + f"/{time_string}_{log_name}_sys_log.txt", "w+")
@@ -119,6 +123,19 @@ class MrLogger:
                         ts = m.get("timestamp")
                         str_time = datetime.datetime.fromtimestamp(ts) #convert time
                         if type == LogType.HSI.value:
+                            # parse the HSI data and write to a csv
+                            csv_row = {}
+                            raw_vals = struct.unpack_from("<IIIHHHHHHHIHHHHHHHHHHHHHHHHHHHHHHiIHHHHHHHHHHHHHHIII",msg)
+                            for i, value in enumerate(self.hsi_def.block_hsi):
+                                name = value.get("name")
+                                hex_en = value.get("hex")
+                                parsed_val = raw_vals[i]
+                                if hex_en:
+                                    parsed_val = hex(parsed_val)
+                                csv_row[name] = parsed_val
+                            csv_row["timestamp"] = str_time
+                            self.hsi_csv_w.writerow(csv_row)
+                            # write the binary log too (for backward compatibility)
                             #split up the timing string
                             ts_split = str(ts).split(".")
                             date_packed = struct.pack("<I", int(ts_split[0]))
@@ -209,5 +226,6 @@ class MrLogger:
             self.sock.sendto(bytes(" ", "ascii"), (self.raw_udp_ip, self.raw_udp_port))  # send a packet to get out of waiting
             self.network_handle_thread.join()
         self.hsi_log.close()
+        self.hsi_csv.close()
         self.trace_log.close()
         self.raw_log.close()
