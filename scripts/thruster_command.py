@@ -588,7 +588,7 @@ class ThrusterCommand:
                     cur_state = "Bootup - Init"
                 self.nmt_state_str = cur_state
                 self.read_serial_number()
-                self.mr_logger.log(LogType.SYS, "System Controller Connected!")
+            self.mr_logger.log(LogType.SYS, "System Controller Connected!")
         except KeyboardInterrupt:
             exit(0)
         except Exception as a:
@@ -883,29 +883,16 @@ class ThrusterCommand:
     
     def read_serial_number(self):
         """
-            Reads the 128bit serial number from the NodeID index 
+            Reads the 32bit serial number from the NodeID index 
             and returns the hex number.  Returns None on failure.
         """
         try:
-            index = 0x5022
-            if index is not None:
-                ser = bytearray()
-                ser0 = self.read(index,2,"noparse")
-                ser1 = self.read(index,3,"noparse")
-                ser2 = self.read(index,4,"noparse")
-                ser3 = self.read(index,5,"noparse")
-                ser.extend(ser0)
-                ser.extend(ser1)
-                ser.extend(ser2)
-                ser.extend(ser3)
-                if len(ser) == 16:
-                    vals = struct.unpack_from("<IIII", ser)
-                    serial_num = (vals[0] << 96) | (vals[1] << 64) | (vals[2] << 32) | vals[3]
-                    hex_result = hex(serial_num) 
-                    self.mr_logger.log(LogType.SYS, f"Unit Serial Number: {hex_result}")
-                    return hex_result
-                else:
-                    return None
+            ser_num = hex(self.read(0x5022, 0x2, "<I", False))
+            if ser_num is not None:
+                self.mr_logger.log(LogType.SYS, f"Serial Number: {ser_num}")
+                return ser_num
+            else:
+                return None
         except Exception as e:
                     self.mr_logger.log(LogType.SYS, "Failed to log Serial Number from the unit. f{e}")
 
@@ -1140,7 +1127,6 @@ if __name__ == "__main__":
                 break
     if args.debug:
         valid = True
-    if not valid:
         print("Serial Port Not Found")
         print("Available Serial Ports:")
         for p in ports:
