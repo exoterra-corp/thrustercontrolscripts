@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 import sys, canopen, argparse, time
 
-BOOTUP_TIMEOUT = 10
+BOOTUP_TIMEOUT = 20
 
 class UpdateFirmware():
     def __init__(self, serial_port, system_id, image_file):
