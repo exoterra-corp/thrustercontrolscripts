@@ -70,29 +70,29 @@ class ThrusterCommand:
         self.half_duplex = half_duplex
 
         #read default config variables
-        self.udp_enable = self.conf_man.get("DEFAULT", "UDP_ENABLE", bool)
-        self.status_console_print_delay = self.conf_man.get("DEFAULT", "STATUS_CONSOLE_PRINT_DELAY", int)
-        self.mode_status_subindex = self.conf_man.get("DEFAULT", "MODE_STATUS_SUBINDEX")
-        self.state_status_subindex = self.conf_man.get("DEFAULT", "STATE_STATUS_SUBINDEX")
-        self.thruster_status_subindex = self.conf_man.get("DEFAULT", "THRUSTER_STATUS_SUBINDEX")
-        self.condition_status_subindex = self.conf_man.get("DEFAULT", "CONDITION_STATUS_SUBINDEX")
-        self.thrust_point_subindex = self.conf_man.get("DEFAULT", "THRUST_POINT_SUBINDEX")
-        self.bit_status_subindex = self.conf_man.get("DEFAULT","BIT_STATUS_SUBINDEX")
+        self.udp_enable = True
+        self.status_console_print_delay = 1
+        self.mode_status_subindex = "ReadyMode"
+        self.state_status_subindex = "SteadyState"
+        self.thruster_status_subindex = "Status"
+        self.condition_status_subindex = "Condition"
+        self.thrust_point_subindex = "Thrust"
+        self.bit_status_subindex = "BIT"
 
         #read trace config variables
-        self.trace_udp_ip = self.conf_man.get("TRACE", "TRACE_UDP_IP")
-        self.trace_udp_port = self.conf_man.get("TRACE", "TRACE_UDP_PORT", int)
-        self.trace_sleep_time = self.conf_man.get("TRACE", "TRACE_SLEEP_TIME", int)
-        self.trace_msg_max_gather = self.conf_man.get("TRACE", "TRACE_MSG_MAX_GATHER", int)
+        self.trace_udp_ip = "127.0.0.1"
+        self.trace_udp_port = 4002
+        self.trace_sleep_time = 0
+        self.trace_msg_max_gather = 2
 
         #read hsi config variables
-        self.hsi_status_ip = self.conf_man.get("HSI", "HSI_STATUS_IP")
-        self.hsi_block_udp_port = self.conf_man.get("HSI", "HSI_BLOCK_UDP_PORT", int)
-        self.hsi_sleep_time = self.conf_man.get("HSI", "HSI_SLEEP_TIME", int)
+        self.hsi_status_ip = "127.0.0.1"
+        self.hsi_block_udp_port = 4001 
+        self.hsi_sleep_time = 0
 
         #read raw config variables
-        self.raw_udp_ip = self.conf_man.get("RAW", "RAW_UDP_IP")
-        self.raw_udp_port = self.conf_man.get("RAW", "RAW_UDP_PORT", int)
+        self.raw_udp_ip = "127.0.0.1"
+        self.raw_udp_port = 4000
 
         self.hsi_cmds = {
             "0": {"name": "Exit", "func": self.exit, "help": "Exits the Program"},

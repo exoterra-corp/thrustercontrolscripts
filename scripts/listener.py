@@ -1,12 +1,11 @@
 #!/usr/bin/python3
 import socket, argparse, datetime, struct, os, sys, threading, time
 try:
-    import wx
+   import wx
+   from src.HSIExcelWindow import HSIExcelWindow
 except ModuleNotFoundError as e:
-    print("wxpython is not installed, please install it before continuing.")
-    sys.exit(1)
+    print("wxpython is not installed, please install it if you want to use the gui.")
 from queue import Queue
-from src.HSIExcelWindow import HSIExcelWindow
 from src.hsi_defines import HSIDefines
 
 """
