@@ -297,11 +297,9 @@ class ThrusterCommand:
                     valid = True
                 else:
                     print("I said 'y' or 'back' you goose")
-
         else:
             print("\n!!!!!!! something went wrong, see the above error messages or contact Ben: 720 243 1744 !!!!!!")
             
-
         if valid:
             time.sleep(sleep_time)
             print("\nIn the words of the great Rick Moranis...\n")
@@ -587,7 +585,7 @@ class ThrusterCommand:
                 elif self.nmt_state == 0x1:
                     cur_state = "Bootup - Init"
                 self.nmt_state_str = cur_state
-                self.read_serial_number()
+                # self.read_serial_number()
                 self.mr_logger.log(LogType.SYS, "System Controller Connected!")
         except KeyboardInterrupt:
             exit(0)
@@ -907,7 +905,7 @@ class ThrusterCommand:
                 else:
                     return None
         except Exception as e:
-                    self.mr_logger.log(LogType.SYS, "Failed to log Serial Number from the unit. f{e}")
+                    self.mr_logger.log(LogType.SYS, f"Failed to log Serial Number from the unit. {e}")
 
     def start_threads(self):
         """
