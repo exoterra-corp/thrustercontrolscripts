@@ -5,13 +5,14 @@ BOOTUP_TIMEOUT = 20
 
 class UpdateFirmware():
     def __init__(self, serial_port, system_id, image_file):
-        self.bytes = bytearray()
+        self.update_image_bytes = bytearray()
         self.boot_msg_found = False
-        hexFileObject = open(image_file, 'rb')
-        data = hexFileObject.readlines()
-        for line in data:
-            self.bytes += bytearray(line)
 
+        #read the whole bin file in
+        with open(image_file, 'rb') as f:
+            self.update_image_bytes = f.read()
+
+        #create the can open network
         self.network = canopen.Network()
         if serial_port.lower() == "can":
             self.network.connect(bustype='pcan', channel='PCAN_USBBUS1', bitrate=1000000)  # 1MHZ
@@ -55,7 +56,7 @@ class UpdateFirmware():
         self.boot_msg_found = True
         print("PPU Booted Successfully.")
     def update_image_download(self):
-        self.node.sdo.download(0x5500, 1, self.bytes, force_segment=True)
+        self.node.sdo.download(0x5500, 1, self.update_image_bytes, force_segment=True)
 
     def update_image_verify(self):
         # placeholder data, currently doesn't matter what we send
@@ -78,15 +79,15 @@ if __name__ == "__main__":
     parser.add_argument('--v', action='store_true', help='Run just the verify and install option.')
     args = parser.parse_args()
     try:
-        args.system_id = int(args.system_id, 16)
+        args.system_id = int(args.system_id, 0)
     except ValueError:
         print(f"{args.system_id} is an invalid system id.")
         exit(1)
     
     try:
         updater = UpdateFirmware(args.serial_port, args.system_id, args.image_file)
-    except:
-        print("Failed to connect to communication device")
+    except Exception as e:
+        print(f"Failed to connect to communication device {e}")
         exit(1)
     
     try:
