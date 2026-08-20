@@ -12,7 +12,6 @@ echo 'Installing python packages.'
 virtualenv .venv #create virtualenv
 source .venv/bin/activate 
 python3 -m pip install -r requirements.txt 
-python3 -m pip install https://extras.wxpython.org/wxPython4/extras/linux/gtk3/ubuntu-22.04/wxPython-4.2.0-cp310-cp310-linux_x86_64.whl
 
 #add the current user to the dialout group
 echo 'Adding '$USER' to the dialout group.'

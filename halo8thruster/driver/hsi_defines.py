@@ -1,25 +1,6 @@
 from enum import Enum
 import struct
-class TCS(Enum): #Thruster Control State
-    """
-        Thruster Control State, enums of the various states of the PPU.
-    """
-    TCS_CO_INVALID              = 0x0
-    TCS_CO_INIT                 = 0x1
-    TCS_CO_PREOP                = 0x2
-    TCS_CO_OPERATIONAL          = 0x3
-    TCS_CO_STOP                 = 0x4
-    TCS_CO_MODE_NUM             = 0x5
-    TCS_POWER_OFF               = 0x6
-    TCS_TRANISTION_STANDBY      = 0x7
-    TCS_STANDBY                 = 0x8
-    TCS_TRANSITION_READY_MODE   = 0x9
-    TCS_READY_MODE              = 0xA
-    TCS_TRANSITION_STEADY_STATE = 0xB
-    TCS_STEADY_STATE            = 0xC
-    TCS_CONDITIONING            = 0xD
-    TCS_BIT_TEST                = 0xE
-    TCS_LOCKOUT                 = 0xF
+
 
 class HSIDefines:
     """

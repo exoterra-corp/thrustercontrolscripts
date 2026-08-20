@@ -1,0 +1,7 @@
+class NMT(Enum):
+    INIT = 0
+    STOPPED = 4
+    OPERATIONAL = 5
+    SLEEP = 80
+    STANDBY = 96
+    PRE_OPERATIONAL = 127

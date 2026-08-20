@@ -1,0 +1,183 @@
+from enum import Enum
+import struct, canopen
+from threading import Lock
+from halo8thruster.driver.nmt import NMT
+from halo8thruster.driver.mr_logger import MrLogger, LogType
+from halo8thruster.driver.od_defines import *
+
+class TCS(Enum): #Thruster Control State
+    """
+        Thruster Control State, enums of the various states of the PPU.
+    """
+    TCS_CO_INVALID              = 0x0
+    TCS_CO_INIT                 = 0x1
+    TCS_CO_PREOP                = 0x2
+    TCS_CO_OPERATIONAL          = 0x3
+    TCS_CO_STOP                 = 0x4
+    TCS_CO_MODE_NUM             = 0x5
+    TCS_POWER_OFF               = 0x6
+    TCS_TRANISTION_STANDBY      = 0x7
+    TCS_STANDBY                 = 0x8
+    TCS_TRANSITION_READY_MODE   = 0x9
+    TCS_READY_MODE              = 0xA
+    TCS_TRANSITION_STEADY_STATE = 0xB
+    TCS_STEADY_STATE            = 0xC
+    TCS_CONDITIONING            = 0xD
+    TCS_BIT_TEST                = 0xE
+    TCS_LOCKOUT                 = 0xF
+
+class Comms:
+    def __init__(
+        self,
+        serial_port: str,
+        system_id: int,
+        sdo_timeout: float = 5.0,
+        half_duplex: bool = False,
+    ) -> None:
+        self.network.connect(bustype="exoserial", channel=self.serial_port, baudrate=115200)
+        self.node = self.network.add_node(self.system_id)
+        self.network.add_node(self.node)
+        self.raw_q = self.node.network.bus.get_int_q()
+        self.mr_logger.set_raw_queue(self.raw_q)
+        self.node.sdo.RESPONSE_TIMEOUT = 5 
+        self.mr_logger = MrLogger(".","logs")
+        self.node.emcy.add_callback(self.subscribe_emcy)
+        self.network.subscribe(NMT_BOOTUP_COB_ID, self.subscribe_bootup)
+
+    def __enter__(self): return self
+
+    def __exit__(self, *exc): self.disconnect()
+
+    def subscribe_bootup(self, callback) -> None:
+        """Register NMT bootup callback on COB-ID 0x722."""
+        self.network.subscribe(0x722, callback)
+
+    def subscribe_emcy(self, callback) -> None:
+        self.mr_logger.log(LogType.SYS, f"EMCY MESSAGE: {callback}")
+
+    def disconnect(self) -> None:
+        if self.network:
+            self.network.disconnect()
+
+    def write(self, index, subindex, val, python_type, hex_en=True):
+        """
+        write, uses a index, subindex, and a type to ask for a hex value and then send this data over serial to the
+        Engine System Controller.
+        """
+        try:
+            self.write_mutex.acquire()
+            if self.nmt_state != NMT.STOPPED:  # check to see if stopped
+                if hex_en:
+                    int_val = int(val, 16)
+                else:
+                    int_val = int(val)
+                val = struct.pack(python_type, int_val)
+                self.node.sdo.download(index, subindex,
+                                       bytearray(val))
+                self.mr_logger.log(LogType.SYS, f"Wrote:{hex(index)}-{hex(subindex)}: 0x{val.hex()}")
+        except struct.error as e:
+            self.mr_logger.log(LogType.SYS, f"{e}")
+        except canopen.sdo.exceptions.SdoCommunicationError as comms_err:
+            self.mr_logger.log(LogType.SYS, f"Write Failed: {comms_err}")
+        except canopen.sdo.exceptions.SdoAbortedError as aborted_err:
+            self.mr_logger.log(LogType.SYS, f"Write Failed: {aborted_err}")
+        except Exception as e:
+            self.mr_logger.log(LogType.SYS, f"Write Failed: {e}")
+        finally:
+            self.write_mutex.release()
+
+    def query(self, args):
+        """
+        query, uses a index, subindex to read the field from the Engine System Controller and print it in hex.
+        """
+        index = args.get("index")
+        subindex = args.get("subindex")
+
+        in_val = self.read(index, subindex, "<I")
+        self.mr_logger.log(LogType.SYS, f"Query:{hex(index)}-{hex(subindex)}: {hex(in_val)}")
+
+    def read(self, index, subindex, python_type, show_failure=True):
+        if index != None and subindex != None:
+            try:
+                self.write_mutex.acquire()
+                if self.nmt_state != 0x4:  # check to see if stopped
+                    val = self.node.sdo.upload(index, subindex)
+                    in_val = val
+                    if python_type != "noparse":
+                        in_val = struct.unpack(python_type, val)[0]
+                    return in_val            
+            except canopen.sdo.exceptions.SdoCommunicationError as comms_err:
+                if show_failure:
+                    self.mr_logger.log(LogType.SYS, f"Query Failed {hex(index)}:{hex(subindex)}: {comms_err}")
+            except canopen.sdo.exceptions.SdoAbortedError as aborted_err:
+                if show_failure:
+                    self.mr_logger.log(LogType.SYS, f"Query Failed {hex(index)}:{hex(subindex)}: {aborted_err}")
+            except Exception as e:
+                if show_failure:
+                    self.mr_logger.log(LogType.SYS, f"Query Failed {hex(index)}:{hex(subindex)}: {e}")
+            finally:
+                self.write_mutex.release()
+        else:
+            self.mr_logger.log(LogType.SYS, f"Error with args to write function, check index - {index} and subindex - {subindex}")
+        return None
+
+    # def connect_to_ecp(self):
+    #     """
+    #     connect_to_ecp, sets up the serial interface with exoserial and adds the node to the network.
+    #     """
+    #     try:
+    #         self.network = canopen.Network()
+    #         if self.serial_port == "can":
+    #             self.network.connect(bustype='pcan', channel='PCAN_USBBUS1', bitrate=1000000)  # 1MHZ
+    #         else:
+
+
+    #         # activate half duplex mode if specified
+    #         if self.half_duplex:
+    #             try:
+    #                 self.network.bus.half_duplex_mode()
+    #             except AttributeError:
+    #                 self.mr_logger.log(LogType.SYS, "The installed version of python-can does not support half-duplex ExoSerialCan connections")
+
+    #         # check to see if device is connected
+    #         attempts = 0
+    #         while self.nmt_state is None and attempts < 3:
+    #             self.nmt_state = self.read(IDX_THRUSTER_CMD, SUB_THRUSTER_STATUS, "<I")
+    #             attempts += 1
+
+    #         # check to see if msg was recieved
+    #         if self.nmt_state is None:
+    #             self.mr_logger.log(LogType.SYS, "System Controller Failed to Connect.")
+    #             if self.half_duplex:
+    #                 # Failed connection is fatal in half-duplex mode
+    #                 self.mr_logger.log(LogType.SYS, "Exiting...")
+    #                 time.sleep(2)
+    #                 exit(1)
+    #             else:
+    #                 # Wait for bootup message if running full-duplex
+    #                 self.mr_logger.log(LogType.SYS, "Waiting for bootup message.")
+    #                 while not self.bootup_msg:
+    #                     time.sleep(0.01)
+    #                 self.mr_logger.log(LogType.SYS, "System Controller Connected!")
+
+    #         # read the state on bootup
+    #         self.get_status(IDX_THRUSTER_CMD)
+    #         cur_state = ""
+    #         if self.nmt_state is not None:
+    #             self.notify_updated_state(self.nmt_state)
+    #             if self.nmt_state == 0x2:  # preop state
+    #                 cur_state = "Pre Operational"
+    #                 self.start_threads()
+    #             elif self.nmt_state >= 0x7 or self.nmt_state == 0x3:
+    #                 cur_state = "Operational"
+    #                 self.start_threads()
+    #             elif self.nmt_state == 0x1:
+    #                 cur_state = "Bootup - Init"
+    #             self.nmt_state_str = cur_state
+    #             # self.read_serial_number()
+    #             self.mr_logger.log(LogType.SYS, "System Controller Connected!")
+    #     except KeyboardInterrupt:
+    #         exit(0)
+    #     except Exception as a:
+    #         None
+    #         # self.mr_logger.log(LogType.SYS, traceback.print_exc())

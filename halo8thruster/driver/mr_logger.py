@@ -16,7 +16,7 @@ from struct import unpack
 from enum import Enum
 import time, datetime, struct, json
 from csv import DictWriter
-from src.hsi_defines import HSIDefines
+from halo8thruster.driver.hsi_defines import HSIDefines
 
 class LogType(Enum):
     """
@@ -32,7 +32,7 @@ class MrLogger:
     """
     Mr Logger takes care of the logs directory along with recording raw,hsi,trace,and the sys log from thruster_command
     """
-    def __init__(self, root_dir, log_name):
+    def __init__(self, root_dir, log_name=""):
         """
         init, creates 2 threads for mr logger one for raw serial messages, the other for trace, hsi, and sys messages.
         It also creates a folder for each startup and under this folder 4 files are created to store each type of log message.

@@ -4,19 +4,15 @@ import serial
 from serial.tools import list_ports
 from threading import Thread, Lock
 from os.path import exists
-from src.mr_logger import MrLogger, LogType
-from src.hsi_defines import TCS, HSIDefines
-from src.comms import *
+from halo8thruster.driver.mr_logger import MrLogger, LogType
+from halo8thruster.driver.hsi_defines import TCS, HSIDefines
+from halo8thruster.driver.comms import *
 
 """
 ExoTerra Resource Thruster Command Script.
 description:
 Allows Communications (Queries and Writes) with the Engine System Controller - Thruster Command Sections over Serial.
-
-contact:
-jmitchell@exoterra.com
 """
-
 
 class ThrusterCommand:
     """
@@ -979,67 +975,6 @@ class ThrusterCommand:
                         valid = True
 
 
-    def write(self, index, subindex, val, python_type, hex_en=True):
-        """
-        write, uses a index, subindex, and a type to ask for a hex value and then send this data over serial to the
-        Engine System Controller.
-        """
-        try:
-            self.write_mutex.acquire()
-            if self.nmt_state != 0x4:  # check to see if stopped
-                if hex_en:
-                    int_val = int(val, 16)
-                else:
-                    int_val = int(val)
-                val = struct.pack(python_type, int_val)
-                self.node.sdo.download(index, subindex,
-                                       bytearray(val))
-                self.mr_logger.log(LogType.SYS, f"Wrote:{hex(index)}-{hex(subindex)}: 0x{val.hex()}")
-        except struct.error as e:
-            self.mr_logger.log(LogType.SYS, f"{e}")
-        except canopen.sdo.exceptions.SdoCommunicationError as comms_err:
-            self.mr_logger.log(LogType.SYS, f"Write Failed: {comms_err}")
-        except canopen.sdo.exceptions.SdoAbortedError as aborted_err:
-            self.mr_logger.log(LogType.SYS, f"Write Failed: {aborted_err}")
-        except Exception as e:
-            self.mr_logger.log(LogType.SYS, f"Write Failed: {e}")
-        finally:
-            self.write_mutex.release()
-
-    def query(self, args):
-        """
-        query, uses a index, subindex to read the field from the Engine System Controller and print it in hex.
-        """
-        index = args.get("index")
-        subindex = args.get("subindex")
-
-        in_val = self.read(index, subindex, "<I")
-        self.mr_logger.log(LogType.SYS, f"Query:{hex(index)}-{hex(subindex)}: {hex(in_val)}")
-
-    def read(self, index, subindex, python_type, show_failure=True):
-        if index != None and subindex != None:
-            try:
-                self.write_mutex.acquire()
-                if self.nmt_state != 0x4:  # check to see if stopped
-                    val = self.node.sdo.upload(index, subindex)
-                    in_val = val
-                    if python_type != "noparse":
-                        in_val = struct.unpack(python_type, val)[0]
-                    return in_val            
-            except canopen.sdo.exceptions.SdoCommunicationError as comms_err:
-                if show_failure:
-                    self.mr_logger.log(LogType.SYS, f"Query Failed {hex(index)}:{hex(subindex)}: {comms_err}")
-            except canopen.sdo.exceptions.SdoAbortedError as aborted_err:
-                if show_failure:
-                    self.mr_logger.log(LogType.SYS, f"Query Failed {hex(index)}:{hex(subindex)}: {aborted_err}")
-            except Exception as e:
-                if show_failure:
-                    self.mr_logger.log(LogType.SYS, f"Query Failed {hex(index)}:{hex(subindex)}: {e}")
-            finally:
-                self.write_mutex.release()
-        else:
-            self.mr_logger.log(LogType.SYS, f"Error with args to write function, check index - {index} and subindex - {subindex}")
-        return None
 
 
 if __name__ == "__main__":

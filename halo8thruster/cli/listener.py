@@ -1,8 +1,8 @@
 #!/usr/bin/python3
 import socket, argparse, datetime, struct, os, sys, threading, time
-from src.flask_hsi_window import FlaskHSIWindow
+from halo8thruster.driver.telem_window import FlaskHSIWindow
 from queue import Queue
-from src.hsi_defines import HSIDefines
+from halo8thruster.driver.hsi_defines import HSIDefines
 
 """
 ExoTerra Resource Listener Script.

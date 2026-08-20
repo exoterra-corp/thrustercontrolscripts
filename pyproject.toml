@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "halo8thruster"
+version = "3.1.0"
+description = "ExoTerra Halo 8 Thruster Control Package"
+authors = [{name = "Jeremy Mitchell", email = "jmitchell@exoterra.com"}]
+license = {file = "LICENSE"}
+requires-python = ">=3.10"
+dependencies = [
+    "canopen @ git+https://github.com/exoterra-corp/pycanopen.git",
+    "python-can @ git+https://github.com/exoterra-corp/python-can.git",
+    "pyserial==3.5",
+    "toml",
+    "pandas",
+    "crcengine==0.2.0",
+    "tabulate==0.9.0",
+    "loguru==0.7.3",
+    "setuptools<81",
+    "flask",
+]
+
+[project.scripts]
+thruster_command   = "halo8thruster.cli.thruster_command:main"
+listener           = "halo8thruster.cli.listener:main"
+update_firmware    = "halo8thruster.cli.update_firmware:main"
+calibration_editor = "halo8thruster.cli.calibration:main"
+versions           = "halo8thruster.cli.versions:main"
+error_handling     = "halo8thruster.cli.error_handling:main"
+compress_logs      = "halo8thruster.cli.compress_logs:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["halo8thruster*"]

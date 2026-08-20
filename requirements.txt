@@ -2,6 +2,7 @@
 git+https://github.com/exoterra-corp/pycanopen.git
 #python-can == 4.0.12
 git+https://github.com/exoterra-corp/python-can.git
+
 pyserial==3.5
 toml
 pandas

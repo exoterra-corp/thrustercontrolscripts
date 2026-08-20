@@ -32,10 +32,6 @@ Write-Host "Installing Python packages from requirements.txt..."
 python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 
-# wxPython ships as a wheel on PyPI for Windows — no extras URL needed
-Write-Host "Installing wxPython..."
-python -m pip install wxPython==4.2.5
-
 Write-Host ""
 Write-Host "Installation complete!"
 Write-Host ""
