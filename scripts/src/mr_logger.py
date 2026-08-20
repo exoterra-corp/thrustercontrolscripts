@@ -72,6 +72,9 @@ class MrLogger:
         self.network_handle_thread.start()
         self.hsi_def = HSIDefines()
         self.hsi_msg_cnt = 0
+        fieldnames = ["timestamp"] + list(self.hsi_def.hsi.keys())
+        self.hsi_csv_writer = DictWriter(self.hsi_log_csv, fieldnames=fieldnames)
+        self.hsi_csv_writer.writeheader()
 
     def set_raw_queue(self, q):
         """
@@ -125,25 +128,19 @@ class MrLogger:
                         str_time = datetime.datetime.fromtimestamp(ts) #convert time
                         if type == LogType.HSI.value:
                             if len(msg) == 122:
-                                parse_str = "<IIIHHHHHHHIHHHHHHHHHHHHHHHHHHHHHHiIHHHHHHHHHHHHHHIII"
+                                parse_str = self.hsi_def.get_parse_str()
                                 unpacked_values = struct.unpack_from(parse_str, msg)
                                 csv_row = {}
                                 csv_row["timestamp"] = str(str_time)
-                                for i, value in enumerate(self.hsi_def.block_hsi):
-                                    name = value.get("name")
-                                    hex_en = value.get("hex")
+                                for i, (name, value) in enumerate(self.hsi_def.hsi.items()):
                                     parsed_val = unpacked_values[i]
-                                    if hex_en:
+                                    if value.get("hex"):
                                         parsed_val = hex(parsed_val)
-                                    el = self.hsi_def.hsi.get(name)
-                                    if el is not None:
-                                        r = el.get("row")
-                                        c = el.get("col")
-                                        if r is not None and c is not None:
-                                            csv_row[name] = parsed_val
-
+                                    if value.get("row") is not None and value.get("col") is not None:
+                                        csv_row[name] = parsed_val
                                 #after parsing write the whole row
-                                # self.hsi_log_csv.write()
+                                self.hsi_csv_writer.writerow(csv_row)
+                                self.hsi_log_csv.flush()
                                 if self.hsi_msg_cnt != 0:#ignore the first comma so its valid json
                                     self.hsi_log_json.write(",")
                                 self.hsi_log_json.write(f'\"{str(self.hsi_msg_cnt)}\":{json.dumps(csv_row)}')
