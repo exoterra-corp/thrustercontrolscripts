@@ -19,6 +19,7 @@ from traceback import extract_tb
 from struct import unpack
 from enum import Enum
 import time, datetime, struct
+from src.hsi_defines import HSIDefines
 
 class LogType(Enum):
     """
@@ -54,8 +55,8 @@ class MrLogger:
         if len(log_name) > 0:  # create a custom test folder
             self.log_dir = root_dir + f"/{log_name}_{time_string}"
         self.create_folder(self.log_dir)
-        self.hsi_log = open(self.log_dir + f"/{time_string}_{log_name}_hsi_log.bin", "wb+")
-        self.hsi_log.write(HSI_HEADER)
+        self.hsi_log = open(self.log_dir + f"/{time_string}_{log_name}_hsi_log.csv", "w+")
+        # self.hsi_log.write(HSI_HEADER)
         self.trace_log = open(self.log_dir + f"/{time_string}_{log_name}_trace_log.txt", "w+")
         self.raw_log = open(self.log_dir + f"/{time_string}_{log_name}_raw_serial_log.txt", "w+")
         self.sys_log = open(self.log_dir + f"/{time_string}_{log_name}_sys_log.txt", "w+")
@@ -67,6 +68,7 @@ class MrLogger:
         #start threads
         self.handle_thread.start()
         self.network_handle_thread.start()
+        self.hsi_def = HSIDefines()
 
     def set_raw_queue(self, q):
         """
@@ -119,17 +121,27 @@ class MrLogger:
                         ts = m.get("timestamp")
                         str_time = datetime.datetime.fromtimestamp(ts) #convert time
                         if type == LogType.HSI.value:
-                            #split up the timing string
-                            ts_split = str(ts).split(".")
-                            date_packed = struct.pack("<I", int(ts_split[0]))
-                            ms_packed = struct.pack("<I", int(ts_split[1]))
-                            
-                            by = bytearray()
-                            by+=date_packed
-                            by+=ms_packed
-                            by+=msg
-                            self.hsi_log.write(by)
-
+                            if len(msg) == 122:
+                                parse_str = "<IIIHHHHHHHIHHHHHHHHHHHHHHHHHHHHHHiIHHHHHHHHHHHHHHIII"
+                                unpacked_values = struct.unpack_from(parse_str, msg)
+                                csv_row = {}
+                                for i, value in enumerate(self.hsi_def.block_hsi):
+                                    name = value.get("name")
+                                    hex_en = value.get("hex")
+                                    parsed_val = unpacked_values[i]
+                                    if hex_en:
+                                        parsed_val = hex(parsed_val)
+                                    el = self.hsi_def.hsi.get(name)
+                                    if el is not None:
+                                        r = el.get("row")
+                                        c = el.get("col")
+                                        if r is not None and c is not None:
+                                            csv_row[name] = parsed_val
+                                #after parsing write the whole row
+                                self.hsi_log.write(f"{str_time}:{csv_row}")
+                            else:
+                                #throwout the value, not sure if we should throw an error
+                                None
                         elif type == LogType.TRACE.value:
                             decoded_msg = f"{str_time}:{msg.decode('ascii')}\n"
                             self.trace_log.write(decoded_msg)
