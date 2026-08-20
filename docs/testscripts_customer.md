@@ -12,7 +12,7 @@ sudo ./install.sh
 ## Thruster Command (thruster_command.py)
 ### Example Usage
 ```
-python3 thruster_command.py /dev/ttyUSB0 0x22 ./obj.eds
+python3 thruster_command.py /dev/ttyUSB0 0x22
 ============= ExoTerra Thruster Command & Control =============
 Found ./conf/default.conf!
 Creating logs.
@@ -35,7 +35,6 @@ Ready Mode: 0x1020005: Steady State: 0x40005: ThrusterStatus:0x2 Condition Statu
 System Controller Connected!
 [rm:0x1020005:ss:0x40005:ts:0x2]>
 ```
-The obj.eds file is something that can be providied on request.  It is necessary to connect to the unit.
 
 ## System Controller Selectable Modes
 Mode               | Mode Description  
@@ -356,6 +355,39 @@ python3 parse_hsi.py <input_filename> <output_filename>
 ### Arguments
 - `input_filename`: Path to the binary HSI telemetry file
 - `output_filename`: Desired path for the output CSV file
+
+## Compress Logs Script (scripts/compress_logs.py)
+The compress_logs.py script compresses unarchived log session folders into zip archives for storage cleanup. Each test session writes a timestamped subfolder under `logs/`; this script walks that directory and compresses any folder that does not already have a corresponding `.zip` file. Existing archives are skipped so the script is safe to run repeatedly.
+
+### Usage
+```
+python3 scripts/compress_logs.py [logs_dir] [--dry-run] [--delete]
+```
+
+### Arguments
+- `logs_dir`: Path to the logs directory to scan (default: `./logs` relative to the project root)
+
+### Options
+- `--dry-run`: Preview which folders would be compressed without making any changes
+- `--delete`: Remove the original folder after it is successfully compressed
+
+### Example
+```
+# Preview what would be compressed
+python3 scripts/compress_logs.py --dry-run
+Scanning: /path/to/logs
+  compress te_2026_08_20_07_10_00 -> te_2026_08_20_07_10_00.zip (4 files)
+  ...
+Done: 19 compressed, 0 skipped.
+
+# Compress all folders and delete originals
+python3 scripts/compress_logs.py --delete
+```
+
+### Notes
+- Only top-level subfolders are compressed; loose files and existing `.zip` files in the logs directory are ignored
+- Archives use ZIP deflate compression at the maximum level (9)
+- Internal folder structure is preserved inside each archive
 
 ## Errors and Explanations
 

@@ -2,10 +2,6 @@
 ExoTerra Resource Mr Logger Library.
 description:
 Provides and interface to gather and log messages to files.
-
-contact:
-joshua.meyers@exoterracorp.com
-jeremy.mitchell@exoterracorp.com
 """
 
 from queue import Queue
@@ -18,7 +14,9 @@ from time import sleep
 from traceback import extract_tb
 from struct import unpack
 from enum import Enum
-import time, datetime, struct
+import time, datetime, struct, json
+from csv import DictWriter
+from src.hsi_defines import HSIDefines
 
 class LogType(Enum):
     """
@@ -34,7 +32,7 @@ class MrLogger:
     """
     Mr Logger takes care of the logs directory along with recording raw,hsi,trace,and the sys log from thruster_command
     """
-    def __init__(self, conf_man, root_dir, log_name):
+    def __init__(self, root_dir, log_name):
         """
         init, creates 2 threads for mr logger one for raw serial messages, the other for trace, hsi, and sys messages.
         It also creates a folder for each startup and under this folder 4 files are created to store each type of log message.
@@ -42,10 +40,9 @@ class MrLogger:
         HSI_HEADER = struct.pack("<I", 0xEE01)
         self.raw_q = Queue()
         self.q = Queue(10)
-        self.conf_man = conf_man
         #try to get the config vars
-        self.raw_udp_ip = self.conf_man.get("RAW", "RAW_UDP_IP")
-        self.raw_udp_port = self.conf_man.get("RAW", "RAW_UDP_PORT", type = int)
+        self.raw_udp_ip = "127.0.0.1"
+        self.raw_udp_port = 4000
         # create logging dir
         self.create_folder(root_dir)
         now = datetime.datetime.now()
@@ -54,8 +51,9 @@ class MrLogger:
         if len(log_name) > 0:  # create a custom test folder
             self.log_dir = root_dir + f"/{log_name}_{time_string}"
         self.create_folder(self.log_dir)
-        self.hsi_log = open(self.log_dir + f"/{time_string}_{log_name}_hsi_log.bin", "wb+")
-        self.hsi_log.write(HSI_HEADER)
+        self.hsi_log_csv = open(self.log_dir + f"/{time_string}_{log_name}_hsi_log.csv", "w+")
+        self.hsi_log_json = open(self.log_dir + f"/{time_string}_{log_name}_hsi_log.json", "w+")
+        self.hsi_log_json.write("{")
         self.trace_log = open(self.log_dir + f"/{time_string}_{log_name}_trace_log.txt", "w+")
         self.raw_log = open(self.log_dir + f"/{time_string}_{log_name}_raw_serial_log.txt", "w+")
         self.sys_log = open(self.log_dir + f"/{time_string}_{log_name}_sys_log.txt", "w+")
@@ -67,6 +65,11 @@ class MrLogger:
         #start threads
         self.handle_thread.start()
         self.network_handle_thread.start()
+        self.hsi_def = HSIDefines()
+        self.hsi_msg_cnt = 0
+        fieldnames = ["timestamp"] + list(self.hsi_def.hsi.keys())
+        self.hsi_csv_writer = DictWriter(self.hsi_log_csv, fieldnames=fieldnames)
+        self.hsi_csv_writer.writeheader()
 
     def set_raw_queue(self, q):
         """
@@ -119,17 +122,19 @@ class MrLogger:
                         ts = m.get("timestamp")
                         str_time = datetime.datetime.fromtimestamp(ts) #convert time
                         if type == LogType.HSI.value:
-                            #split up the timing string
-                            ts_split = str(ts).split(".")
-                            date_packed = struct.pack("<I", int(ts_split[0]))
-                            ms_packed = struct.pack("<I", int(ts_split[1]))
-                            
-                            by = bytearray()
-                            by+=date_packed
-                            by+=ms_packed
-                            by+=msg
-                            self.hsi_log.write(by)
-
+                            if len(msg) == 122:
+                                csv_row = self.hsi_def.parse_hsi_packet(msg)
+                                csv_row["timestamp"] = str(str_time)
+                                #after parsing write the whole row
+                                self.hsi_csv_writer.writerow(csv_row)
+                                self.hsi_log_csv.flush()
+                                if self.hsi_msg_cnt != 0:#ignore the first comma so its valid json
+                                    self.hsi_log_json.write(",")
+                                self.hsi_log_json.write(f'\"{str(self.hsi_msg_cnt)}\":{json.dumps(csv_row)}')
+                                self.hsi_msg_cnt+=1
+                            else:
+                                #throwout the value, not sure if we should throw an error
+                                None
                         elif type == LogType.TRACE.value:
                             decoded_msg = f"{str_time}:{msg.decode('ascii')}\n"
                             self.trace_log.write(decoded_msg)
@@ -208,6 +213,8 @@ class MrLogger:
         if self.network_handle_thread.is_alive():
             self.sock.sendto(bytes(" ", "ascii"), (self.raw_udp_ip, self.raw_udp_port))  # send a packet to get out of waiting
             self.network_handle_thread.join()
-        self.hsi_log.close()
+        self.hsi_log_csv.close()
+        self.hsi_log_json.write("}")
+        self.hsi_log_json.close()
         self.trace_log.close()
         self.raw_log.close()
