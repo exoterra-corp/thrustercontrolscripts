@@ -32,7 +32,9 @@ class Console():
                             self.mr_logger.log(LogType.SYS,f"{e}")
             except KeyboardInterrupt as e:
                 self.exit(None)
-
+            except EOFError:
+                self.exit(None)
+                
     def register_func(self, name, func, help):
         None
 

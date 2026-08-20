@@ -1,30 +1,10 @@
 from enum import Enum
 import struct, canopen
 from threading import Lock
-from halo8thruster.driver.nmt import NMT
 from halo8thruster.driver.mr_logger import MrLogger, LogType
 from halo8thruster.driver.od_defines import *
 
-class TCS(Enum): #Thruster Control State
-    """
-        Thruster Control State, enums of the various states of the PPU.
-    """
-    TCS_CO_INVALID              = 0x0
-    TCS_CO_INIT                 = 0x1
-    TCS_CO_PREOP                = 0x2
-    TCS_CO_OPERATIONAL          = 0x3
-    TCS_CO_STOP                 = 0x4
-    TCS_CO_MODE_NUM             = 0x5
-    TCS_POWER_OFF               = 0x6
-    TCS_TRANISTION_STANDBY      = 0x7
-    TCS_STANDBY                 = 0x8
-    TCS_TRANSITION_READY_MODE   = 0x9
-    TCS_READY_MODE              = 0xA
-    TCS_TRANSITION_STEADY_STATE = 0xB
-    TCS_STEADY_STATE            = 0xC
-    TCS_CONDITIONING            = 0xD
-    TCS_BIT_TEST                = 0xE
-    TCS_LOCKOUT                 = 0xF
+
 
 class Comms:
     def __init__(
@@ -34,12 +14,12 @@ class Comms:
         system_id: int = 0x22,
         sdo_timeout: float = 5.0,
         half_duplex: bool = False,
+        debug:bool = False
     ) -> None:
         self.mr_logger = mr_logger
         self.serial_port = serial_port
         self.system_id = system_id
         self.sdo_timeout = sdo_timeout
-
         self.network = canopen.Network()
         self.write_mutex = Lock()
         self.network.connect(bustype="exoserial", channel=self.serial_port, baudrate=115200)
@@ -47,9 +27,10 @@ class Comms:
         self.network.add_node(self.node)
         self.raw_q = self.node.network.bus.get_int_q()
         self.mr_logger.set_raw_queue(self.raw_q)
-        self.node.sdo.RESPONSE_TIMEOUT = 5 
+        self.node.sdo.RESPONSE_TIMEOUT = sdo_timeout
         self.node.emcy.add_callback(self.subscribe_emcy)
         self.network.subscribe(NMT_BOOTUP_COB_ID, self.subscribe_bootup)
+        self.debug = debug
 
     def __enter__(self): return self
 
@@ -73,14 +54,14 @@ class Comms:
         """
         try:
             self.write_mutex.acquire()
-            if self.nmt_state != NMT.STOPPED:  # check to see if stopped
-                if hex_en:
-                    int_val = int(val, 16)
-                else:
-                    int_val = int(val)
-                val = struct.pack(python_type, int_val)
-                self.node.sdo.download(index, subindex,
-                                       bytearray(val))
+            if hex_en:
+                int_val = int(val, 16)
+            else:
+                int_val = int(val)
+            val = struct.pack(python_type, int_val)
+            self.node.sdo.download(index, subindex,
+                                    bytearray(val))
+            if self.debug:
                 self.mr_logger.log(LogType.SYS, f"Wrote:{hex(index)}-{hex(subindex)}: 0x{val.hex()}")
         except struct.error as e:
             self.mr_logger.log(LogType.SYS, f"{e}")
@@ -128,7 +109,7 @@ class Comms:
             self.mr_logger.log(LogType.SYS, f"Error with args to write function, check index - {index} and subindex - {subindex}")
         return None
 
-    # def connect_to_ecp(self):
+
     #     """
     #     connect_to_ecp, sets up the serial interface with exoserial and adds the node to the network.
     #     """
@@ -149,7 +130,7 @@ class Comms:
     #         # check to see if device is connected
     #         attempts = 0
     #         while self.nmt_state is None and attempts < 3:
-    #             self.nmt_state = self.read(IDX_THRUSTER_CMD, SUB_THRUSTER_STATUS, "<I")
+    #             
     #             attempts += 1
 
     #         # check to see if msg was recieved
