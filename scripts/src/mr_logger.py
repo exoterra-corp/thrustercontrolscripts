@@ -18,7 +18,8 @@ from time import sleep
 from traceback import extract_tb
 from struct import unpack
 from enum import Enum
-import time, datetime, struct
+import time, datetime, struct, json
+from csv import DictWriter
 from src.hsi_defines import HSIDefines
 
 class LogType(Enum):
@@ -55,8 +56,9 @@ class MrLogger:
         if len(log_name) > 0:  # create a custom test folder
             self.log_dir = root_dir + f"/{log_name}_{time_string}"
         self.create_folder(self.log_dir)
-        self.hsi_log = open(self.log_dir + f"/{time_string}_{log_name}_hsi_log.csv", "w+")
-        # self.hsi_log.write(HSI_HEADER)
+        self.hsi_log_csv = open(self.log_dir + f"/{time_string}_{log_name}_hsi_log.csv", "w+")
+        self.hsi_log_json = open(self.log_dir + f"/{time_string}_{log_name}_hsi_log.json", "w+")
+        self.hsi_log_json.write("{")
         self.trace_log = open(self.log_dir + f"/{time_string}_{log_name}_trace_log.txt", "w+")
         self.raw_log = open(self.log_dir + f"/{time_string}_{log_name}_raw_serial_log.txt", "w+")
         self.sys_log = open(self.log_dir + f"/{time_string}_{log_name}_sys_log.txt", "w+")
@@ -69,6 +71,7 @@ class MrLogger:
         self.handle_thread.start()
         self.network_handle_thread.start()
         self.hsi_def = HSIDefines()
+        self.hsi_msg_cnt = 0
 
     def set_raw_queue(self, q):
         """
@@ -125,6 +128,7 @@ class MrLogger:
                                 parse_str = "<IIIHHHHHHHIHHHHHHHHHHHHHHHHHHHHHHiIHHHHHHHHHHHHHHIII"
                                 unpacked_values = struct.unpack_from(parse_str, msg)
                                 csv_row = {}
+                                csv_row["timestamp"] = str(str_time)
                                 for i, value in enumerate(self.hsi_def.block_hsi):
                                     name = value.get("name")
                                     hex_en = value.get("hex")
@@ -137,8 +141,13 @@ class MrLogger:
                                         c = el.get("col")
                                         if r is not None and c is not None:
                                             csv_row[name] = parsed_val
+
                                 #after parsing write the whole row
-                                self.hsi_log.write(f"{str_time}:{csv_row}")
+                                # self.hsi_log_csv.write()
+                                if self.hsi_msg_cnt != 0:#ignore the first comma so its valid json
+                                    self.hsi_log_json.write(",")
+                                self.hsi_log_json.write(f'\"{str(self.hsi_msg_cnt)}\":{json.dumps(csv_row)}')
+                                self.hsi_msg_cnt+=1
                             else:
                                 #throwout the value, not sure if we should throw an error
                                 None
@@ -220,6 +229,8 @@ class MrLogger:
         if self.network_handle_thread.is_alive():
             self.sock.sendto(bytes(" ", "ascii"), (self.raw_udp_ip, self.raw_udp_port))  # send a packet to get out of waiting
             self.network_handle_thread.join()
-        self.hsi_log.close()
+        self.hsi_log_csv.close()
+        self.hsi_log_json.write("}")
+        self.hsi_log_json.close()
         self.trace_log.close()
         self.raw_log.close()
