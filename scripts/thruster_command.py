@@ -5,8 +5,8 @@ from serial.tools import list_ports
 from threading import Thread, Lock
 from os.path import exists
 from src.mr_logger import MrLogger, LogType
-from src.config_manager import ConfigManager
 from src.hsi_defines import TCS, HSIDefines
+from src.comms import *
 
 """
 ExoTerra Resource Thruster Command Script.
@@ -16,53 +16,6 @@ Allows Communications (Queries and Writes) with the Engine System Controller - T
 contact:
 jmitchell@exoterra.com
 """
-
-# ---- CANopen object indexes ----
-IDX_THRUSTER_CMD   = 0x4000
-IDX_COND_STATS     = 0x4001
-IDX_SOFT_START     = 0x4002
-IDX_SEQ_ENGINE     = 0x4200
-IDX_HSI_BLOCK      = 0x3100
-IDX_FAULT_STATUS   = 0x2831
-IDX_TRACE_MSG      = 0x5001
-IDX_SERIAL_NUMBER  = 0x5022
-NMT_BOOTUP_COB_ID  = 0x722
-
-# ---- Thruster Command subindexes (IDX_THRUSTER_CMD) ----
-SUB_READY_MODE     = 0x1
-SUB_STEADY_STATE   = 0x2
-SUB_SHUTDOWN       = 0x3
-SUB_THRUST_POINT   = 0x4
-SUB_THRUSTER_STATUS = 0x5
-SUB_CONDITION      = 0x6
-SUB_BIT            = 0x7
-SUB_COND_CLEAR     = 0x8
-SUB_AUTO_START     = 0x9
-
-# ---- Soft-start / classic-start subindexes (IDX_SOFT_START) ----
-SUB_SS_SETPOINT    = 0x2
-SUB_SS_ANODE_PRES  = 0x4
-SUB_SS_START_SELECT = 0x10
-
-# ---- Sequence engine subindexes (IDX_SEQ_ENGINE) ----
-SUB_SEQ_SELECT     = 0x4
-SUB_SEQ_STEP       = 0x5
-SUB_SEQ_CMD        = 0x6
-SUB_SEQ_ARG        = 0x7
-
-# ---- HSI block subindex (IDX_HSI_BLOCK) ----
-SUB_HSI_BLOCK      = 0x1
-
-# ---- Trace message subindex (IDX_TRACE_MSG) ----
-SUB_TRACE_MSG      = 0x6
-
-# ---- Fault status base subindex (IDX_FAULT_STATUS); entries start at SUB_FAULT_BASE ----
-SUB_FAULT_BASE     = 0x2
-
-# ---- Special write values ----
-CMD_COND_CLEAR     = 0x63637772
-CMD_SEQ_KEEPER_ON  = 0x01020706  # adjust keeper current in sequence engine
-CMD_SEQ_KEEPER_OFF = 0x01040706  # turn keeper off in sequence engine
 
 
 class ThrusterCommand:
@@ -80,8 +33,7 @@ class ThrusterCommand:
         self.test_name = test_name
         self.raw_q = None
         #setup classes
-        self.conf_man = ConfigManager()
-        self.mr_logger = MrLogger(self.conf_man, "logs", test_name)
+        self.mr_logger = MrLogger("logs", test_name)
         self.hsi_defs = HSIDefines()
         #passed in params
         self.serial_port = ser_port
@@ -919,6 +871,73 @@ class ThrusterCommand:
             if self.telem_en:
               self.listen_thread.start()
 
+    def get_trace_msg(self):
+        """
+            get_trace_msg, gets a trace msg by first looking at the head and the tail to see if there is one to get.
+            if the head and the tail are == then there are no messages just return.
+        """
+        try:
+            for i in range(0, self.trace_msg_max_gather):
+                msg = self.node.sdo.upload(IDX_TRACE_MSG, SUB_TRACE_MSG)
+                if msg is not None:
+                    self.mr_logger.log(LogType.TRACE, msg)
+                    self.send_udp_packet(msg, self.trace_udp_ip, self.trace_udp_port)
+        except Exception as e:
+            # ran out of msgs to get
+            None
+
+    def send_udp_packet(self, msg, ip, port):
+        """send_udp_packet, sends a packet locally and to a specified other network host as well."""
+        now = datetime.datetime.now()
+        time_string = now.strftime("%Y_%m_%d_%H_%M_%S.%f")
+        msg = f"{time_string}:{msg}".strip()
+        if ip != "127.0.0.1":
+            self.trace_sock.sendto(bytes(msg, "ascii"), ("127.0.0.1", port))  # redirect local as well
+        self.trace_sock.sendto(bytes(msg, "ascii"), (ip, port))
+
+    def console(self):
+        """
+        console, reads input from the user and matches it to the predefined cmds, if one is found its executed.
+        """
+        while self.running:
+            try:
+                var_str = f"[rm:{self.mode_status}:ss:{self.state_status}:tp:{self.thrust_point}:ts:{self.thruster_status}]".zfill(10)
+                self.mr_logger.log(LogType.SYS, f"{var_str}>", end='', print_val=False)
+                inp = input(f"{var_str}>").lower().strip()
+                self.mr_logger.log(LogType.SYS, f"{inp}", end='', print_val=False)
+                if inp in self.hsi_cmds.keys():
+                    cmd = self.hsi_cmds.get(inp)
+                    func = cmd.get("func")
+                    args = cmd.get("args")
+                    name = cmd.get("name")
+                    if func != None:
+                        self.mr_logger.log(LogType.SYS,f"{name}")
+                        try:
+                            func(args)
+                        except Exception as e:
+                            self.mr_logger.log(LogType.SYS,f"{e}")
+            except KeyboardInterrupt as e:
+                self.exit(None)
+
+    def help(self, args):
+        """
+        help, reads the predefined cmds and prints them in a table.
+        """
+        for v in self.hsi_cmds:
+            x = self.hsi_cmds.get(v)
+            self.mr_logger.log(LogType.SYS, f"{v} - {x.get('name')} : [{x.get('help')}]")
+
+    def exit(self, args):
+        """
+        exit, exits the program.
+        """
+        self.mr_logger.close()
+        self.thread_run = False
+        self.running = False
+        self.node.sdo.abort() #abort the last message
+        self.network.disconnect()
+
+
     def get_write_value(self, args):
         """
         get_write_value, looks for a default value and if one is found just writes it, otherwise its prompts the user
@@ -1022,71 +1041,6 @@ class ThrusterCommand:
             self.mr_logger.log(LogType.SYS, f"Error with args to write function, check index - {index} and subindex - {subindex}")
         return None
 
-    def get_trace_msg(self):
-        """
-            get_trace_msg, gets a trace msg by first looking at the head and the tail to see if there is one to get.
-            if the head and the tail are == then there are no messages just return.
-        """
-        try:
-            for i in range(0, self.trace_msg_max_gather):
-                msg = self.node.sdo.upload(IDX_TRACE_MSG, SUB_TRACE_MSG)
-                if msg is not None:
-                    self.mr_logger.log(LogType.TRACE, msg)
-                    self.send_udp_packet(msg, self.trace_udp_ip, self.trace_udp_port)
-        except Exception as e:
-            # ran out of msgs to get
-            None
-
-    def send_udp_packet(self, msg, ip, port):
-        """send_udp_packet, sends a packet locally and to a specified other network host as well."""
-        now = datetime.datetime.now()
-        time_string = now.strftime("%Y_%m_%d_%H_%M_%S.%f")
-        msg = f"{time_string}:{msg}".strip()
-        if ip != "127.0.0.1":
-            self.trace_sock.sendto(bytes(msg, "ascii"), ("127.0.0.1", port))  # redirect local as well
-        self.trace_sock.sendto(bytes(msg, "ascii"), (ip, port))
-
-    def console(self):
-        """
-        console, reads input from the user and matches it to the predefined cmds, if one is found its executed.
-        """
-        while self.running:
-            try:
-                var_str = f"[rm:{self.mode_status}:ss:{self.state_status}:tp:{self.thrust_point}:ts:{self.thruster_status}]".zfill(10)
-                self.mr_logger.log(LogType.SYS, f"{var_str}>", end='', print_val=False)
-                inp = input(f"{var_str}>").lower().strip()
-                self.mr_logger.log(LogType.SYS, f"{inp}", end='', print_val=False)
-                if inp in self.hsi_cmds.keys():
-                    cmd = self.hsi_cmds.get(inp)
-                    func = cmd.get("func")
-                    args = cmd.get("args")
-                    name = cmd.get("name")
-                    if func != None:
-                        self.mr_logger.log(LogType.SYS,f"{name}")
-                        try:
-                            func(args)
-                        except Exception as e:
-                            self.mr_logger.log(LogType.SYS,f"{e}")
-            except KeyboardInterrupt as e:
-                self.exit(None)
-
-    def help(self, args):
-        """
-        help, reads the predefined cmds and prints them in a table.
-        """
-        for v in self.hsi_cmds:
-            x = self.hsi_cmds.get(v)
-            self.mr_logger.log(LogType.SYS, f"{v} - {x.get('name')} : [{x.get('help')}]")
-
-    def exit(self, args):
-        """
-        exit, exits the program.
-        """
-        self.mr_logger.close()
-        self.thread_run = False
-        self.running = False
-        self.node.sdo.abort() #abort the last message
-        self.network.disconnect()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(

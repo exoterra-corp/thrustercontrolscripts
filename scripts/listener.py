@@ -1,10 +1,6 @@
 #!/usr/bin/python3
 import socket, argparse, datetime, struct, os, sys, threading, time
-try:
-   import wx
-   from src.HSIExcelWindow import HSIExcelWindow
-except ModuleNotFoundError as e:
-    print("wxpython is not installed, please install it if you want to use the gui.")
+from src.flask_hsi_window import FlaskHSIWindow
 from queue import Queue
 from src.hsi_defines import HSIDefines
 
@@ -14,10 +10,6 @@ description:
 The listener.py script allows for viewing and capturing of raw serial messages, trace, and telemetry messages.
 Thruster Command forwards msg traffic over UDP to the listener script on 3 ports, one for raw serial msgs, 
 one for debug messages, and one for telemetry messages.  The UDP ports are 4000, 4002, 4001 respectively.
-
-contact:
-joshua.meyers@exoterracorp.com 
-jeremy.mitchell@exoterracorp.com
 """
 
 class Listener():
@@ -44,12 +36,13 @@ class Listener():
         t = threading.Thread(target=self.listen)
         if self.mode == "gui":
             print("gui enabled")
-            app = wx.App(False)
-            self.frame = HSIExcelWindow(None)
-            self.frame.Bind(wx.EVT_CLOSE, self.on_exit)
-            self.frame.Show()
+            self.frame = FlaskHSIWindow()
             t.start()
-            app.MainLoop()
+            try:
+                while True:
+                    time.sleep(1)
+            except KeyboardInterrupt:
+                self.on_exit()
         else:
             t.start()
             try:
@@ -142,25 +135,11 @@ class Listener():
                     print(str_msg)
 
                 elif self.mode == "gui":
-                    #parse block hsi
                     try:
-                        # loop through it once generate the string and then loop over it again to print it out
-                        parse_str = "<"
-                        for v in self.hsi_defs.block_hsi:
-                            parse_str += v.get("type").replace("<", "")
-                        raw_vals = struct.unpack_from(parse_str, data)
-                        for i, value in enumerate(self.hsi_defs.block_hsi):
-                            name = value.get("name")
-                            hex_en = value.get("hex")
-                            parsed_val = raw_vals[i]
-                            if hex_en:
-                                parsed_val = hex(parsed_val)
-                            el = self.hsi_defs.hsi.get(name)
-                            if el is not None:
-                                r = el.get("row")
-                                c = el.get("col")
-                                if r is not None and c is not None:
-                                    wx.CallAfter(self.frame.write_display, r, c, parsed_val)
+                        hsi_frame = self.hsi_defs.parse_hsi_packet(data)
+                        for name, val in hsi_frame.items():
+                            entry = self.hsi_defs.hsi[name]
+                            self.frame.write_display(entry["row"], entry["col"], val)
                     except Exception as e:
                         print(f"Query Failed: {e}")
         except IndexError:

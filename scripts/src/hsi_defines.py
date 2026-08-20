@@ -1,5 +1,5 @@
 from enum import Enum
-
+import struct
 class TCS(Enum): #Thruster Control State
     """
         Thruster Control State, enums of the various states of the PPU.
@@ -107,3 +107,17 @@ class HSIDefines:
         create a parse string like <IIII etc... from the table above.  Needs the type token to work.
         """
         return "<"+"".join(v["type"][1] for v in self.hsi.values())
+
+    def parse_hsi_packet(self, data:bytes):
+        if len(data) != 122:
+            raise Exception("hsi data invalid length")
+        parse_str = self.get_parse_str()
+        unpacked_values = struct.unpack_from(parse_str, data)
+        csv_row = {}
+        for i, (name, value) in enumerate(self.hsi.items()):
+            parsed_val = unpacked_values[i]
+            if value.get("hex"):
+                parsed_val = hex(parsed_val)
+            if value.get("row") is not None and value.get("col") is not None:
+                csv_row[name] = parsed_val
+        return csv_row

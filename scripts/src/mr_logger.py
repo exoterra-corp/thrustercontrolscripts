@@ -2,10 +2,6 @@
 ExoTerra Resource Mr Logger Library.
 description:
 Provides and interface to gather and log messages to files.
-
-contact:
-joshua.meyers@exoterracorp.com
-jeremy.mitchell@exoterracorp.com
 """
 
 from queue import Queue
@@ -36,7 +32,7 @@ class MrLogger:
     """
     Mr Logger takes care of the logs directory along with recording raw,hsi,trace,and the sys log from thruster_command
     """
-    def __init__(self, conf_man, root_dir, log_name):
+    def __init__(self, root_dir, log_name):
         """
         init, creates 2 threads for mr logger one for raw serial messages, the other for trace, hsi, and sys messages.
         It also creates a folder for each startup and under this folder 4 files are created to store each type of log message.
@@ -44,10 +40,9 @@ class MrLogger:
         HSI_HEADER = struct.pack("<I", 0xEE01)
         self.raw_q = Queue()
         self.q = Queue(10)
-        self.conf_man = conf_man
         #try to get the config vars
-        self.raw_udp_ip = self.conf_man.get("RAW", "RAW_UDP_IP")
-        self.raw_udp_port = self.conf_man.get("RAW", "RAW_UDP_PORT", type = int)
+        self.raw_udp_ip = "127.0.0.1"
+        self.raw_udp_port = 4000
         # create logging dir
         self.create_folder(root_dir)
         now = datetime.datetime.now()
@@ -128,16 +123,8 @@ class MrLogger:
                         str_time = datetime.datetime.fromtimestamp(ts) #convert time
                         if type == LogType.HSI.value:
                             if len(msg) == 122:
-                                parse_str = self.hsi_def.get_parse_str()
-                                unpacked_values = struct.unpack_from(parse_str, msg)
-                                csv_row = {}
+                                csv_row = self.hsi_def.parse_hsi_packet(msg)
                                 csv_row["timestamp"] = str(str_time)
-                                for i, (name, value) in enumerate(self.hsi_def.hsi.items()):
-                                    parsed_val = unpacked_values[i]
-                                    if value.get("hex"):
-                                        parsed_val = hex(parsed_val)
-                                    if value.get("row") is not None and value.get("col") is not None:
-                                        csv_row[name] = parsed_val
                                 #after parsing write the whole row
                                 self.hsi_csv_writer.writerow(csv_row)
                                 self.hsi_log_csv.flush()
