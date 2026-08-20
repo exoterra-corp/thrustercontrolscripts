@@ -29,18 +29,25 @@ class TCS(Enum): #Thruster Control State
 class Comms:
     def __init__(
         self,
-        serial_port: str,
-        system_id: int,
+        mr_logger,
+        serial_port: str = "/dev/ttyUSB0",
+        system_id: int = 0x22,
         sdo_timeout: float = 5.0,
         half_duplex: bool = False,
     ) -> None:
+        self.mr_logger = mr_logger
+        self.serial_port = serial_port
+        self.system_id = system_id
+        self.sdo_timeout = sdo_timeout
+
+        self.network = canopen.Network()
+        self.write_mutex = Lock()
         self.network.connect(bustype="exoserial", channel=self.serial_port, baudrate=115200)
         self.node = self.network.add_node(self.system_id)
         self.network.add_node(self.node)
         self.raw_q = self.node.network.bus.get_int_q()
         self.mr_logger.set_raw_queue(self.raw_q)
         self.node.sdo.RESPONSE_TIMEOUT = 5 
-        self.mr_logger = MrLogger(".","logs")
         self.node.emcy.add_callback(self.subscribe_emcy)
         self.network.subscribe(NMT_BOOTUP_COB_ID, self.subscribe_bootup)
 
@@ -100,12 +107,12 @@ class Comms:
         if index != None and subindex != None:
             try:
                 self.write_mutex.acquire()
-                if self.nmt_state != 0x4:  # check to see if stopped
-                    val = self.node.sdo.upload(index, subindex)
-                    in_val = val
-                    if python_type != "noparse":
-                        in_val = struct.unpack(python_type, val)[0]
-                    return in_val            
+                # if self.:  # check to see if stopped
+                val = self.node.sdo.upload(index, subindex)
+                in_val = val
+                if python_type != "noparse":
+                    in_val = struct.unpack(python_type, val)[0]
+                return in_val            
             except canopen.sdo.exceptions.SdoCommunicationError as comms_err:
                 if show_failure:
                     self.mr_logger.log(LogType.SYS, f"Query Failed {hex(index)}:{hex(subindex)}: {comms_err}")

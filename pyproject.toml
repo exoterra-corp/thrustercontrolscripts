@@ -23,13 +23,14 @@ dependencies = [
 ]
 
 [project.scripts]
-thruster_command   = "halo8thruster.cli.thruster_command:main"
-listener           = "halo8thruster.cli.listener:main"
-update_firmware    = "halo8thruster.cli.update_firmware:main"
-calibration_editor = "halo8thruster.cli.calibration:main"
-versions           = "halo8thruster.cli.versions:main"
-error_handling     = "halo8thruster.cli.error_handling:main"
-compress_logs      = "halo8thruster.cli.compress_logs:main"
+thruster_command   = "halo8thruster.scripts.thruster_command:main"
+listener           = "halo8thruster.scripts.listener:main"
+update_firmware    = "halo8thruster.scripts.update_firmware:main"
+calibration_editor = "halo8thruster.scripts.calibration:main"
+versions           = "halo8thruster.scripts.versions:main"
+error_handling     = "halo8thruster.scripts.error_handling:main"
+compress_logs      = "halo8thruster.scripts.compress_logs:main"
+tester             = "halo8thruster.scripts.tester:main"
 
 [tool.setuptools.packages.find]
 where = ["."]

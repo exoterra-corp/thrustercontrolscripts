@@ -12,16 +12,13 @@ class Console():
         self.running = True
         pass
 
-
-
     def start_console(self, ):
         self.help(None)
         while self.running:
             try:
-                # var_str = f"[rm:{self.mode_status}:ss:{self.state_status}:tp:{self.thrust_point}:ts:{self.thruster_status}]".zfill(10)
-                # self.mr_logger.log(LogType.SYS, f"{var_str}>", end='', print_val=False)
+                self.mr_logger.log(LogType.SYS, f">", end='', print_val=False)
                 inp = input(f">").lower().strip()
-                # self.mr_logger.log(LogType.SYS, f"{inp}", end='', print_val=False)
+                self.mr_logger.log(LogType.SYS, f"{inp}", end='', print_val=False)
                 if inp in self.default_console_table.keys():
                     cmd = self.default_console_table.get(inp)
                     func = cmd.get("func")
@@ -35,6 +32,9 @@ class Console():
                             self.mr_logger.log(LogType.SYS,f"{e}")
             except KeyboardInterrupt as e:
                 self.exit(None)
+
+    def register_func(self, name, func, help):
+        None
 
     def help(self, args):
         """

@@ -1,3 +1,5 @@
+from enum import Enum
+
 class NMT(Enum):
     INIT = 0
     STOPPED = 4
