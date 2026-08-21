@@ -39,7 +39,6 @@ class Comms:
             _bt("get_int_q() + set_raw_queue()")
             self.node.sdo.RESPONSE_TIMEOUT = sdo_timeout
             self.node.emcy.add_callback(self.handle_emcy)
-            self.network.subscribe(NMT_BOOTUP_COB_ID, self.subscribe_bootup)
             _bt(f"ready (sdo_timeout={sdo_timeout}s)")
         except Exception as e:
             raise ConnectionError(f"Failed to connect on {serial_port}: {e}") from e

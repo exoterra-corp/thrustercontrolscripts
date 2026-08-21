@@ -66,5 +66,5 @@ class Update:
         if not self.install():
             raise TimeoutError("Device did not reboot after install.")
 
-    def _on_bootup(self, msg):
+    def _on_bootup(self, cob_id, data, timestamp):
         self._boot_event.set()
