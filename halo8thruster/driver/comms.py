@@ -43,34 +43,65 @@ class Comms:
     def subscribe_emcy(self, callback) -> None:
         self.mr_logger.log(LogType.SYS, f"EMCY MESSAGE: {callback}")
 
+
+    def handle_emcy(self, emgcy_error):
+        """
+        handle_emcy, on emcy msg this function prints the error to console and udp port
+        """
+        message = f"EMCYTimestamp: {emgcy_error.timestamp}, EMCYCode: {emgcy_error.code}," \
+                  f" EMCYData: 0x{emgcy_error.data.hex()}"
+
+        code = hex(emgcy_error.code)
+        #parse data from emgcy msg data section
+        error_type = None
+        fault_code = None
+        line_num = None
+        error_cnt = None
+        data = emgcy_error.data.hex()
+        if len(data) == 10:
+            self.mr_logger.log(LogType.SYS,"EMERGENCY MESSAGE")
+            try:
+                line_in_bytes = bytes.fromhex(data[4:8])
+                line_num = struct.unpack("<H", line_in_bytes)[0]
+            except ValueError as e:
+                self.mr_logger.log(LogType.SYS,e)
+            error_type = data[0:2]
+            fault_code = data[2:4]
+            error_cnt = data[9:10]
+        reg = hex(emgcy_error.register)
+        time = emgcy_error.timestamp
+
+        self.mr_logger.log(LogType.SYS,f"Error Type: {error_type}")
+        self.mr_logger.log(LogType.SYS,f"Fault Code: {fault_code}")
+        self.mr_logger.log(LogType.SYS,f"Line NO: {line_num}")
+        self.mr_logger.log(LogType.SYS,f"Error Cnt: {error_cnt}")
+
+        self.send_udp_packet(message, self.trace_udp_ip, self.trace_udp_port)
+
     def disconnect(self) -> None:
         if self.network:
             self.network.disconnect()
 
-    def write(self, index, subindex, val, python_type, hex_en=True):
+    def write(self, index, subindex, val, python_type):
         """
-        write, uses a index, subindex, and a type to ask for a hex value and then send this data over serial to the
-        Engine System Controller.
+        Write a value to the device over SDO. val may be an int, or a string in
+        decimal ("26"), hex ("0x1A"), octal ("0o17"), or binary ("0b101") form.
         """
         try:
             self.write_mutex.acquire()
-            if hex_en:
-                int_val = int(val, 16)
-            else:
-                int_val = int(val)
-            val = struct.pack(python_type, int_val)
-            self.node.sdo.download(index, subindex,
-                                    bytearray(val))
+            int_val = val if isinstance(val, int) else int(val, 0)
+            packed = struct.pack(python_type, int_val)
+            self.node.sdo.download(index, subindex, bytearray(packed))
             if self.debug:
-                self.mr_logger.log(LogType.SYS, f"Wrote:{hex(index)}-{hex(subindex)}: 0x{val.hex()}")
+                self.mr_logger.sys(f"Wrote:{hex(index)}-{hex(subindex)}: 0x{packed.hex()}")
         except struct.error as e:
-            self.mr_logger.log(LogType.SYS, f"{e}")
-        except canopen.sdo.exceptions.SdoCommunicationError as comms_err:
-            self.mr_logger.log(LogType.SYS, f"Write Failed: {comms_err}")
-        except canopen.sdo.exceptions.SdoAbortedError as aborted_err:
-            self.mr_logger.log(LogType.SYS, f"Write Failed: {aborted_err}")
+            self.mr_logger.sys(f"Write Failed (pack): {e}")
+        except canopen.sdo.exceptions.SdoCommunicationError as e:
+            self.mr_logger.sys(f"Write Failed: {e}")
+        except canopen.sdo.exceptions.SdoAbortedError as e:
+            self.mr_logger.sys(f"Write Failed: {e}")
         except Exception as e:
-            self.mr_logger.log(LogType.SYS, f"Write Failed: {e}")
+            self.mr_logger.sys(f"Write Failed: {e}")
         finally:
             self.write_mutex.release()
 
@@ -85,28 +116,24 @@ class Comms:
         self.mr_logger.log(LogType.SYS, f"Query:{hex(index)}-{hex(subindex)}: {hex(in_val)}")
 
     def read(self, index, subindex, python_type, show_failure=True):
-        if index != None and subindex != None:
-            try:
-                self.write_mutex.acquire()
-                # if self.:  # check to see if stopped
-                val = self.node.sdo.upload(index, subindex)
-                in_val = val
-                if python_type != "noparse":
-                    in_val = struct.unpack(python_type, val)[0]
-                return in_val            
-            except canopen.sdo.exceptions.SdoCommunicationError as comms_err:
-                if show_failure:
-                    self.mr_logger.log(LogType.SYS, f"Query Failed {hex(index)}:{hex(subindex)}: {comms_err}")
-            except canopen.sdo.exceptions.SdoAbortedError as aborted_err:
-                if show_failure:
-                    self.mr_logger.log(LogType.SYS, f"Query Failed {hex(index)}:{hex(subindex)}: {aborted_err}")
-            except Exception as e:
-                if show_failure:
-                    self.mr_logger.log(LogType.SYS, f"Query Failed {hex(index)}:{hex(subindex)}: {e}")
-            finally:
-                self.write_mutex.release()
-        else:
-            self.mr_logger.log(LogType.SYS, f"Error with args to write function, check index - {index} and subindex - {subindex}")
+        if index is None or subindex is None:
+            self.mr_logger.sys(f"Read Failed: invalid index={index} subindex={subindex}")
+            return None
+        try:
+            self.write_mutex.acquire()
+            val = self.node.sdo.upload(index, subindex)
+            return val if python_type == "noparse" else struct.unpack(python_type, val)[0]
+        except canopen.sdo.exceptions.SdoCommunicationError as e:
+            if show_failure:
+                self.mr_logger.sys(f"Read Failed {hex(index)}:{hex(subindex)}: {e}")
+        except canopen.sdo.exceptions.SdoAbortedError as e:
+            if show_failure:
+                self.mr_logger.sys(f"Read Failed {hex(index)}:{hex(subindex)}: {e}")
+        except Exception as e:
+            if show_failure:
+                self.mr_logger.sys(f"Read Failed {hex(index)}:{hex(subindex)}: {e}")
+        finally:
+            self.write_mutex.release()
         return None
 
 

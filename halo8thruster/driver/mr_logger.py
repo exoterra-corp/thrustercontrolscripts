@@ -101,7 +101,7 @@ class MrLogger:
         """
         if log_type.value >= 0 and log_type.value <= 3:
             ts = time.time()
-            self.q.put({"type": log_type, "msg": msg, "timestamp": ts})
+            self.q.put(timeout=1.0)({"type": log_type, "msg": msg, "timestamp": ts})
             if log_type.value == LogType.SYS.value and print_val:
                 print(msg, end=end)
             return True
@@ -202,6 +202,11 @@ class MrLogger:
                 # garbage
                 None
             sleep(0.01)
+
+    def sys(self, msg, end="\n"):   self.log(LogType.SYS, msg, end)
+    def trace(self, msg):           self.log(LogType.TRACE, msg)
+    def hsi(self, msg):             self.log(LogType.HSI, msg)
+    def raw(self, msg):             self.log(LogType.RAW, msg)
 
     def close(self):
         """
