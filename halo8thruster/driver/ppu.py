@@ -14,10 +14,10 @@ class PPU():
             ...
     """
 
-    def __init__(self, serial_port="/dev/ttyUSB0", system_id=0x22, log_name=""):
+    def __init__(self, serial_port="/dev/ttyUSB0", system_id=0x22, log_name="", debug=False):
         self.mr = MrLogger("logs", log_name)
         try:
-            self.com = Comms(self.mr, serial_port=serial_port, system_id=system_id)
+            self.com = Comms(self.mr, serial_port=serial_port, system_id=system_id, debug=debug)
         except ConnectionError as e:
             self.mr.sys(f"Failed to connect: {e}")
             raise
@@ -33,8 +33,8 @@ class PPU():
 def parse_ppu_args(description=""):
     import argparse
     p = argparse.ArgumentParser(description=description)
-    p.add_argument("--serial-port", default="/dev/ttyUSB0")
-    p.add_argument("--system-id",   default="0x22")
+    p.add_argument("serial_port", nargs="?", default="/dev/ttyUSB0")
+    p.add_argument("system_id", nargs="?",  default="0x22")
     a = p.parse_args()
     return a.serial_port, int(a.system_id, 0)
 

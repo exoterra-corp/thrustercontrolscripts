@@ -1,4 +1,4 @@
-import struct, canopen
+import struct, canopen, time
 from threading import Lock
 from halo8thruster.driver.mr_logger import MrLogger, LogType
 from halo8thruster.driver.od_defines import *
@@ -22,15 +22,25 @@ class Comms:
         self.network = canopen.Network()
         self.write_mutex = Lock()
         try:
+            t_boot = time.perf_counter()
+            def _bt(label):
+                if self.debug:
+                    self.mr_logger.sys(f"[boot] {(time.perf_counter()-t_boot)*1000:7.1f}ms  {label}")
+
             self.mr_logger.sys(f"Connecting to {serial_port}…")
             self.network.connect(bustype="exoserial", channel=self.serial_port, baudrate=115200)
+            _bt("network.connect() done")
             self.node = self.network.add_node(self.system_id)
+            _bt(f"add_node(0x{self.system_id:02x})")
             self.network.add_node(self.node)
+            _bt("network.add_node(node)")
             self.raw_q = self.node.network.bus.get_int_q()
             self.mr_logger.set_raw_queue(self.raw_q)
+            _bt("get_int_q() + set_raw_queue()")
             self.node.sdo.RESPONSE_TIMEOUT = sdo_timeout
             self.node.emcy.add_callback(self.handle_emcy)
             self.network.subscribe(NMT_BOOTUP_COB_ID, self.subscribe_bootup)
+            _bt(f"ready (sdo_timeout={sdo_timeout}s)")
         except Exception as e:
             raise ConnectionError(f"Failed to connect on {serial_port}: {e}") from e
 
@@ -70,9 +80,11 @@ class Comms:
             self.write_mutex.acquire()
             int_val = val if isinstance(val, int) else int(val, 0)
             packed = struct.pack(python_type, int_val)
+            t_sdo = time.perf_counter()
             self.node.sdo.download(index, subindex, bytearray(packed))
             if self.debug:
-                self.mr_logger.sys(f"Wrote:{hex(index)}-{hex(subindex)}: 0x{packed.hex()}")
+                elapsed_ms = (time.perf_counter() - t_sdo) * 1000
+                self.mr_logger.sys(f"Wrote:{hex(index)}-{hex(subindex)}: 0x{packed.hex()} [{elapsed_ms:.1f}ms]")
         except struct.error as e:
             raise CommsError(f"Write pack error {hex(index)}:{hex(subindex)}: {e}") from e
         except canopen.sdo.exceptions.SdoCommunicationError as e:
@@ -106,7 +118,11 @@ class Comms:
             raise CommsError(f"Read called with invalid index={index} subindex={subindex}")
         try:
             self.write_mutex.acquire()
+            t_sdo = time.perf_counter()
             val = self.node.sdo.upload(index, subindex)
+            if self.debug:
+                elapsed_ms = (time.perf_counter() - t_sdo) * 1000
+                self.mr_logger.sys(f"Read:{hex(index)}-{hex(subindex)}: 0x{val.hex()} [{elapsed_ms:.1f}ms]")
             return val if python_type == "noparse" else struct.unpack(python_type, val)[0]
         except canopen.sdo.exceptions.SdoCommunicationError as e:
             raise CommsTimeout(f"Read timeout {hex(index)}:{hex(subindex)}: {e}") from e
