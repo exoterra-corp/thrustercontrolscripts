@@ -1,4 +1,5 @@
 import threading
+import tqdm
 from halo8thruster.driver.comms import Comms
 from halo8thruster.driver.mr_logger import MrLogger
 from halo8thruster.driver.exceptions import CommsTimeout
@@ -16,14 +17,27 @@ class Update:
         """Segment-download a firmware image to the device (OD 0x5500:1)."""
         with open(image_path, "rb") as f:
             data = f.read()
-        self.mr.sys(f"Downloading {len(data)} bytes from '{image_path}'…")
-        self.com.write_blob(IDX_UPDATE, UPDATE_SUB_DATA, data, force_segment=True)
+        total = len(data)
+        self.mr.sys(f"Downloading {total} bytes from '{image_path}'…")
+
+        with tqdm.tqdm(total=total, unit="B", unit_scale=True, desc="Flashing", ncols=70) as bar:
+            prev = 0
+
+            def _progress(sent, _total):
+                nonlocal prev
+                bar.update(sent - prev)
+                prev = sent
+
+            sent = self.com.write_blob_progress(IDX_UPDATE, UPDATE_SUB_DATA, data, progress_cb=_progress)
+
+        if sent != total:
+            raise RuntimeError(f"Download incomplete: {sent}/{total} bytes transferred")
         self.mr.sys("Download complete.")
 
     def verify(self) -> str:
         """Trigger CRC verify (0x5500:2) and return the 8-char hex result."""
         self.mr.sys("Verifying image…")
-        self.com.write(_IDX_FW, _SUB_VERIFY, 0, "<I")
+        self.com.write(IDX_UPDATE, UPDATE_SUB_VERIFY, 0, "<I")
         result = self.com.read(IDX_UPDATE, UPDATE_SUB_VERIFY)
         hex_result = result.hex().zfill(8)
         self.mr.sys(f"Verify result: 0x{hex_result}")

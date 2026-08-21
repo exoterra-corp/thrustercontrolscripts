@@ -28,7 +28,13 @@ class PPU():
 
     def __exit__(self, *exc):
         self.com.disconnect()
-        
+
+    def gather(self):
+        """
+        gather will 
+        """
+        pass
+    
 def parse_ppu_args(description=""):
     import argparse
     p = argparse.ArgumentParser(description=description)

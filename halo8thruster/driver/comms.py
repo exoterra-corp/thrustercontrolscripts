@@ -118,6 +118,48 @@ class Comms:
         finally:
             self.write_mutex.release()
 
+    def write_blob_progress(
+        self,
+        index: int,
+        subindex: int,
+        data: bytes,
+        progress_cb=None,
+    ) -> int:
+        """Segmented SDO download with an optional per-segment progress callback.
+
+        Returns the total number of bytes sent.
+        progress_cb(bytes_sent: int, total: int) is called after every SDO segment
+        (~7 bytes); tqdm handles display rate-limiting on its own.
+        """
+        total = len(data)
+        try:
+            self.write_mutex.acquire()
+            with self.node.sdo.open(
+                index, subindex, "wb", size=total, force_segment=True, buffering=0
+            ) as f:
+                sent = 0
+                while sent < total:
+                    written = f.write(data[sent:])
+                    if not written:
+                        raise CommsError(
+                            f"WriteBlob stalled at {sent}/{total} bytes"
+                            f" {hex(index)}:{hex(subindex)}"
+                        )
+                    sent += written
+                    if progress_cb:
+                        progress_cb(sent, total)
+            return sent
+        except canopen.sdo.exceptions.SdoCommunicationError as e:
+            raise CommsTimeout(f"WriteBlob timeout {hex(index)}:{hex(subindex)}: {e}") from e
+        except canopen.sdo.exceptions.SdoAbortedError as e:
+            raise CommsAbort(f"WriteBlob aborted {hex(index)}:{hex(subindex)}: {e}") from e
+        except (CommsError, CommsTimeout, CommsAbort):
+            raise
+        except Exception as e:
+            raise CommsError(f"WriteBlob failed {hex(index)}:{hex(subindex)}: {e}") from e
+        finally:
+            self.write_mutex.release()
+
     def query(self, args):
         """
         query, uses a index, subindex to read the field from the Engine System Controller and print it in hex.
