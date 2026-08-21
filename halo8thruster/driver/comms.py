@@ -98,6 +98,26 @@ class Comms:
         finally:
             self.write_mutex.release()
 
+    def write_blob(self, index, subindex, data: bytes, force_segment: bool = True) -> None:
+        """Write a raw byte buffer (e.g. firmware image) over SDO without struct packing."""
+        try:
+            self.write_mutex.acquire()
+            t_sdo = time.perf_counter()
+            self.node.sdo.download(index, subindex, bytearray(data), force_segment=force_segment)
+            if self.debug:
+                elapsed_ms = (time.perf_counter() - t_sdo) * 1000
+                self.mr_logger.sys(f"WriteBlob:{hex(index)}-{hex(subindex)}: {len(data)}B [{elapsed_ms:.1f}ms]")
+        except canopen.sdo.exceptions.SdoCommunicationError as e:
+            raise CommsTimeout(f"WriteBlob timeout {hex(index)}:{hex(subindex)}: {e}") from e
+        except canopen.sdo.exceptions.SdoAbortedError as e:
+            raise CommsAbort(f"WriteBlob aborted {hex(index)}:{hex(subindex)}: {e}") from e
+        except (CommsError, CommsTimeout, CommsAbort):
+            raise
+        except Exception as e:
+            raise CommsError(f"WriteBlob failed {hex(index)}:{hex(subindex)}: {e}") from e
+        finally:
+            self.write_mutex.release()
+
     def query(self, args):
         """
         query, uses a index, subindex to read the field from the Engine System Controller and print it in hex.

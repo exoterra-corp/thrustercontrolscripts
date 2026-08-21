@@ -145,8 +145,7 @@ class Listener():
         except IndexError:
             None
 
-
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser(
         description='Listens for exoserial data on the local network (udp).')
     parser.add_argument('--trace', action='store_true', help='Enables Trace Mode.')
@@ -182,3 +181,6 @@ if __name__ == "__main__":
         print(f"Listening for exoserial msgs on {args.socket}:{args.port}.")
     if args.socket and args.port:
         l = Listener(mode, args.socket, args.port, logdir)
+
+if __name__ == "__main__":
+    main()

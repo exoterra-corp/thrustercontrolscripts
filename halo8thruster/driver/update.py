@@ -1,106 +1,56 @@
-#!/usr/bin/python3
-import sys, canopen, argparse, time
+import threading
+from halo8thruster.driver.comms import Comms
+from halo8thruster.driver.mr_logger import MrLogger
+from halo8thruster.driver.exceptions import CommsTimeout
+from halo8thruster.driver.od_defines import *
 
-BOOTUP_TIMEOUT = 20
+BOOTUP_TIMEOUT = 20.0
 
-class UpdateFirmware(PPU):
-    def __init__(self, serial_port, system_id, image_file):
-        self.update_image_bytes = bytearray()
-        self.boot_msg_found = False
+class Update:
+    def __init__(self, comms: Comms, mr_logger: MrLogger):
+        self.com = comms
+        self.mr = mr_logger
+        self._boot_event = threading.Event()
 
-        #read the whole bin file in
-        with open(image_file, 'rb') as f:
-            self.update_image_bytes = f.read()
+    def download(self, image_path: str) -> None:
+        """Segment-download a firmware image to the device (OD 0x5500:1)."""
+        with open(image_path, "rb") as f:
+            data = f.read()
+        self.mr.sys(f"Downloading {len(data)} bytes from '{image_path}'…")
+        self.com.write_blob(IDX_UPDATE, UPDATE_SUB_DATA, data, force_segment=True)
+        self.mr.sys("Download complete.")
 
-        #create the can open network
-        self.network = canopen.Network()
-        if serial_port.lower() == "can":
-            self.network.connect(bustype='pcan', channel='PCAN_USBBUS1', bitrate=1000000)  # 1MHZ
-        else:
-            self.network.connect(bustype="exoserial", channel=serial_port, baudrate=115200)
-        self.node = self.network.add_node(system_id)
-        self.network.add_node(self.node)
-        self.node.sdo.RESPONSE_TIMEOUT = 5
+    def verify(self) -> str:
+        """Trigger CRC verify (0x5500:2) and return the 8-char hex result."""
+        self.mr.sys("Verifying image…")
+        self.com.write(_IDX_FW, _SUB_VERIFY, 0, "<I")
+        result = self.com.read(IDX_UPDATE, UPDATE_SUB_VERIFY)
+        hex_result = result.hex().zfill(8)
+        self.mr.sys(f"Verify result: 0x{hex_result}")
+        return hex_result
 
-    def do_update(self, args):
-        run = True
-        if not args.v:
-            print("Updating Firmware.  This will take a few minutes. A y/n install prompt will be shown to finish the install.")
-            self.update_image_download()
-        verify_result = self.update_image_verify()
-        print("verify result = ", hex(int.from_bytes(verify_result, "little"))[2:].zfill(8))
-        while run:
-            cmd = input("install image? y/n $ ")
-            cmd = cmd.lower()
-            if 'y' in cmd:
-                try:
-                    self.update_image_install()
-                except canopen.sdo.exceptions.SdoCommunicationError:
-                    self.network.subscribe(0x722, self.notify_bootup)
-                    cnt = 0
-                    # wait for bootup msg from the device
-                    print("Image Flashed; Waiting for 0x722 NMT msg from PPU.")
-                    while cnt <= BOOTUP_TIMEOUT and not self.boot_msg_found:
-                        time.sleep(0.1)
-                        cnt += 0.1
+    def install(self) -> bool:
+        """Trigger flash (0x5500:3), wait for NMT bootup. Returns True on success."""
+        self._boot_event.clear()
+        self.com.subscribe_bootup(self._on_bootup)
+        self.mr.sys("Installing image (device will reboot)…")
+        try:
+            self.com.write(IDX_UPDATE, UPDATE_SUB_INSTALL, 0, "<B")
+        except CommsTimeout:
+            pass  # expected — device reboots mid-SDO transfer
+        if self._boot_event.wait(timeout=BOOTUP_TIMEOUT):
+            self.mr.sys("Device booted successfully.")
+            return True
+        self.mr.sys(f"Device did not reboot within {BOOTUP_TIMEOUT:.0f}s.")
+        return False
 
-                    if not self.boot_msg_found:
-                        print("PPU Failed to boot.")
-                run = False
-            elif 'n' in cmd:
-                run = False
-            else:
-                print("please enter y or n")
+    def run(self, image_path: str, skip_download: bool = False) -> None:
+        """Full sequence: download (unless skip_download) → verify → install."""
+        if not skip_download:
+            self.download(image_path)
+        self.verify()
+        if not self.install():
+            raise TimeoutError("Device did not reboot after install.")
 
-    def notify_bootup(self, can_id, data, timestamp):
-        self.boot_msg_found = True
-        print("PPU Booted Successfully.")
-    def update_image_download(self):
-        self.node.sdo.download(0x5500, 1, self.update_image_bytes, force_segment=True)
-
-    def update_image_verify(self):
-        # placeholder data, currently doesn't matter what we send
-        data = bytes(4)
-        self.node.sdo.download(0x5500, 2, data, force_segment=False)
-        return self.node.sdo.upload(0x5500, 2)
-
-    def update_image_install(self):
-        # placeholder data, currently doesn't matter what we send
-        data = bytes(1)
-        self.node.sdo.download(0x5500, 3, data, force_segment=False)
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Update firmware uploads the firmware to the SAM over RS485.')
-    parser.add_argument('serial_port', action='store', type=str, help='The Serial Port to use for RS485.',
-                        default="/dev/ttyUSB0")
-    parser.add_argument('system_id', action='store', type=str, help='The System Id for the connection usually 0x22.',
-                        default=0x22)
-    parser.add_argument('image_file', action='store', type=str, help='The SAM firmware image file.')
-    parser.add_argument('--v', action='store_true', help='Run just the verify and install option.')
-    args = parser.parse_args()
-    try:
-        args.system_id = int(args.system_id, 0)
-    except ValueError:
-        print(f"{args.system_id} is an invalid system id.")
-        exit(1)
-    
-    try:
-        updater = UpdateFirmware(args.serial_port, args.system_id, args.image_file)
-    except Exception as e:
-        print(f"Failed to connect to communication device {e}")
-        exit(1)
-    
-    try:
-        updater.do_update(args)
-        exit(0)
-    except canopen.sdo.SdoCommunicationError as e:
-        print(f"Transfer Failed, please reboot device and try again. {e}")
-    except canopen.sdo.SdoAbortedError as e:
-        print(f"Transfer Failed, verify update file. {e}")
-    except KeyboardInterrupt:
-        updater.node.sdo.abort()
-        print("Connection Aborted Mid-Update, please reset the PPU to INIT before trying another install.")
-    except Exception as e:
-        print(f"An unexpected error occurred: {e}")
-        raise e
-    exit(1)
+    def _on_bootup(self, msg):
+        self._boot_event.set()

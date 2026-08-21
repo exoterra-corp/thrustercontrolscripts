@@ -29,7 +29,6 @@ class PPU():
     def __exit__(self, *exc):
         self.com.disconnect()
         
-
 def parse_ppu_args(description=""):
     import argparse
     p = argparse.ArgumentParser(description=description)
@@ -37,7 +36,6 @@ def parse_ppu_args(description=""):
     p.add_argument("system_id", nargs="?",  default="0x22")
     a = p.parse_args()
     return a.serial_port, int(a.system_id, 0)
-
 
 if __name__ == "__main__":
     print("This class is meant to be subclassed by your script. See the docs.")

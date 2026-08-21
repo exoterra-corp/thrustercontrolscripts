@@ -7,6 +7,7 @@ IDX_HSI_BLOCK      = 0x3100
 IDX_FAULT_STATUS   = 0x2831
 IDX_TRACE_MSG      = 0x5001
 IDX_SERIAL_NUMBER  = 0x5022
+IDX_UPDATE         = 0x5500
 NMT_BOOTUP_COB_ID  = 0x722
 
 # ---- Thruster Command subindexes (IDX_THRUSTER_CMD) ----
@@ -44,3 +45,8 @@ SUB_FAULT_BASE     = 0x2
 CMD_COND_CLEAR     = 0x63637772
 CMD_SEQ_KEEPER_ON  = 0x01020706  # adjust keeper current in sequence engine
 CMD_SEQ_KEEPER_OFF = 0x01040706  # turn keeper off in sequence engine
+
+# Update Subindexes
+UPDATE_SUB_DATA    = 1
+UPDATE_SUB_VERIFY  = 2
+UPDATE_SUB_INSTALL = 3
