@@ -150,6 +150,8 @@ class MrLogger:
                     self.trace_log.write(decoded_msg)
                     self.trace_log.flush()
                     self.sock.sendto(msg, (self.udp_ip, self.trace_udp_port))
+                    for cb in self._listeners[LogType.TRACE]:
+                        cb(decoded_msg.strip())
                 elif log_type == LogType.SYS.value:
                     self.sys_log.write(f"{str_time}:{msg}\n")
                     self.sys_log.flush()

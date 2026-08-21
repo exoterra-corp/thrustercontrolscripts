@@ -2,6 +2,49 @@
 from halo8thruster.driver.ppu import PPU, parse_ppu_args
 from halo8thruster.driver.console import Console
 from halo8thruster.driver.defines import *
+from threading import Thread
+import struct
+import time
+
+
+def make_fake_hsi_packet() -> bytes:
+    """
+    Build a 122-byte HSI packet with unique values per field.
+    Each value encodes its section (thousands digit) and field index within the section,
+    so a misaligned display is immediately obvious.
+    Values are packed in the exact order parse_hsi_packet() expects.
+
+    Section prefixes:
+      1xxx = Anode     2xxx = Keeper    3xxx = Mag Outer  4xxx = Mag Inner
+      5xxx = Valves    6xxx = HK        7xxx = EFC         8xxx = SYS-MEM
+    """
+    return struct.pack(
+        "<"
+        "IIIHHHHHHH"    # anode:    1001-1010 (I I I H H H H H H H) = 3I+7H
+        "IHHHHHHH"      # keeper:   2001-2008 (I H H H H H H H)     = 1I+7H
+        "HHHHHH"        # mag out:  3001-3006
+        "HHHHHH"        # mag in:   4001-4006
+        "HHHiIHHHHH"   # valves:   5001-5010 (H H H i I H H H H H)
+        "HHHHH"         # hk:       6001-6005
+        "HHHH"          # efc:      7001-7004
+        "III",          # sys-mem:  8001-8003
+        # anode (10)
+        1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008, 1009, 1010,
+        # keeper (8)
+        2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008,
+        # mag outer (6)
+        3001, 3002, 3003, 3004, 3005, 3006,
+        # mag inner (6)
+        4001, 4002, 4003, 4004, 4005, 4006,
+        # valves (10) — va_temperature is signed i, va_tank_pressure is unsigned I
+        5001, 5002, 5003, 5004, 5005, 5006, 5007, 5008, 5009, 5010,
+        # hk (5)
+        6001, 6002, 6003, 6004, 6005,
+        # efc (4) — displayed as hex, so 7001=0x1b59 etc.
+        7001, 7002, 7003, 7004,
+        # sys-mem (3) — displayed as hex, so 8001=0x1f41 etc.
+        8001, 8002, 8003,
+    )
 
 class ThrusterCommand(PPU):
     def __init__(self):
@@ -59,9 +102,26 @@ class ThrusterCommand(PPU):
             #        "args": {"index": IDX_COND_STATS, "subindex": 0x0, "type": "<I", "default": "1"},
             #        "help": "Reset Conditioning Stats."},
         }
-        self.c = Console(self.mr, self.cmds)
-        self.c.start()
+        self.c = Console(self.mr, self.cmds,
+            header = {"thruster state": self.state.thruster_state_read().name},
+            show_raw=True, show_hsi=True, show_trace=True)
+                # Console exists now, so update_header() is safe to call from the thread
+        Thread(target=self._gather, daemon=True).start()
+        self.c.start()  # blocks until exit
 
+    def _gather(self):
+        cnt = 0
+        while True:
+            try:
+                status = self.state.thruster_state_read()
+                self.c.update_header("thruster state", status.name)
+                self.state.trace_read()
+                if cnt % 3 == 0:
+                    self.mr.hsi(self.state.block_telem_read())  # swap back to self.state.block_telem_read() for real hardware
+                cnt+=1
+            except Exception as e:
+                self.mr.sys(f"[gather] {e}")
+            time.sleep(0.1)
 
 def main():
     port, sid = parse_ppu_args("Read PPU Versions")

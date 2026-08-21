@@ -71,9 +71,13 @@ class State():
 
     def trace_read(self):
         """Read a trace message from the device and forward it to the trace log."""
-        msg = self.comms.read(IDX_TRACE_MSG, SUB_TRACE_MSG)
-        if msg is not None:
-            self.mr.trace(msg)
+        msg = None
+        try:
+            msg = self.comms.read(IDX_TRACE_MSG, SUB_TRACE_MSG)
+            if msg is not None:
+                    self.mr.trace(msg)
+        except Exception as e:
+                None # fail silently, means there are no more messages
         return msg
 
     def block_telem_read(self):

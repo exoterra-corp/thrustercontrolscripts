@@ -14,19 +14,22 @@ class Console:
     def __init__(self, mr_logger, commands: dict, *,
                  header: dict | None = None,
                  show_raw: bool = False,
-                 show_hsi: bool = False):
+                 show_hsi: bool = False,
+                 show_trace: bool = False):
         """
-        mr_logger  MrLogger instance
-        commands   dict of {key: {name, func, help[, args][, group]}}
-        header     initial {label: value} pairs shown in the header bar (TUI only)
-        show_raw   show scrolling raw CAN packet pane (TUI only)
-        show_hsi   show live decoded HSI telemetry table (TUI only)
+        mr_logger   MrLogger instance
+        commands    dict of {key: {name, func, help[, args][, group]}}
+        header      initial {label: value} pairs shown in the header bar (TUI only)
+        show_raw    show scrolling raw CAN packet pane (TUI only)
+        show_hsi    show live decoded HSI telemetry table (TUI only)
+        show_trace  show scrolling trace message pane (TUI only)
         """
         self._mr = mr_logger
         self._header = dict(header) if header is not None else None
         self._show_raw = show_raw
         self._show_hsi = show_hsi
-        self._tui_mode = (header is not None) or show_raw or show_hsi
+        self._show_trace = show_trace
+        self._tui_mode = (header is not None) or show_raw or show_hsi or show_trace
         self._app = None
 
         self._table = {
