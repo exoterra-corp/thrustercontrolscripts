@@ -1,7 +1,7 @@
 import struct, canopen, time
 from threading import Lock
 from halo8thruster.driver.mr_logger import MrLogger, LogType
-from halo8thruster.driver.od_defines import *
+from halo8thruster.driver.defines import *
 from halo8thruster.driver.exceptions import ConnectionError, CommsError, CommsTimeout, CommsAbort
 
 class Comms:

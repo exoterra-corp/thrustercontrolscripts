@@ -1,36 +1,11 @@
 from enum import IntEnum
 import time
 from halo8thruster.driver.comms import Comms
-from halo8thruster.driver.od_defines import *
+from halo8thruster.driver.defines import *
 from halo8thruster.driver.mr_logger import MrLogger
 from halo8thruster.driver.exceptions import StateError, StateTimeout
 
-class NMTD(IntEnum):
-    INIT = 0
-    STOPPED = 4
-    OPERATIONAL = 5
-    SLEEP = 80
-    STANDBY = 96
-    PRE_OPERATIONAL = 127
 
-class TCS(IntEnum):
-    """Thruster Control State — enums of the various states of the PPU."""
-    INVALID                 = 0x0
-    INIT                    = 0x1
-    PREOP                   = 0x2
-    OPERATIONAL             = 0x3
-    STOP                    = 0x4
-    MODE_NUM                = 0x5
-    POWER_OFF               = 0x6
-    TRANISTION_STANDBY      = 0x7
-    STANDBY                 = 0x8
-    TRANSITION_READY_MODE   = 0x9
-    READY_MODE              = 0xA
-    TRANSITION_STEADY_STATE = 0xB
-    STEADY_STATE            = 0xC
-    CONDITIONING            = 0xD
-    BIT_TEST                = 0xE
-    LOCKOUT                 = 0xF
 
 class State():
     """

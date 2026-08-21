@@ -30,12 +30,17 @@ class Console():
                 cmd = self._resolve(inp)
                 if cmd is not None:
                     func = cmd.get("func")
-                    args = cmd.get("args")
+                    try:
+                        args = cmd.get("args")
+                    except Exception:
+                        args = None
                     name = cmd.get("name")
                     if func is not None:
                         self.mr_logger.log(LogType.SYS, name)
                         try:
-                            func(args)
+                            v = func(args) if args is not None else func()
+                            if v is not None:
+                                self.mr_logger.sys(v)
                         except PPUError as e:
                             self.mr_logger.log(LogType.SYS, f"[{type(e).__name__}] {e}")
                         except Exception as e:

@@ -15,7 +15,7 @@ from struct import unpack
 from enum import Enum
 import time, datetime, struct, json
 from csv import DictWriter
-from halo8thruster.driver.hsi_defines import HSIDefines
+from halo8thruster.driver.defines import HSIDefines
 
 _LogItem = namedtuple("_LogItem", ["log_type", "msg", "timestamp"])
 

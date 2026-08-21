@@ -1,5 +1,5 @@
 from halo8thruster.driver.comms import Comms
-from halo8thruster.driver.state import State
+from halo8thruster.driver.state import State, TCS, NMTD
 from halo8thruster.driver.mr_logger import MrLogger
 from halo8thruster.driver.exceptions import ConnectionError
 from threading import Thread

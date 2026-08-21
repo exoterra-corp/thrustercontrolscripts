@@ -3,7 +3,7 @@ import tqdm
 from halo8thruster.driver.comms import Comms
 from halo8thruster.driver.mr_logger import MrLogger
 from halo8thruster.driver.exceptions import CommsTimeout
-from halo8thruster.driver.od_defines import *
+from halo8thruster.driver.defines import *
 
 BOOTUP_TIMEOUT = 20.0
 
