@@ -1,186 +1,41 @@
 #!/usr/bin/python3
-import socket, argparse, datetime, struct, os, sys, threading, time
-from halo8thruster.driver.telem_window import FlaskHSIWindow
-from queue import Queue
-from halo8thruster.driver.defines import HSIDefines
+import sys, argparse
+from halo8thruster.driver.listener import Listener
 
-"""
-ExoTerra Resource Listener Script.
-description:
-The listener.py script allows for viewing and capturing of raw serial messages, trace, and telemetry messages.
-Thruster Command forwards msg traffic over UDP to the listener script on 3 ports, one for raw serial msgs, 
-one for debug messages, and one for telemetry messages.  The UDP ports are 4000, 4002, 4001 respectively.
-"""
-
-class Listener():
-    """
-    Listener, This class listens and logs trace, hsi and raw serial messages.
-    """
-
-    def __init__(self, mode, udp_ip, udp_port, logdir):
-        self.mode = mode
-        self.udp_ip = udp_ip
-        self.udp_port = int(udp_port)
-        self.logdir = f"./{logdir}/"
-        self.running = True
-        self.hsi_defs = HSIDefines()
-        self.q = Queue()
-        self.sock = socket.socket(socket.AF_INET,  # Internet
-                                  socket.SOCK_DGRAM)  # UDP
-        self.send_count = 0
-        try:
-            self.sock.bind((self.udp_ip, int(self.udp_port)))
-        except os.error as e:
-            print(f"{e}")
-            sys.exit(1)
-        t = threading.Thread(target=self.listen)
-        if self.mode == "gui":
-            print("gui enabled")
-            self.frame = FlaskHSIWindow()
-            t.start()
-            try:
-                while True:
-                    time.sleep(1)
-            except KeyboardInterrupt:
-                self.on_exit()
-        else:
-            t.start()
-            try:
-                while True:
-                    if not self.q.empty():
-                        m = self.q.get()
-                        self.log(m)
-                    else:
-                        time.sleep(0.1)
-            except KeyboardInterrupt:
-                self.running = False
-                self.sock.sendto(bytes("", "ascii"), (self.udp_ip, self.udp_port))
-                sys.exit(1)
-
-    def on_exit(self, event=None):
-        """
-        on_exit, called on exit, cleans up thread and exits.
-        """
-        self.running = False
-        self.sock.sendto(bytes("", "ascii"), (self.udp_ip, self.udp_port))
-        # self.logf.close()
-        sys.exit(1)
-
-    def log(self, msg):
-        """
-        log, writes a msg to the log file.
-        """
-        None
-        # self.logf.write(msg + "\n")
-        # self.logf.flush()
-
-    def listen(self):
-        """
-        listen, listens for data on a network port and depending on the mode decodes trace, hsi, or raw exoserial msgs.
-        Should be run in a thread.
-        """
-        try:
-            while self.running:
-                data, addr = self.sock.recvfrom(1024)
-                now = datetime.datetime.now()
-                time_string = now.strftime("%Y_%m_%d_%H_%M_%S.%f")
-                time_string_disp = now.strftime("%M:%S.%f")
-                if self.mode == "raw":
-                    if data[0] == 0xA:
-                        # sent from the gui
-                        tx_bytes = data[1:]  # remove the first byte
-                        # rx_cnt = data[2]
-                        header = (tx_bytes[0] & 0xF8)
-                        if (header) == 0xa8:
-                            # get the cob id
-                            cob_id = (tx_bytes[0] & 0x7) << 8  # move the 3bits up to the top
-                            cob_id |= (tx_bytes[1] & 0xFF)  # append the bottom 8 bits
-                            remote_frame = (tx_bytes[2] & 0x80) >> 7
-                            extended_id = (tx_bytes[2] & 0x40) >> 6
-                            data_length = (tx_bytes[2] & 0xF)
-                            data = tx_bytes[3:11]
-                            self.send_count += 1
-                            msg = f" id:{hex(cob_id)}: dl:{data_length}: d:{data.hex()}: cnt:{self.send_count}"
-
-                            self.log(f"[S:{time_string}]:{tx_bytes.hex()}:{msg}")
-                            print(f"S:{time_string_disp}:{tx_bytes.hex()}:{msg}")
-
-                    elif data[0] == 0xB:
-                        # recv from sam
-                        rx_bytes = data[1:]  # remove the first byte
-                        # rx_cnt = hex(data[2])
-                        header = (rx_bytes[0] & 0xF8)
-                        if (header) == 0xa8:
-                            # get the cob id
-                            cob_id = (rx_bytes[0] & 0x7) << 8  # move the 3bits up to the top
-                            cob_id |= (rx_bytes[1] & 0xFF)  # append the bottom 8 bits
-                            data_length = (rx_bytes[2] & 0xF)
-                            data = rx_bytes[3:11]
-
-                            index = struct.unpack("<H", rx_bytes[4:6])[0]
-                            subindex = rx_bytes[6]
-                            if index == 0x5001 and subindex == 0x3:
-                                self.sock.sendto(data, (self.udp_ip, self.udp_port + 1))
-                            msg = f" id:{hex(cob_id)}: dl:{data_length}: d:{data.hex()}"
-                            self.log(f"[R:{time_string}]:{rx_bytes.hex()}:{msg}")
-                            print(f"R:{time_string_disp}:{rx_bytes.hex()}:{msg}")
-                    else:
-                        # garbage
-                        None
-
-                elif self.mode == "hsi" or self.mode == "trace":
-                    str_msg = data.decode("ascii")
-                    self.log(str_msg)
-                    str_msg = str_msg[14:]
-                    print(str_msg)
-
-                elif self.mode == "gui":
-                    try:
-                        hsi_frame = self.hsi_defs.parse_hsi_packet(data)
-                        for name, val in hsi_frame.items():
-                            entry = self.hsi_defs.hsi[name]
-                            self.frame.write_display(entry["row"], entry["col"], val)
-                    except Exception as e:
-                        print(f"Query Failed: {e}")
-        except IndexError:
-            None
+PORT_RAW   = 4000
+PORT_HSI   = 4001
+PORT_TRACE = 4002
 
 def main():
-    parser = argparse.ArgumentParser(
-        description='Listens for exoserial data on the local network (udp).')
-    parser.add_argument('--trace', action='store_true', help='Enables Trace Mode.')
-    parser.add_argument('--hsi', action='store_true', help='Enables HSI Mode.')
-    parser.add_argument('--gui', action='store_true', help='Enables Gui.')
-    parser.add_argument('--socket', action='store', type=str, help='The Network host to bind to.',
-                        default="127.0.0.1", required=False)
-    parser.add_argument('--port', action='store', type=str, help='The port to listen on.',
-                        default=4000, required=False)
+    parser = argparse.ArgumentParser(description='Listens for exoserial data on the local network (udp).')
+    parser.add_argument('--trace',  action='store_true', help='Enables Trace Mode.')
+    parser.add_argument('--hsi',    action='store_true', help='Enables HSI Mode.')
+    parser.add_argument('--gui',    action='store_true', help='Enables Gui.')
+    parser.add_argument('--socket', type=str, default="127.0.0.1", help='The Network host to bind to.')
+    parser.add_argument('--port',   type=int, default=None, help='The port to listen on.')
     args = parser.parse_args()
-    mode = "raw"
-    logdir = "listener_exoserial"
+
     if args.trace:
-        logdir = "listener_trace"
-        args.port = 4002
-        mode = "trace"
-        print(f"Listening for trace msgs {args.socket}:{args.port}.")
+        mode, port = "trace", args.port or PORT_TRACE
+        print(f"Listening for trace msgs {args.socket}:{port}.")
         print("Enabled Trace Mode.")
     elif args.hsi:
-        logdir = "listener_hsi"
-        mode = "hsi"
-        args.port = 4001
-        print(f"Listening for hsi and trace msgs {args.socket}:{args.port}.")
+        mode, port = "hsi", args.port or PORT_HSI
+        print(f"Listening for hsi and trace msgs {args.socket}:{port}.")
         print("Enabled HSI Mode.")
     elif args.gui:
-        logdir = "listener_hsi"
-        args.port = 4001
-        mode = "gui"
+        mode, port = "gui", args.port or PORT_HSI
         print("Enabled HSI-GUI Mode.")
     else:
-        mode = "raw"
+        mode, port = "raw", args.port or PORT_RAW
         print("Enabled Raw Mode.")
-        print(f"Listening for exoserial msgs on {args.socket}:{args.port}.")
-    if args.socket and args.port:
-        l = Listener(mode, args.socket, args.port, logdir)
+        print(f"Listening for exoserial msgs on {args.socket}:{port}.")
+
+    try:
+        Listener(mode, args.socket, port).run()
+    except OSError as e:
+        print(e)
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()
