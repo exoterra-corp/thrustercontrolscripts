@@ -4,8 +4,6 @@ from halo8thruster.driver.mr_logger import MrLogger, LogType
 from halo8thruster.driver.od_defines import *
 from halo8thruster.driver.exceptions import ConnectionError, CommsError, CommsTimeout, CommsAbort
 
-
-
 class Comms:
     def __init__(
         self,
@@ -24,6 +22,7 @@ class Comms:
         self.network = canopen.Network()
         self.write_mutex = Lock()
         try:
+            self.mr_logger.sys(f"Connecting to {serial_port}…")
             self.network.connect(bustype="exoserial", channel=self.serial_port, baudrate=115200)
             self.node = self.network.add_node(self.system_id)
             self.network.add_node(self.node)

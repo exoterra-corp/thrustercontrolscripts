@@ -28,6 +28,15 @@ class PPU():
 
     def __exit__(self, *exc):
         self.com.disconnect()
+        
+
+def parse_ppu_args(description=""):
+    import argparse
+    p = argparse.ArgumentParser(description=description)
+    p.add_argument("--serial-port", default="/dev/ttyUSB0")
+    p.add_argument("--system-id",   default="0x22")
+    a = p.parse_args()
+    return a.serial_port, int(a.system_id, 0)
 
 
 if __name__ == "__main__":

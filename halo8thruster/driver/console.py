@@ -2,60 +2,83 @@ from halo8thruster.driver.mr_logger import LogType
 from halo8thruster.driver.exceptions import PPUError
 
 class Console():
-    def __init__(self, mr_logger,console_table:dict):
-        #default cmds, the console table passed in appends to this to fill it out
-        self.default_console_table = {
-            "0": {"name": "Exit", "func": self.exit, "help": "Exits the Program"},
-            "1": {"name": "Help", "func": self.help, "help": "Displays the help Menu"},
-        }
+    def __init__(self, mr_logger, console_table: dict):
         self.mr_logger = mr_logger
-        self.default_console_table |= console_table
         self.running = True
-        pass
+        self.default_console_table = {
+            "0": {"name": "exit", "func": self.exit, "help": "Exits the program"},
+            "1": {"name": "help", "func": self.help, "help": "Displays the help menu"},
+        }
+        self.default_console_table |= console_table
 
-    def start_console(self, ):
+    def _resolve(self, inp: str) -> dict | None:
+        """Return the command dict for inp, matching on key or name (case-insensitive)."""
+        if inp in self.default_console_table:
+            return self.default_console_table[inp]
+        for cmd in self.default_console_table.values():
+            if cmd.get("name", "").lower() == inp:
+                return cmd
+        return None
+
+    def start_console(self):
         self.help(None)
         while self.running:
             try:
-                self.mr_logger.log(LogType.SYS, f">", end='', print_val=False)
-                inp = input(f">").lower().strip()
-                self.mr_logger.log(LogType.SYS, f"{inp}", end='', print_val=False)
-                if inp in self.default_console_table.keys():
-                    cmd = self.default_console_table.get(inp)
+                self.mr_logger.log(LogType.SYS, ">", end='', print_val=False)
+                inp = input(">").lower().strip()
+                self.mr_logger.log(LogType.SYS, inp, end='', print_val=False)
+                cmd = self._resolve(inp)
+                if cmd is not None:
                     func = cmd.get("func")
                     args = cmd.get("args")
                     name = cmd.get("name")
-                    if func != None:
-                        self.mr_logger.log(LogType.SYS,f"{name}")
+                    if func is not None:
+                        self.mr_logger.log(LogType.SYS, name)
                         try:
                             func(args)
                         except PPUError as e:
                             self.mr_logger.log(LogType.SYS, f"[{type(e).__name__}] {e}")
                         except Exception as e:
                             self.mr_logger.log(LogType.SYS, f"[Error] {e}")
-            except KeyboardInterrupt as e:
+            except KeyboardInterrupt:
                 self.exit(None)
             except EOFError:
                 self.exit(None)
-                
-    def register_func(self, key, name, func, help):
-        self.default_console_table[key] = {"name": name, "func": func, "help": help}
+
+    def register_func(self, key, name, func, help, group=None):
+        entry = {"name": name, "func": func, "help": help}
+        if group is not None:
+            entry["group"] = group
+        self.default_console_table[key] = entry
 
     def help(self, args):
-        """
-        help, reads the predefined cmds and prints them in a table.
-        """
-        for v in self.default_console_table:
-            x = self.default_console_table.get(v)
-            self.mr_logger.log(LogType.SYS, f"{v} - {x.get('name')} : [{x.get('help')}]")
+        """Print commands grouped by their 'group' field; ungrouped commands appear first."""
+        table = self.default_console_table
+
+        # Collect groups in insertion order; None = no group (printed first as "General")
+        seen_groups = {}
+        for key, cmd in table.items():
+            g = cmd.get("group")
+            if g not in seen_groups:
+                seen_groups[g] = []
+            seen_groups[g].append((key, cmd))
+
+        # Print ungrouped first, then named groups
+        order = [None] + [g for g in seen_groups if g is not None]
+        for g in order:
+            if g not in seen_groups:
+                continue
+            entries = seen_groups[g]
+            if g is not None:
+                self.mr_logger.log(LogType.SYS, f"--- {g} ---")
+            for key, cmd in entries:
+                name = cmd.get("name", "")
+                label = f"{key}|{name}" if name else key
+                self.mr_logger.log(LogType.SYS, f"  {label:<20} : {cmd.get('help', '')}")
 
     def exit(self, args):
-        """
-        exit, exits the program.
-        """
         self.mr_logger.close()
         self.running = False
-
 
     def get_write_value(self, comms, args):
         """
