@@ -1,3 +1,4 @@
+textual>=0.80
 #canopen == 1.2.4
 git+https://github.com/exoterra-corp/pycanopen.git
 #python-can == 4.0.12

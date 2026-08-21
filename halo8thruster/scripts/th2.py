@@ -60,7 +60,7 @@ class ThrusterCommand(PPU):
             #        "help": "Reset Conditioning Stats."},
         }
         self.c = Console(self.mr, self.cmds)
-        self.c.start_console()
+        self.c.start()
 
 
 def main():

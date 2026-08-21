@@ -1,89 +1,128 @@
 from halo8thruster.driver.mr_logger import LogType
 from halo8thruster.driver.exceptions import PPUError
 
-class Console():
-    def __init__(self, mr_logger, console_table: dict):
-        self.mr_logger = mr_logger
-        self.running = True
-        self.default_console_table = {
-            "0": {"name": "exit", "func": self.exit, "help": "Exits the program"},
-            "1": {"name": "help", "func": self.help, "help": "Displays the help menu"},
+
+class Console:
+    """
+    Interactive REPL console with optional textual TUI.
+
+    Plain mode (default): simple input()/print() loop, no extra dependencies.
+    TUI mode (set header, show_raw, or show_hsi): launches a textual app with a
+    header bar, console pane, and optional raw CAN / decoded HSI panes.
+    """
+
+    def __init__(self, mr_logger, commands: dict, *,
+                 header: dict | None = None,
+                 show_raw: bool = False,
+                 show_hsi: bool = False):
+        """
+        mr_logger  MrLogger instance
+        commands   dict of {key: {name, func, help[, args][, group]}}
+        header     initial {label: value} pairs shown in the header bar (TUI only)
+        show_raw   show scrolling raw CAN packet pane (TUI only)
+        show_hsi   show live decoded HSI telemetry table (TUI only)
+        """
+        self._mr = mr_logger
+        self._header = dict(header) if header is not None else None
+        self._show_raw = show_raw
+        self._show_hsi = show_hsi
+        self._tui_mode = (header is not None) or show_raw or show_hsi
+        self._app = None
+
+        self._table = {
+            "0": {"name": "exit", "func": self._exit, "help": "Exit the program"},
+            "1": {"name": "help", "func": self._help, "help": "Show this help"},
         }
-        self.default_console_table |= console_table
+        self._table.update(commands)
+
+    # ------------------------------------------------------------------ public
+
+    def start(self):
+        if self._tui_mode:
+            from halo8thruster.driver._console_tui import ConsoleApp
+            self._app = ConsoleApp(self)
+            self._app.run()
+        else:
+            self._run_plain()
+
+    def update_header(self, key: str, value):
+        """Thread-safe update of a header field value. No-op in plain mode."""
+        if self._header is None:
+            return
+        self._header[key] = str(value)
+        if self._app is not None:
+            self._app.call_from_thread(self._app.refresh_header)
+
+    # --------------------------------------------------------------- internals
 
     def _resolve(self, inp: str) -> dict | None:
-        """Return the command dict for inp, matching on key or name (case-insensitive)."""
-        if inp in self.default_console_table:
-            return self.default_console_table[inp]
-        for cmd in self.default_console_table.values():
+        if inp in self._table:
+            return self._table[inp]
+        for cmd in self._table.values():
             if cmd.get("name", "").lower() == inp:
                 return cmd
         return None
 
-    def start_console(self):
-        self.help(None)
-        while self.running:
-            try:
-                self.mr_logger.log(LogType.SYS, ">", end='', print_val=False)
-                inp = input(">").lower().strip()
-                self.mr_logger.log(LogType.SYS, inp, end='', print_val=False)
-                cmd = self._resolve(inp)
-                if cmd is not None:
-                    func = cmd.get("func")
-                    try:
-                        args = cmd.get("args")
-                    except Exception:
-                        args = None
-                    name = cmd.get("name")
-                    if func is not None:
-                        self.mr_logger.log(LogType.SYS, name)
-                        try:
-                            v = func(args) if args is not None else func()
-                            if v is not None:
-                                self.mr_logger.sys(v)
-                        except PPUError as e:
-                            self.mr_logger.log(LogType.SYS, f"[{type(e).__name__}] {e}")
-                        except Exception as e:
-                            self.mr_logger.log(LogType.SYS, f"[Error] {e}")
-            except KeyboardInterrupt:
-                self.exit(None)
-            except EOFError:
-                self.exit(None)
+    def _dispatch(self, inp: str):
+        cmd = self._resolve(inp)
+        if cmd is None:
+            return
+        func = cmd.get("func")
+        args = cmd.get("args")
+        if func is None:
+            return
+        self._mr.log(LogType.SYS, cmd.get("name", ""))
+        try:
+            v = func(args) if args is not None else func()
+            if v is not None:
+                self._mr.sys(str(v))
+        except PPUError as e:
+            self._mr.log(LogType.SYS, f"[{type(e).__name__}] {e}")
+        except Exception as e:
+            self._mr.log(LogType.SYS, f"[Error] {e}")
 
-    def register_func(self, key, name, func, help, group=None):
-        entry = {"name": name, "func": func, "help": help}
-        if group is not None:
-            entry["group"] = group
-        self.default_console_table[key] = entry
-
-    def help(self, args):
-        """Print commands grouped by their 'group' field; ungrouped commands appear first."""
-        table = self.default_console_table
-
-        # Collect groups in insertion order; None = no group (printed first as "General")
-        seen_groups = {}
-        for key, cmd in table.items():
+    def _write_help(self, output_fn):
+        """Write help lines by calling output_fn(line) for each one."""
+        seen_groups: dict = {}
+        for key, cmd in self._table.items():
             g = cmd.get("group")
             if g not in seen_groups:
                 seen_groups[g] = []
             seen_groups[g].append((key, cmd))
 
-        # Print ungrouped first, then named groups
         order = [None] + [g for g in seen_groups if g is not None]
         for g in order:
             if g not in seen_groups:
                 continue
-            entries = seen_groups[g]
             if g is not None:
-                self.mr_logger.log(LogType.SYS, f"--- {g} ---")
-            for key, cmd in entries:
+                output_fn(f"--- {g} ---")
+            for key, cmd in seen_groups[g]:
                 name = cmd.get("name", "")
                 label = f"{key}|{name}" if name else key
-                self.mr_logger.log(LogType.SYS, f"  {label:<20} : {cmd.get('help', '')}")
+                output_fn(f"  {label:<20} : {cmd.get('help', '')}")
 
-    def exit(self, args):
-        self.mr_logger.close()
-        self.running = False
+    def _help(self, args=None):
+        self._write_help(lambda msg: self._mr.log(LogType.SYS, msg))
+
+    def _exit(self, args=None):
+        self._running = False
+        self._mr.close()
+        if self._app is not None:
+            self._app.exit()
+
+    def _run_plain(self):
+        self._running = True
+        self._help(None)
+        while self._running:
+            try:
+                self._mr.log(LogType.SYS, ">", end="", print_val=False)
+                inp = input(">").lower().strip()
+                self._mr.log(LogType.SYS, inp, print_val=False)
+                self._dispatch(inp)
+            except KeyboardInterrupt:
+                self._exit(None)
+            except EOFError:
+                self._exit(None)
 
     def get_write_value(self, comms, args):
         """
@@ -106,19 +145,19 @@ class Console():
             return
 
         while True:
-            self.mr_logger.log(LogType.SYS, "Enter value to send (decimal or 0x hex) - or 'x' to cancel.")
+            self._mr.log(LogType.SYS, "Enter value to send (decimal or 0x hex) - or 'x' to cancel.")
             inp = input("write> ")
             if inp.lower() in ("back", "x"):
                 return
             if index == 0x4000 and (subindex == 2 or subindex == 9):
-                print("Set a burn duration timeout? (0 for none, or seconds up to 65535):")
+                self._mr.log(LogType.SYS, "Set a burn duration timeout? (0 for none, or seconds up to 65535):")
                 timeout = input("timeout in seconds> ")
                 if timeout.lower() in ("back", "x"):
                     return
                 try:
                     inp = str(int(inp, 0) + (int(timeout) << 16))
                 except ValueError:
-                    self.mr_logger.log(LogType.SYS, "Invalid value — enter a number.")
+                    self._mr.log(LogType.SYS, "Invalid value — enter a number.")
                     continue
             if inp:
                 comms.write(index, subindex, inp, python_type)

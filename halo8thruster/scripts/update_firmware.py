@@ -15,7 +15,7 @@ class UpdateFirmware(PPU):
             "5": {"name": "run",      "func": lambda _: self.upd.run(image_file),      "help": "Full sequence: download → verify → install"},
         }
         self.c = Console(self.mr, self.cmds)
-        self.c.start_console()
+        self.c.start()
 
 def main():
     import argparse

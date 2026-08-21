@@ -71,6 +71,11 @@ class MrLogger:
         fieldnames = ["timestamp"] + list(self.hsi_def.hsi.keys())
         self.hsi_csv_writer = DictWriter(self.hsi_log_csv, fieldnames=fieldnames)
         self.hsi_csv_writer.writeheader()
+        self._listeners = {lt: [] for lt in LogType}
+
+    def add_listener(self, log_type: LogType, callback):
+        """Register a callback for a log type. SYS callbacks fire immediately in log(); RAW/HSI fire from background threads."""
+        self._listeners[log_type].append(callback)
 
     def set_raw_queue(self, q):
         """
@@ -103,7 +108,12 @@ class MrLogger:
         if log_type.value >= 0 and log_type.value <= 3:
             self.q.put(_LogItem(log_type, msg, time.time()))
             if log_type.value == LogType.SYS.value and print_val:
-                print(msg, end=end)
+                listeners = self._listeners[LogType.SYS]
+                if listeners:
+                    for cb in listeners:
+                        cb(msg, end)
+                else:
+                    print(msg, end=end)
             return True
         else:
             return False
@@ -133,6 +143,8 @@ class MrLogger:
                         self.hsi_log_json.write(f'\"{str(self.hsi_msg_cnt)}\":{json.dumps(csv_row)}')
                         self.hsi_msg_cnt += 1
                         self.sock.sendto(msg, (self.udp_ip, self.hsi_udp_port))
+                        for cb in self._listeners[LogType.HSI]:
+                            cb(csv_row)
                 elif log_type == LogType.TRACE.value:
                     decoded_msg = f"{str_time}:{msg.decode('ascii')}\n"
                     self.trace_log.write(decoded_msg)
@@ -167,7 +179,8 @@ class MrLogger:
                     payload = tx_bytes[3:11]
                     msg = f" id:{hex(cob_id)}: dl:{data_length}: d:{payload.hex()}"
                     self.raw_log.write(f"[S:{time_string}]:{tx_bytes.hex()}:{msg}\n")
-                    # self.sock.sendto(data, (self.udp_ip, self.raw_udp_port))
+                    for cb in self._listeners[LogType.RAW]:
+                        cb(f"[S:{time_string_disp}]{msg}")
 
             elif data[0] == 0xB:
                 # recv from sam
@@ -180,7 +193,8 @@ class MrLogger:
                     payload = rx_bytes[3:11]
                     msg = f" id:{hex(cob_id)}: dl:{data_length}: d:{payload.hex()}"
                     self.raw_log.write(f"[R:{time_string}]:{rx_bytes.hex()}:{msg}\n")
-                    # self.sock.sendto(data, (self.udp_ip, self.raw_udp_port))
+                    for cb in self._listeners[LogType.RAW]:
+                        cb(f"[R:{time_string_disp}]{msg}")
 
     def sys(self, msg, end="\n"):   self.log(LogType.SYS, msg, end)
     def trace(self, msg):           self.log(LogType.TRACE, msg)
