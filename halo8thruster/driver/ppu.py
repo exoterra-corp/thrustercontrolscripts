@@ -2,6 +2,7 @@ from halo8thruster.driver.comms import Comms
 from halo8thruster.driver.state import State
 from halo8thruster.driver.mr_logger import MrLogger
 from halo8thruster.driver.exceptions import ConnectionError
+from threading import Thread
 
 class PPU():
     """
@@ -14,7 +15,7 @@ class PPU():
             ...
     """
 
-    def __init__(self, serial_port="/dev/ttyUSB0", system_id=0x22, log_name="", debug=False):
+    def __init__(self, serial_port="/dev/ttyUSB0", system_id=0x22, log_name="", gather=False,debug=False):
         self.mr = MrLogger("logs", log_name)
         try:
             self.com = Comms(self.mr, serial_port=serial_port, system_id=system_id, debug=debug)
@@ -31,8 +32,11 @@ class PPU():
 
     def gather(self):
         """
-        gather will 
+        gathers, status, trace and telemetry on a threaded loop
         """
+        thruster_status = self.state.thruster_state_read()
+        trace_msg = self.state.trace_read()
+        block_telem = self.state.block_telem_read()
         pass
     
 def parse_ppu_args(description=""):

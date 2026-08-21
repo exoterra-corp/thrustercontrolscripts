@@ -4,19 +4,20 @@ description:
 Provides and interface to gather and log messages to files.
 """
 
-from queue import Queue, Full
+from collections import namedtuple
+from queue import Queue, SimpleQueue, Empty
 from socket import socket, AF_INET, SOCK_DGRAM
-from datetime import datetime
 from os.path import exists
 from os import mkdir
 from threading import Thread
 from time import sleep
-from traceback import extract_tb
 from struct import unpack
 from enum import Enum
 import time, datetime, struct, json
 from csv import DictWriter
 from halo8thruster.driver.hsi_defines import HSIDefines
+
+_LogItem = namedtuple("_LogItem", ["log_type", "msg", "timestamp"])
 
 class LogType(Enum):
     """
@@ -37,12 +38,12 @@ class MrLogger:
         init, creates 2 threads for mr logger one for raw serial messages, the other for trace, hsi, and sys messages.
         It also creates a folder for each startup and under this folder 4 files are created to store each type of log message.
         """
-        HSI_HEADER = struct.pack("<I", 0xEE01)
         self.raw_q = Queue()
-        self.q = Queue(10)
-        #try to get the config vars
-        self.raw_udp_ip = "127.0.0.1"
-        self.raw_udp_port = 4000
+        self.q = SimpleQueue()
+        self.udp_ip         = "127.0.0.1"
+        self.raw_udp_port   = 4000
+        self.hsi_udp_port   = 4001
+        self.trace_udp_port = 4002
         # create logging dir
         self.create_folder(root_dir)
         now = datetime.datetime.now()
@@ -100,12 +101,7 @@ class MrLogger:
         print_Val: bool, whether or not to print the logged message.
         """
         if log_type.value >= 0 and log_type.value <= 3:
-            ts = time.time()
-            try:
-                self.q.put_nowait({"type": log_type, "msg": msg, "timestamp": ts})
-            except Full:
-                import sys
-                print(f"[MrLogger] Queue full, dropping: {msg}", file=sys.stderr)
+            self.q.put(_LogItem(log_type, msg, time.time()))
             if log_type.value == LogType.SYS.value and print_val:
                 print(msg, end=end)
             return True
@@ -118,39 +114,33 @@ class MrLogger:
         """
         while self.run:
             try:
-                if not self.q.empty():
-                    m = self.q.get()
-                    try:
-                        type = m.get("type").value
-                        msg = m.get("msg")
-                        ts = m.get("timestamp")
-                        str_time = datetime.datetime.fromtimestamp(ts) #convert time
-                        if type == LogType.HSI.value:
-                            if len(msg) == 122:
-                                csv_row = self.hsi_def.parse_hsi_packet(msg)
-                                csv_row["timestamp"] = str(str_time)
-                                #after parsing write the whole row
-                                self.hsi_csv_writer.writerow(csv_row)
-                                self.hsi_log_csv.flush()
-                                if self.hsi_msg_cnt != 0:#ignore the first comma so its valid json
-                                    self.hsi_log_json.write(",")
-                                self.hsi_log_json.write(f'\"{str(self.hsi_msg_cnt)}\":{json.dumps(csv_row)}')
-                                self.hsi_msg_cnt+=1
-                            else:
-                                #throwout the value, not sure if we should throw an error
-                                None
-                        elif type == LogType.TRACE.value:
-                            decoded_msg = f"{str_time}:{msg.decode('ascii')}\n"
-                            self.trace_log.write(decoded_msg)
-                            self.trace_log.flush()
-                        elif type == LogType.SYS.value:
-                            self.sys_log.write(f"{str_time}:{msg}\n")
-                            self.sys_log.flush()
-                    except KeyError:
-                        None
-                        # failed to parse log message
-                else:
-                    sleep(0.1)
+                m = self.q.get(timeout=0.1)
+            except Empty:
+                continue
+            try:
+                log_type = m.log_type.value
+                msg = m.msg
+                ts = m.timestamp
+                str_time = datetime.datetime.fromtimestamp(ts)
+                if log_type == LogType.HSI.value:
+                    if len(msg) == 122:
+                        csv_row = self.hsi_def.parse_hsi_packet(msg)
+                        csv_row["timestamp"] = str(str_time)
+                        self.hsi_csv_writer.writerow(csv_row)
+                        self.hsi_log_csv.flush()
+                        if self.hsi_msg_cnt != 0:
+                            self.hsi_log_json.write(",")
+                        self.hsi_log_json.write(f'\"{str(self.hsi_msg_cnt)}\":{json.dumps(csv_row)}')
+                        self.hsi_msg_cnt += 1
+                        self.sock.sendto(msg, (self.udp_ip, self.hsi_udp_port))
+                elif log_type == LogType.TRACE.value:
+                    decoded_msg = f"{str_time}:{msg.decode('ascii')}\n"
+                    self.trace_log.write(decoded_msg)
+                    self.trace_log.flush()
+                    self.sock.sendto(msg, (self.udp_ip, self.trace_udp_port))
+                elif log_type == LogType.SYS.value:
+                    self.sys_log.write(f"{str_time}:{msg}\n")
+                    self.sys_log.flush()
             except Exception as e:
                 print(e)
 
@@ -159,11 +149,9 @@ class MrLogger:
         handle_raw_queue, handles reading the Queue and decoding and then writing any data into a file with a timestamp.
         """
         while self.run:
-            # data, addr = self.sock.recvfrom(1024)  # buffer size is 1024 bytes
-            data = None
-            if not self.raw_q.empty():
-                data = self.raw_q.get()
-            else:
+            try:
+                data = self.raw_q.get(timeout=0.01)
+            except (Empty, AttributeError):
                 continue
             now = datetime.datetime.now()
             time_string = now.strftime("%Y_%m_%d_%H_%M_%S.%f")
@@ -171,41 +159,28 @@ class MrLogger:
             if data[0] == 0xA:
                 # sent from the gui
                 tx_bytes = data[1:]  # remove the first byte
-                # rx_cnt = data[2]
                 header = (tx_bytes[0] & 0xF8)
                 if (header) == 0xa8:
-                    # get the cob id
-                    cob_id = (tx_bytes[0] & 0x7) << 8  # move the 3bits up to the top
-                    cob_id |= (tx_bytes[1] & 0xFF)  # append the bottom 8 bits
-                    remote_frame = (tx_bytes[2] & 0x80) >> 7
-                    extended_id = (tx_bytes[2] & 0x40) >> 6
+                    cob_id = (tx_bytes[0] & 0x7) << 8
+                    cob_id |= (tx_bytes[1] & 0xFF)
                     data_length = (tx_bytes[2] & 0xF)
-                    data = tx_bytes[3:11]
-                    msg = f" id:{hex(cob_id)}: dl:{data_length}: d:{data.hex()}"
+                    payload = tx_bytes[3:11]
+                    msg = f" id:{hex(cob_id)}: dl:{data_length}: d:{payload.hex()}"
                     self.raw_log.write(f"[S:{time_string}]:{tx_bytes.hex()}:{msg}\n")
+                    # self.sock.sendto(data, (self.udp_ip, self.raw_udp_port))
 
             elif data[0] == 0xB:
                 # recv from sam
                 rx_bytes = data[1:]  # remove the first byte
-                # rx_cnt = hex(data[2])
                 header = (rx_bytes[0] & 0xF8)
                 if (header) == 0xa8:
-                    # get the cob id
-                    cob_id = (rx_bytes[0] & 0x7) << 8  # move the 3bits up to the top
-                    cob_id |= (rx_bytes[1] & 0xFF)  # append the bottom 8 bits
+                    cob_id = (rx_bytes[0] & 0x7) << 8
+                    cob_id |= (rx_bytes[1] & 0xFF)
                     data_length = (rx_bytes[2] & 0xF)
-                    data = rx_bytes[3:11]
-
-                    index = unpack("<H", rx_bytes[4:6])[0]
-                    subindex = rx_bytes[6]
-                    if index == 0x5001 and subindex == 0x3:
-                        self.sock.sendto(data, (self.raw_udp_ip, 4001))
-                    msg = f" id:{hex(cob_id)}: dl:{data_length}: d:{data.hex()}"
+                    payload = rx_bytes[3:11]
+                    msg = f" id:{hex(cob_id)}: dl:{data_length}: d:{payload.hex()}"
                     self.raw_log.write(f"[R:{time_string}]:{rx_bytes.hex()}:{msg}\n")
-            else:
-                # garbage
-                None
-            sleep(0.01)
+                    # self.sock.sendto(data, (self.udp_ip, self.raw_udp_port))
 
     def sys(self, msg, end="\n"):   self.log(LogType.SYS, msg, end)
     def trace(self, msg):           self.log(LogType.TRACE, msg)
@@ -220,7 +195,6 @@ class MrLogger:
         if self.handle_thread.is_alive():
             self.handle_thread.join()
         if self.network_handle_thread.is_alive():
-            self.sock.sendto(bytes(" ", "ascii"), (self.raw_udp_ip, self.raw_udp_port))  # send a packet to get out of waiting
             self.network_handle_thread.join()
         self.hsi_log_csv.close()
         self.hsi_log_json.write("}")
