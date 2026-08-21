@@ -1,4 +1,5 @@
 from halo8thruster.driver.mr_logger import LogType
+from halo8thruster.driver.exceptions import PPUError
 
 class Console():
     def __init__(self, mr_logger,console_table:dict):
@@ -28,15 +29,17 @@ class Console():
                         self.mr_logger.log(LogType.SYS,f"{name}")
                         try:
                             func(args)
+                        except PPUError as e:
+                            self.mr_logger.log(LogType.SYS, f"[{type(e).__name__}] {e}")
                         except Exception as e:
-                            self.mr_logger.log(LogType.SYS,f"{e}")
+                            self.mr_logger.log(LogType.SYS, f"[Error] {e}")
             except KeyboardInterrupt as e:
                 self.exit(None)
             except EOFError:
                 self.exit(None)
                 
-    def register_func(self, name, func, help):
-        None
+    def register_func(self, key, name, func, help):
+        self.default_console_table[key] = {"name": name, "func": func, "help": help}
 
     def help(self, args):
         """
@@ -54,42 +57,41 @@ class Console():
         self.running = False
 
 
-    def get_write_value(self, args):
+    def get_write_value(self, comms, args):
         """
-        get_write_value, looks for a default value and if one is found just writes it, otherwise its prompts the user
-        for a hex value to write.
+        Prompt the user for a value and write it via comms, or write a default if one is set.
+        args keys: index, subindex, type, default (optional).
+        Values may be decimal ("26") or hex ("0x1A") — comms.write auto-detects.
         """
+        if args is None:
+            return
         index = args.get("index")
         subindex = args.get("subindex")
         python_type = args.get("type")
         default = args.get("default")
-        hex_en = args.get("hex_en")
-        val_type_str = "decimal"
 
-        if hex_en is not None and hex_en is not False:
-            val_type_str = "hex"
-            hex_en = True
-        else:
-            hex_en = False
+        if index is None or subindex is None or python_type is None:
+            return
 
-        valid = False
-        if index != None and subindex != None and python_type != None:
-            if default is not None:  # if we have a default value just write it and dont prompt user.
-                self.write(index, subindex, default, python_type, hex_en)
-            else:
-                while not valid:
-                    self.mr_logger.log(LogType.SYS, f"Enter {val_type_str} value to send to ECP - or 'x' to return to previous menu.")
-                    inp = input("write> ")
-                    if inp.lower() == "back" or inp.lower() == "x":
-                        return
-                    # filter for steady state (2) or auto start (9) commands.  If it is either of these commands, they need a duration time
-                    if index == 0x4000 and subindex == 2 or subindex == 9:
-                        print("set a burn duration timeout? ( 0 for no, or timeout in seconds (max 65535)):")
-                        timeout = input("timeout in seconds>")
-                        if timeout.lower() == "back" or timeout.lower() == "x":
-                            return
-                        # python "shift" of 16 bits
-                        inp = str(int(inp) + (int(timeout)<<16))                     
-                    if len(inp) > 0:
-                        self.write(index, subindex, inp, python_type, hex_en)
-                        valid = True
+        if default is not None:
+            comms.write(index, subindex, default, python_type)
+            return
+
+        while True:
+            self.mr_logger.log(LogType.SYS, "Enter value to send (decimal or 0x hex) - or 'x' to cancel.")
+            inp = input("write> ")
+            if inp.lower() in ("back", "x"):
+                return
+            if index == 0x4000 and (subindex == 2 or subindex == 9):
+                print("Set a burn duration timeout? (0 for none, or seconds up to 65535):")
+                timeout = input("timeout in seconds> ")
+                if timeout.lower() in ("back", "x"):
+                    return
+                try:
+                    inp = str(int(inp, 0) + (int(timeout) << 16))
+                except ValueError:
+                    self.mr_logger.log(LogType.SYS, "Invalid value — enter a number.")
+                    continue
+            if inp:
+                comms.write(index, subindex, inp, python_type)
+                return

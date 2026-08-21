@@ -4,7 +4,7 @@ description:
 Provides and interface to gather and log messages to files.
 """
 
-from queue import Queue
+from queue import Queue, Full
 from socket import socket, AF_INET, SOCK_DGRAM
 from datetime import datetime
 from os.path import exists
@@ -101,7 +101,11 @@ class MrLogger:
         """
         if log_type.value >= 0 and log_type.value <= 3:
             ts = time.time()
-            self.q.put(timeout=1.0)({"type": log_type, "msg": msg, "timestamp": ts})
+            try:
+                self.q.put_nowait({"type": log_type, "msg": msg, "timestamp": ts})
+            except Full:
+                import sys
+                print(f"[MrLogger] Queue full, dropping: {msg}", file=sys.stderr)
             if log_type.value == LogType.SYS.value and print_val:
                 print(msg, end=end)
             return True

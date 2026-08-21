@@ -1,57 +1,60 @@
-#!/usr/bin/python3
 import datetime, os
-from halo8thruster.driver.console import Console
 from halo8thruster.driver.comms import Comms
 from halo8thruster.driver.mr_logger import MrLogger, LogType
+from halo8thruster.driver.exceptions import CommsError
 
-class Versions():
-    def __init__(self):
+_COMPONENT_NAMES = [
+    "Thruster Control",
+    "Keeper",
+    "Anode",
+    "Outer Magnet",
+    "Inner Magnet",
+    "Valves",
+    "Thruster Control Bootloader",
+]
+
+class Version():
+    """Reads and logs software and hardware version information from the PPU."""
+
+    def __init__(self, comms: Comms, mr_logger: MrLogger):
+        self.com = comms
+        self.mr = mr_logger
         self.storage_path = "./logs/versions/"
-        self.cmds = {
-            "2": {"name": "read_sw_version", "func": self.read_sw_version, "help": "Read software versions"},
-            "3": {"name": "read_hw_version", "func": self.read_hw_version, "help": "Read hardware version"},
-        }
-        self.mr = MrLogger("logs")
-        self.com = Comms(self.mr)
-        self.c = Console(self.mr, self.cmds)
-        self.version_info_str = ["Thruster Control", "Keeper", "Anode", "Outer Magnet", "Inner Magnet", "Valves", "Thruster Control Bootloader"]
-        self.c.start_console()
 
-    def read_sw_version(self, args):
+    def read_sw(self, args=None):
+        """Read software versions for all components and write to a timestamped file."""
         os.makedirs(self.storage_path, exist_ok=True)
-        now = datetime.datetime.now()
-        time_string = now.strftime("%Y_%m_%d_%H_%M_%S")
-        version_file = open(f"{self.storage_path}sw_version_{time_string}.txt", "w")
-        version_file.write(f"========== Version Read Time {time_string} ==========\n")
+        time_string = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+        with open(f"{self.storage_path}sw_version_{time_string}.txt", "w") as version_file:
+            version_file.write(f"========== Version Read Time {time_string} ==========\n")
+            header = "Id: Version  : gitsha   : git sha 1 : Exec V 1  : git sha 2 : Exec V 2  : git sha 3 : Exec V 3 : Device Name"
+            self.mr.sys(header)
+            version_file.write(header + "\n")
 
-        num_components = 7
-        num_subindices = self.com.read(0x5000, 0, "noparse")
+            try:
+                num_subindices = self.com.read(0x5000, 0, "noparse")
+            except CommsError as e:
+                self.mr.sys(f"Version read failed: {e}")
+                return
 
-        header = "Id: Version  : gitsha   : git sha 1 : Exec V 1  : git sha 2 : Exec V 2  : git sha 3 : Exec V 3 : Device Name "
-        self.mr.log(LogType.SYS, header)
-        version_file.write(header + "\n")
+            for i in range(7):
+                device_name = _COMPONENT_NAMES[i] if i < len(_COMPONENT_NAMES) else ""
+                try:
+                    self.com.write(0x5000, 1, i, "<B")
+                    version_line = ""
+                    for j in range(2, num_subindices[0]):
+                        v_g = bytearray(self.com.read(0x5000, j, "noparse"))
+                        v_g[0], v_g[1] = v_g[1], v_g[0]
+                        v_g[2], v_g[3] = v_g[3], v_g[2]
+                        v_g[0:2], v_g[2:4] = v_g[2:4], v_g[0:2]
+                        version_line += " : " + v_g.hex()
+                    line = f"{i}{version_line} : {device_name}"
+                except CommsError as e:
+                    line = f"{i} : READ ERROR ({e}) : {device_name}"
+                self.mr.sys(line)
+                version_file.write(line + "\n")
 
-        for i in range(num_components):
-            device_name = self.version_info_str[i] if i < len(self.version_info_str) else ""
-            version_line = ""
-            self.com.write(0x5000, 1, str(i), "<B", hex_en=False)
-            for j in range(2, num_subindices[0]):
-                v_g = bytearray(self.com.read(0x5000, j, "noparse"))
-                v_g[0], v_g[1] = v_g[1], v_g[0]
-                v_g[2], v_g[3] = v_g[3], v_g[2]
-                v_g[0:2], v_g[2:4] = v_g[2:4], v_g[0:2]
-                version_line += " : " + str(v_g.hex())
-            line = f"{i}{version_line} : {device_name}"
-            self.mr.log(LogType.SYS, line)
-            version_file.write(line + "\n")
-        version_file.close()
-
-    def read_hw_version(self, args):
+    def read_hw(self, args=None):
+        """Read and log the hardware version string."""
         val = self.com.read(0x1009, 0, "noparse")
-        self.mr.log(LogType.SYS, f"HW Version: {val}")
-
-def main():
-    Versions()
-
-if __name__ == "__main__":
-    main()
+        self.mr.sys(f"HW Version: {val}")
