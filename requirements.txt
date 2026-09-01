@@ -13,3 +13,4 @@ loguru==0.7.3
 setuptools<81
 flask
 tqdm>=4.60
+pdoc

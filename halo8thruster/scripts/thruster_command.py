@@ -5,7 +5,7 @@ from serial.tools import list_ports
 from threading import Thread, Lock
 from os.path import exists
 from halo8thruster.driver.mr_logger import MrLogger, LogType
-from halo8thruster.driver.hsi_defines import TCS, HSIDefines
+from halo8thruster.driver.defines import TCS, HSIDefines
 from halo8thruster.driver.comms import *
 
 """
