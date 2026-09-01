@@ -5,6 +5,16 @@ from halo8thruster.driver.defines import *
 from halo8thruster.driver.exceptions import ConnectionError, CommsError, CommsTimeout, CommsAbort
 
 class Comms:
+    """A class to handle the canopen serial communication with the halo 8 ppu.
+    Attributes:
+        mr_logger: the logging instance to use,
+        serial_port: the serial port path,
+        system_id: the halo8 canopen node id,
+        sdo_timeout: how long should the canopen stack wait for a timeout,
+        debug: print the debug messages, also shows timing information. quite noisy when enabled.
+        network: the canopen network using the exoserial interface.
+        write_mutex: the mutex for the read and write functions
+    """
     def __init__(
         self,
         mr_logger,
@@ -14,6 +24,18 @@ class Comms:
         half_duplex: bool = False,
         debug:bool = False
     ) -> None:
+        """
+        Sets up the canopen network and tries to connect to the ppu over the specified serial port.
+        Args:
+            mr_logger: the logging instance to use,
+            serial_port: the serial port path,
+            system_id: the halo8 canopen node id,
+            sdo_timeout: how long should the canopen stack wait for a timeout,
+            half_duplex: Only one message sent and received at a time. True if on a 485 variant, otherwise false.
+            debug: print the debug messages, also shows timing information. quite noisy when enabled.
+        Raises: 
+            ConnectionError: If failed to connect to the ppu on the specified port.
+        """
         self.mr_logger = mr_logger
         self.serial_port = serial_port
         self.system_id = system_id
