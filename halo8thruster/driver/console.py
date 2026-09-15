@@ -1,4 +1,5 @@
 from halo8thruster.driver.mr_logger import LogType
+from halo8thruster.driver.comms import Comms
 from halo8thruster.driver.exceptions import PPUError
 
 
@@ -11,13 +12,17 @@ class Console:
     header bar, console pane, and optional raw CAN / decoded HSI panes.
     """
 
-    def __init__(self, mr_logger, commands: dict, *,
+    def __init__(self, 
+                 mr_logger, 
+                 comms: Comms,
+                 commands: dict = {}, *,
                  header: dict | None = None,
                  show_raw: bool = False,
                  show_hsi: bool = False,
                  show_trace: bool = False):
         """
         mr_logger   MrLogger instance
+        comms       Instance of the comms class to call for get write value
         commands    dict of {key: {name, func, help[, args][, group]}}
         header      initial {label: value} pairs shown in the header bar (TUI only)
         show_raw    show scrolling raw CAN packet pane (TUI only)
@@ -25,6 +30,7 @@ class Console:
         show_trace  show scrolling trace message pane (TUI only)
         """
         self._mr = mr_logger
+        self._comms = comms
         self._header = dict(header) if header is not None else None
         self._show_raw = show_raw
         self._show_hsi = show_hsi
@@ -47,6 +53,12 @@ class Console:
             self._app.run()
         else:
             self._run_plain()
+
+    def update_cmds(self, cmds: dict):
+        """
+        adds the commands to the table after init.
+        """
+        self._table.update(cmds)
 
     def update_header(self, key: str, value):
         """Thread-safe update of a header field value. No-op in plain mode."""
@@ -127,7 +139,7 @@ class Console:
             except EOFError:
                 self._exit(None)
 
-    def get_write_value(self, comms, args):
+    def get_write_value(self, args):
         """
         Prompt the user for a value and write it via comms, or write a default if one is set.
         args keys: index, subindex, type, default (optional).
@@ -152,16 +164,6 @@ class Console:
             inp = input("write> ")
             if inp.lower() in ("back", "x"):
                 return
-            if index == 0x4000 and (subindex == 2 or subindex == 9):
-                self._mr.log(LogType.SYS, "Set a burn duration timeout? (0 for none, or seconds up to 65535):")
-                timeout = input("timeout in seconds> ")
-                if timeout.lower() in ("back", "x"):
-                    return
-                try:
-                    inp = str(int(inp, 0) + (int(timeout) << 16))
-                except ValueError:
-                    self._mr.log(LogType.SYS, "Invalid value — enter a number.")
-                    continue
             if inp:
-                comms.write(index, subindex, inp, python_type)
+                self._comms.write(index, subindex, inp, python_type)
                 return

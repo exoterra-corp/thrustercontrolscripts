@@ -2,6 +2,7 @@
 from halo8thruster.driver.ppu import PPU, parse_ppu_args
 from halo8thruster.driver.console import Console
 from halo8thruster.driver.version import Version
+from halo8thruster.driver.conditoning import Conditioning
 from halo8thruster.driver.defines import *
 from threading import Thread
 import struct
@@ -49,67 +50,59 @@ def make_fake_hsi_packet() -> bytes:
 
 class ThrusterCommand(PPU):
     def __init__(self):
-      super().__init__()
-      self.v = Version(self.com, self.mr)
-      self.cmds = {
-      "2":{"name": "NMT STATE STOPPED", "func": self.state.change,
+        super().__init__()
+        self.c = Console(self.mr, comms=self.com)
+        self.v = Version(self.com, self.mr)
+        self.cond = Conditioning(self.mr, self.com)
+        self.cmds = {
+        "2":{"name": "NMT STATE STOPPED", "func": self.state.change,
             "args": TCS.STOP,
-            "help": "Changes NMT STATE to STOP."},
-      "2": {"name": "NMT STATE INIT", "func": self.state.change,
+            "help": "Changes the nmt state to stopped."},
+        "2": {"name": "init", "func": self.state.change,
             "args": TCS.INIT,
-            "help": "Changes NMT STATE to INIT."},
-      "3": {"name": "NMT STATE PRE-OP", "func": self.state.change,
+            "help": "Changes nmt state to init."},
+        "3": {"name": "preop", "func": self.state.change,
             "args": TCS.PREOP,
-            "help": "Changes NMT STATE to PRE-OP."},
-      "4": {"name": "NMT STATE OPERATIONAL", "func": self.state.change,
+            "help": "Changes the nmt state to pre operational."},
+        "4": {"name": "oper", "func": self.state.change,
             "args": TCS.OPERATIONAL,
-            "help": "Changes NMT STATE to OPERATIONAL."},
-      "5": {"name": "get state", "func": self.state.thruster_state_read, "help": "read thruster state"},
-      "6": {"name": "get versions", "func": self.v.read_sw, "help": "read sw version"},
-      # "5": {"name": "Run Ready Mode", "func": self.get_write_value,
-      #       "args": {"index": IDX_THRUSTER_CMD, "subindex": 0x1, "type": "<I", "default": "1"},
-      #       "help": "Writes a UINT-32 to the Thruster Ready Mode."},
-      # "6": {"name": "Run Steady State", "func": self.get_write_value,
-      #       "args": {"index": IDX_THRUSTER_CMD, "subindex": 0x2, "type": "<I"},
-      #       "help": "Writes a UINT-32 to the Thruster Steady State."},
-      # "7": {"name": "Thruster Shutdown", "func": self.get_write_value,
-      #       "args": {"index": IDX_THRUSTER_CMD, "subindex": 0x3, "type": "<B", "default": "1"},
-      #       "help": "Shutdown down the thruster."},
+            "help": "Changes NMT STATE to operational.  The client boards are powered on in this state."},
+        "5": {"name": "readymode", "func": self.state.change,
+            "args": TCS.READY_MODE,
+            "help": "Takes the thruster state to ready mode and lights the keeper."},
+        "6": {"name": "steadystate", "func": self.state.change,
+            "args": TCS.STEADY_STATE,
+            "help": "Takes the thruster to steady state and lights the anode."},
+        "7": {"name": "thpoint", "func":self.c.get_write_value,
+            "args": {"index": IDX_THRUSTER_CMD, "subindex": 0x4, "type": "<I", "hex_en": False},
+            "help": "Writes a throttle set point to the System Controller."},
+        "8": {"name": "state", "func": lambda: self.state.thruster_state_read().name, "help": "read thruster state"},
+        "9": {"name": "version", "func": self.v.read_sw, "help": "read sw versions"},
+        "10": {"name": "start cond", "func": self.cond.start_conditioning,"help": "run the conditioning sequence."},
+        "11": {"name": "stop cond", "func": self.cond.stop_conditioning,"help": "stops the condititons sequence"},
+        "12": {"name": "print cond", "func": self.cond.print_conditoning_stats, "help": "show conditioning stats."},
+        "13": {"name": "clear cond", "func": self.cond.erase_conditioning_stats, "help": "erase conditioning stats."},
 
-      # "8": {"name": "Status", "func": self.get_status_index,
-      #       "args": {"index": IDX_THRUSTER_CMD},
-      #       "help": "Prints Status of Ready Mode, Steady State, and ThrusterStatus continuously."},
+        # "12": {"name": "telem", "func": self.query_block_hsi,
+        #        "args": {"index": IDX_HSI_BLOCK, "subindex": SUB_HSI_BLOCK, "type": "<I"},
+        #        "help": "Queries the HSI values using a segmented transfer"},
+        # "13": {"name": "read fault status", "func": self.read_fault_status,
+        #        "args": {"index": IDX_FAULT_STATUS, "subindex": SUB_FAULT_BASE, "type": "<I"},
+        #        "help": "Read the Error Stats."},
+        # "14": {"name": "run bit test", "func": self.get_write_value,
+        #        "args": {"index": IDX_THRUSTER_CMD, "subindex": 0x7, "type": "<I"},
+        #        "help": "Run the BIT sequence."},
+        # "15": {"name": "status print loop", "func": self.get_status_index,
+        #       "args": {"index": IDX_THRUSTER_CMD},
+        #       "help": "Prints Status of Ready Mode, Steady State, and ThrusterStatus continuously."},
+        }
 
-
-      # "9": {"name": "Write Set Thrust", "func": self.get_write_value,
-      #       "args": {"index": IDX_THRUSTER_CMD, "subindex": 0x4, "type": "<I", "hex_en": False},
-      #       "help": "Writes a throttle set point to the System Controller."},
-
-      # "10": {"name": "Condition", "func": self.get_write_value,
-      #        "args": {"index": IDX_THRUSTER_CMD, "subindex": 0x6, "type": "<I"},
-      #        "help": "Run the conditioning sequence."},
-      # "11": {"name": "Test", "func": self.get_write_value,
-      #        "args": {"index": IDX_THRUSTER_CMD, "subindex": 0x7, "type": "<I"},
-      #        "help": "Run the BIT sequence."},
-
-      # "12": {"name": "Query Block HSI", "func": self.query_block_hsi,
-      #        "args": {"index": IDX_HSI_BLOCK, "subindex": SUB_HSI_BLOCK, "type": "<I"},
-      #        "help": "Queries the HSI values using a segmented transfer"},
-
-      # "13": {"name": "Read Fault Status", "func": self.read_fault_status,
-      #        "args": {"index": IDX_FAULT_STATUS, "subindex": SUB_FAULT_BASE, "type": "<I"},
-      #        "help": "Read the Error Stats."},
-
-      # "15": {"name": "Print Stats", "func": self.print_conditoning_stats,
-      #        "args": {"index": IDX_COND_STATS, "subindex": 0x0, "type": "<I", "default": "1"},
-      #        "help": "Reset Conditioning Stats."},
-      }
-      self.c = Console(self.mr, self.cmds,
-      header = {"thruster state": self.state.thruster_state_read().name},
-      show_raw=True, show_hsi=True, show_trace=True)
-            # Console exists now, so update_header() is safe to call from the thread
-      Thread(target=self._gather, daemon=True).start()
-      self.c.start()  # blocks until exit
+    # header = {"thruster state": self.state.thruster_state_read().name},
+    # show_raw=True, show_hsi=True, show_trace=True)
+    # Console exists now, so update_header() is safe to call from the thread
+        self.c.update_cmds(self.cmds)
+        Thread(target=self._gather, daemon=True).start()
+        self.c.start()  # blocks until exit
 
     def _gather(self):
         cnt = 0
@@ -126,7 +119,7 @@ class ThrusterCommand(PPU):
             time.sleep(0.1)
 
 def main():
-    port, sid = parse_ppu_args("Read PPU Versions")
+    port, sid = parse_ppu_args("Thruster Command console")
     ThrusterCommand()
 
 if __name__ == "__main__":

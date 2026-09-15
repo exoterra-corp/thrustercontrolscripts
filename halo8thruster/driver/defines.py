@@ -49,6 +49,7 @@ CMD_COND_CLEAR     = 0x63637772
 CMD_SEQ_KEEPER_ON  = 0x01020706  # adjust keeper current in sequence engine
 CMD_SEQ_KEEPER_OFF = 0x01040706  # turn keeper off in sequence engine
 
+
 # Update Subindexes
 UPDATE_SUB_DATA    = 1
 UPDATE_SUB_VERIFY  = 2

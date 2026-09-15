@@ -120,7 +120,7 @@ class Comms:
             self.write_mutex.release()
 
     def write_blob(self, index, subindex, data: bytes, force_segment: bool = True) -> None:
-        """Write a raw byte buffer (e.g. firmware image) over SDO without struct packing."""
+        """Write a raw byte buffer (like the firmware image) over SDO without struct packing."""
         try:
             self.write_mutex.acquire()
             t_sdo = time.perf_counter()

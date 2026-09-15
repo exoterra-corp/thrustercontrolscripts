@@ -24,7 +24,7 @@ dependencies = [
 ]
 
 [project.scripts]
-thruster_command   = "halo8thruster.scripts.thruster_command:main"
+thruster_command   = "halo8thruster.scripts.th2:main"
 listener           = "halo8thruster.scripts.listener:main"
 update_firmware    = "halo8thruster.scripts.update_firmware:main"
 calibration_editor = "halo8thruster.scripts.calibration:main"
