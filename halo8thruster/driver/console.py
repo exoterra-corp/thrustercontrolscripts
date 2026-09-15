@@ -214,6 +214,11 @@ class Console:
             self._comms.write(index, subindex, default, python_type)
             return
 
+        if self._prompt_session is None:
+            self._mr.sys("This command needs a value and isn't supported in TUI mode "
+                          "(no interactive prompt available) — set a 'default' or run without --tui.")
+            return
+
         while True:
             self._mr.log(LogType.SYS, "Enter value to send (decimal or 0x hex) - or 'x' to cancel.")
             try:

@@ -54,8 +54,6 @@ class Comms:
             _bt("network.connect() done")
             self.node = self.network.add_node(self.system_id)
             _bt(f"add_node(0x{self.system_id:02x})")
-            self.network.add_node(self.node)
-            _bt("network.add_node(node)")
             self.raw_q = self.node.network.bus.get_int_q()
             self.mr_logger.set_raw_queue(self.raw_q)
             _bt("get_int_q() + set_raw_queue()")
@@ -90,6 +88,11 @@ class Comms:
     def disconnect(self) -> None:
         if self.network:
             self.network.disconnect()
+
+    def send_nmt(self, command: int) -> None:
+        """Send a raw NMT command byte, serialized against SDO traffic."""
+        with self.write_mutex:
+            self.node.nmt.send_command(command)
 
     def write(self, index, subindex, val, python_type):
         """

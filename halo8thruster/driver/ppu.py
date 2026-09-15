@@ -20,6 +20,7 @@ class PPU():
             self.com = Comms(self.mr, serial_port=serial_port, system_id=system_id, debug=debug)
         except ConnectionError as e:
             self.mr.sys(f"Failed to connect: {e}")
+            self.mr.close()
             raise
         self.state = State(self.com, self.mr)
 
@@ -28,6 +29,7 @@ class PPU():
 
     def __exit__(self, *exc):
         self.com.disconnect()
+        self.mr.close()
 
 def parse_ppu_args(description=""):
     import argparse

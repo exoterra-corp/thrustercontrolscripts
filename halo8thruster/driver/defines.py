@@ -93,20 +93,20 @@ class HSIDefines:
             "k_can_err": {"index": self.keeper_index, "subindex": "ADC7", "type": "<H", "row": 1, "col": 0x7, "hex": False},
 
             # magnet outer
-            "mo_v_out":   {"index": self.mag_inner_index, "subindex": "ADC0", "type": "<H", "row": 7, "col": 0, "hex": False},
-            "mo_i_out":   {"index": self.mag_inner_index, "subindex": "ADC1", "type": "<H", "row": 7, "col": 1, "hex": False},
-            "mo_dac_out": {"index": self.mag_inner_index, "subindex": "ADC2", "type": "<H", "row": 7, "col": 2, "hex": False},
-            "mo_last_err":{"index": self.mag_inner_index, "subindex": "ADC3", "type": "<H", "row": 7, "col": 3, "hex": False},
-            "mo_msg_cnt": {"index": self.mag_inner_index, "subindex": "ADC4", "type": "<H", "row": 7, "col": 4, "hex": False},
-            "mo_can_err": {"index": self.mag_inner_index, "subindex": "ADC5", "type": "<H", "row": 7, "col": 5, "hex": False},
+            "mo_v_out":   {"index": self.mag_outer_index, "subindex": "ADC0", "type": "<H", "row": 7, "col": 0, "hex": False},
+            "mo_i_out":   {"index": self.mag_outer_index, "subindex": "ADC1", "type": "<H", "row": 7, "col": 1, "hex": False},
+            "mo_dac_out": {"index": self.mag_outer_index, "subindex": "ADC2", "type": "<H", "row": 7, "col": 2, "hex": False},
+            "mo_last_err":{"index": self.mag_outer_index, "subindex": "ADC3", "type": "<H", "row": 7, "col": 3, "hex": False},
+            "mo_msg_cnt": {"index": self.mag_outer_index, "subindex": "ADC4", "type": "<H", "row": 7, "col": 4, "hex": False},
+            "mo_can_err": {"index": self.mag_outer_index, "subindex": "ADC5", "type": "<H", "row": 7, "col": 5, "hex": False},
 
             # magnet inner
-            "mi_v_out":   {"index": self.mag_outer_index, "subindex": "ADC0", "type": "<H", "row": 10, "col": 0, "hex": False},
-            "mi_i_out":   {"index": self.mag_outer_index, "subindex": "ADC1", "type": "<H", "row": 10, "col": 1, "hex": False},
-            "mi_dac_out": {"index": self.mag_outer_index, "subindex": "ADC2", "type": "<H", "row": 10, "col": 2, "hex": False},
-            "mi_last_err":{"index": self.mag_outer_index, "subindex": "ADC3", "type": "<H", "row": 10, "col": 3, "hex": False},
-            "mi_msg_cnt": {"index": self.mag_outer_index, "subindex": "ADC4", "type": "<H", "row": 10, "col": 4, "hex": False},
-            "mi_can_err": {"index": self.mag_outer_index, "subindex": "ADC5", "type": "<H", "row": 10, "col": 5, "hex": False},
+            "mi_v_out":   {"index": self.mag_inner_index, "subindex": "ADC0", "type": "<H", "row": 10, "col": 0, "hex": False},
+            "mi_i_out":   {"index": self.mag_inner_index, "subindex": "ADC1", "type": "<H", "row": 10, "col": 1, "hex": False},
+            "mi_dac_out": {"index": self.mag_inner_index, "subindex": "ADC2", "type": "<H", "row": 10, "col": 2, "hex": False},
+            "mi_last_err":{"index": self.mag_inner_index, "subindex": "ADC3", "type": "<H", "row": 10, "col": 3, "hex": False},
+            "mi_msg_cnt": {"index": self.mag_inner_index, "subindex": "ADC4", "type": "<H", "row": 10, "col": 4, "hex": False},
+            "mi_can_err": {"index": self.mag_inner_index, "subindex": "ADC5", "type": "<H", "row": 10, "col": 5, "hex": False},
 
             # valves
             "va_anode_v":            {"index": self.valves_index, "subindex": "ADC0", "type": "<H", "row": 13, "col": 0, "hex": False},
@@ -159,6 +159,7 @@ class HSIDefines:
                 csv_row[name] = parsed_val
         return csv_row
 
+    @staticmethod
     def make_fake_hsi_packet() -> bytes:
         """
         Build a 122-byte HSI packet with unique values per field.
@@ -205,6 +206,13 @@ class NMTD(IntEnum):
     SLEEP = 80
     STANDBY = 96
     PRE_OPERATIONAL = 127
+
+class NMTCommand(IntEnum):
+    """NMT command bytes sent to the device (distinct from NMTD, which are resulting states)."""
+    OPERATIONAL     = 0x1
+    STOP            = 0x2
+    PRE_OPERATIONAL = 0x80
+    RESET_NODE      = 0x81
 
 class TCS(IntEnum):
     """Thruster Control State — enums of the various states of the PPU."""

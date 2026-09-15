@@ -167,36 +167,42 @@ class MrLogger:
                 data = self.raw_q.get(timeout=0.01)
             except (Empty, AttributeError):
                 continue
-            now = datetime.datetime.now()
-            time_string = now.strftime("%Y_%m_%d_%H_%M_%S.%f")
-            time_string_disp = now.strftime("%M:%S.%f")
-            if data[0] == 0xA:
-                # sent from the gui
-                tx_bytes = data[1:]  # remove the first byte
-                header = (tx_bytes[0] & 0xF8)
-                if (header) == 0xa8:
-                    cob_id = (tx_bytes[0] & 0x7) << 8
-                    cob_id |= (tx_bytes[1] & 0xFF)
-                    data_length = (tx_bytes[2] & 0xF)
-                    payload = tx_bytes[3:11]
-                    msg = f" id:{hex(cob_id)}: dl:{data_length}: d:{payload.hex()}"
-                    self.raw_log.write(f"[S:{time_string}]:{tx_bytes.hex()}:{msg}\n")
-                    for cb in self._listeners[LogType.RAW]:
-                        cb(f"[S:{time_string_disp}]{msg}")
+            try:
+                self._handle_raw_frame(data)
+            except (IndexError, struct.error) as e:
+                print(f"[raw queue] dropping malformed frame ({len(data)}B): {e}")
 
-            elif data[0] == 0xB:
-                # recv from sam
-                rx_bytes = data[1:]  # remove the first byte
-                header = (rx_bytes[0] & 0xF8)
-                if (header) == 0xa8:
-                    cob_id = (rx_bytes[0] & 0x7) << 8
-                    cob_id |= (rx_bytes[1] & 0xFF)
-                    data_length = (rx_bytes[2] & 0xF)
-                    payload = rx_bytes[3:11]
-                    msg = f" id:{hex(cob_id)}: dl:{data_length}: d:{payload.hex()}"
-                    self.raw_log.write(f"[R:{time_string}]:{rx_bytes.hex()}:{msg}\n")
-                    for cb in self._listeners[LogType.RAW]:
-                        cb(f"[R:{time_string_disp}]{msg}")
+    def _handle_raw_frame(self, data):
+        now = datetime.datetime.now()
+        time_string = now.strftime("%Y_%m_%d_%H_%M_%S.%f")
+        time_string_disp = now.strftime("%M:%S.%f")
+        if data[0] == 0xA:
+            # sent from the gui
+            tx_bytes = data[1:]  # remove the first byte
+            header = (tx_bytes[0] & 0xF8)
+            if (header) == 0xa8:
+                cob_id = (tx_bytes[0] & 0x7) << 8
+                cob_id |= (tx_bytes[1] & 0xFF)
+                data_length = (tx_bytes[2] & 0xF)
+                payload = tx_bytes[3:11]
+                msg = f" id:{hex(cob_id)}: dl:{data_length}: d:{payload.hex()}"
+                self.raw_log.write(f"[S:{time_string}]:{tx_bytes.hex()}:{msg}\n")
+                for cb in self._listeners[LogType.RAW]:
+                    cb(f"[S:{time_string_disp}]{msg}")
+
+        elif data[0] == 0xB:
+            # recv from sam
+            rx_bytes = data[1:]  # remove the first byte
+            header = (rx_bytes[0] & 0xF8)
+            if (header) == 0xa8:
+                cob_id = (rx_bytes[0] & 0x7) << 8
+                cob_id |= (rx_bytes[1] & 0xFF)
+                data_length = (rx_bytes[2] & 0xF)
+                payload = rx_bytes[3:11]
+                msg = f" id:{hex(cob_id)}: dl:{data_length}: d:{payload.hex()}"
+                self.raw_log.write(f"[R:{time_string}]:{rx_bytes.hex()}:{msg}\n")
+                for cb in self._listeners[LogType.RAW]:
+                    cb(f"[R:{time_string_disp}]{msg}")
 
     def sys(self, msg, end="\n"):   self.log(LogType.SYS, msg, end)
     def trace(self, msg):           self.log(LogType.TRACE, msg)

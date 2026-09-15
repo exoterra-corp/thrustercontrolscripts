@@ -3,7 +3,7 @@ import time
 from halo8thruster.driver.comms import Comms
 from halo8thruster.driver.defines import *
 from halo8thruster.driver.mr_logger import MrLogger
-from halo8thruster.driver.exceptions import StateError, StateTimeout
+from halo8thruster.driver.exceptions import StateError, StateTimeout, CommsAbort
 
 
 
@@ -36,16 +36,16 @@ class State():
         throttle_point = abs(throttle_point)
         if state == TCS.OPERATIONAL:
             self.mr.sys("Switching State Operational")
-            self.comms.node.nmt.send_command(0x1)
+            self.comms.send_nmt(NMTCommand.OPERATIONAL)
         elif state == TCS.PREOP:
             self.mr.sys("Switching State Pre-Operational")
-            self.comms.node.nmt.send_command(0x80)
+            self.comms.send_nmt(NMTCommand.PRE_OPERATIONAL)
         elif state == TCS.INIT:
             self.mr.sys("Switching State Init")
-            self.comms.node.nmt.send_command(0x81)
+            self.comms.send_nmt(NMTCommand.RESET_NODE)
         elif state == TCS.STOP:
             self.mr.sys("Switching State Stopped")
-            self.comms.node.nmt.send_command(0x2)
+            self.comms.send_nmt(NMTCommand.STOP)
         elif state == TCS.READY_MODE:
             self.mr.sys("Switching State Ready Mode")
             self.comms.write(IDX_THRUSTER_CMD, SUB_READY_MODE, 1, "<I")
@@ -71,13 +71,12 @@ class State():
 
     def trace_read(self):
         """Read a trace message from the device and forward it to the trace log."""
-        msg = None
         try:
             msg = self.comms.read(IDX_TRACE_MSG, SUB_TRACE_MSG)
-            if msg is not None:
-                    self.mr.trace(msg)
-        except Exception as e:
-                None # fail silently, means there are no more messages
+        except CommsAbort:
+            return None  # device reports no more queued trace messages
+        if msg is not None:
+            self.mr.trace(msg)
         return msg
 
     def block_telem_read(self):
