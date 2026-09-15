@@ -90,8 +90,7 @@ IDX_SOFT_START = Throttle.INDEX
 
 
 class SequenceEngine:
-    """0x4200 -- sequence_table_update_object.c (firmware symbols are
-    SqncCtrl*; the file name is misleading)."""
+    """0x4200 -- sequence_table_update_object.c"""
     INDEX = 0x4200
 
     class Sub(IntEnum):
@@ -211,10 +210,7 @@ CMD_TRACE_LOCKOUT_OVERRIDE = 0x6f6c6466  # 'fdlo'
 
 
 class NodeId:
-    """0x5022 -- node_id_object.c. This is the device's CANopen Node ID
-    (persisted to flash), NOT a hardware serial number -- previously
-    named IDX_SERIAL_NUMBER in this file, which was misleading. Writing
-    here changes the device's own CAN node address."""
+    """0x5022 -- node_id_object.c."""
     INDEX = 0x5022
 
     class Sub(IntEnum):
