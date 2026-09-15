@@ -69,7 +69,7 @@ class Comms:
 
     def subscribe_bootup(self, callback) -> None:
         """Register NMT bootup callback on COB-ID 0x722."""
-        self.network.subscribe(0x722, callback)
+        self.network.subscribe(NMT_BOOTUP_COB_ID, callback)
 
     def handle_emcy(self, emgcy_error):
         """Parse and log a CANopen EMCY message from the device."""
