@@ -1,13 +1,16 @@
 from halo8thruster.driver.mr_logger import LogType
 from halo8thruster.driver.comms import Comms
 from halo8thruster.driver.exceptions import PPUError
+from prompt_toolkit import PromptSession
+from prompt_toolkit.patch_stdout import patch_stdout
+import threading
 
 
 class Console:
     """
     Interactive REPL console with optional textual TUI.
 
-    Plain mode (default): simple input()/print() loop, no extra dependencies.
+    Plain mode (default): uses prompt_toolkit for dynamic prompt updates, no extra UI overhead.
     TUI mode (set header, show_raw, or show_hsi): launches a textual app with a
     header bar, console pane, and optional raw CAN / decoded HSI panes.
     """
@@ -37,28 +40,47 @@ class Console:
         self._show_trace = show_trace
         self._tui_mode = (header is not None) or show_raw or show_hsi or show_trace
         self._app = None
+        self._args = ""
+        
+        # For prompt_toolkit plain mode
+        self._prompt_session = None
+        self._prompt_lock = threading.Lock()
+        self._running = False
 
         self._table = {
-            "0": {"name": "exit", "func": self._exit, "help": "Exit the program"},
-            "1": {"name": "help", "func": self._help, "help": "Show this help"},
+            "0": {"name": "exit", "func": self._exit, "help": "exit the program"},
+            "1": {"name": "help", "func": self._help, "help": "show this help"},
         }
         self._table.update(commands)
 
     # ------------------------------------------------------------------ public
 
     def start(self):
+        """Launch either TUI or plain mode with prompt_toolkit."""
         if self._tui_mode:
             from halo8thruster.driver._console_tui import ConsoleApp
             self._app = ConsoleApp(self)
             self._app.run()
         else:
-            self._run_plain()
+            self._run_plain_with_prompt_toolkit()
 
     def update_cmds(self, cmds: dict):
         """
-        adds the commands to the table after init.
+        Adds the commands to the table after init.
         """
         self._table.update(cmds)
+    
+    def update_status_args(self, args: str):
+        """
+        Thread-safe update of the prompt args. Updates in real-time while user is typing.
+        Works in both plain and TUI modes.
+        """
+        with self._prompt_lock:
+            self._args = args
+        
+        # In TUI mode, notify the app to refresh
+        if self._app is not None:
+            self._app.call_from_thread(self._app.refresh_header)
 
     def update_header(self, key: str, value):
         """Thread-safe update of a header field value. No-op in plain mode."""
@@ -69,6 +91,14 @@ class Console:
             self._app.call_from_thread(self._app.refresh_header)
 
     # --------------------------------------------------------------- internals
+
+    def _get_prompt(self) -> str:
+        """
+        Safely get the current prompt string with args.
+        Thread-safe via lock.
+        """
+        with self._prompt_lock:
+            return f"{self._args}> "
 
     def _resolve(self, inp: str) -> dict | None:
         if inp in self._table:
@@ -125,19 +155,44 @@ class Console:
         if self._app is not None:
             self._app.exit()
 
-    def _run_plain(self):
+    def _run_plain_with_prompt_toolkit(self):
+        """
+        Plain mode using prompt_toolkit for dynamic prompt updates.
+        Allows other threads to update the prompt (args) while user is typing.
+        Uses patch_stdout() to prevent log output from interfering with input.
+        """
+        self._prompt_session = PromptSession()
         self._running = True
         self._help(None)
+        
         while self._running:
             try:
-                self._mr.log(LogType.SYS, ">", end="", print_val=False)
-                inp = input(">").lower().strip()
+                with patch_stdout():
+                    # Get current prompt (thread-safe)
+                    prompt_text = self._get_prompt()
+                    
+                    # PromptSession.prompt() is blocking, but prompt_toolkit handles
+                    # it gracefully. The prompt will update on the next keystroke
+                    # if update_status_args() is called from another thread.
+                    inp = self._prompt_session.prompt(
+                        prompt_text,
+                        # Optional: add color/styling here if desired
+                    ).lower().strip()
+                
+                # Log the input
                 self._mr.log(LogType.SYS, inp, print_val=False)
+                
+                # Dispatch the command
                 self._dispatch(inp)
+                
             except KeyboardInterrupt:
+                self._mr.log(LogType.SYS, "\n[Interrupted]")
                 self._exit(None)
             except EOFError:
+                self._mr.log(LogType.SYS, "\n[EOF]")
                 self._exit(None)
+            except Exception as e:
+                self._mr.log(LogType.SYS, f"[Error in prompt] {e}")
 
     def get_write_value(self, args):
         """
@@ -156,12 +211,17 @@ class Console:
             return
 
         if default is not None:
-            comms.write(index, subindex, default, python_type)
+            self._comms.write(index, subindex, default, python_type)
             return
 
         while True:
             self._mr.log(LogType.SYS, "Enter value to send (decimal or 0x hex) - or 'x' to cancel.")
-            inp = input("write> ")
+            try:
+                with patch_stdout():
+                    inp = self._prompt_session.prompt("write> ")
+            except (KeyboardInterrupt, EOFError):
+                return
+            
             if inp.lower() in ("back", "x"):
                 return
             if inp:

@@ -31,7 +31,7 @@ class Conditioning:
             seq_stat_cond = '0x' + hex(seq_stat_cond)[2:].zfill(8)
             monitor_err = '0x' + hex(monitor_err)[2:].zfill(8)
             self._mr.log(LogType.SYS, f"[{v}] seq_stat_cond-{seq_stat_cond}, elapsed_ms-{elapsed_ms}, monitor_err-{monitor_err}")
-``
+
     def erase_conditioning_stats(self):
         print("Erase Conditioning Stats?")
         erase = input("y/n> ")

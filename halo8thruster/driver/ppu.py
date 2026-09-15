@@ -33,9 +33,10 @@ def parse_ppu_args(description=""):
     import argparse
     p = argparse.ArgumentParser(description=description)
     p.add_argument("serial_port", nargs="?", default="/dev/ttyUSB0")
-    p.add_argument("system_id", nargs="?",  default="0x22")
+    p.add_argument("system_id", nargs="?",  default="0x22", help="The System")
+    p.add_argument("--tui", action="store_true", help="Enable the tui with all the bells and whistles. Trace, Telem, and cmds all in one window.")
     a = p.parse_args()
-    return a.serial_port, int(a.system_id, 0)
+    return a.serial_port, int(a.system_id, 0), a.tui
 
 if __name__ == "__main__":
     print("This class is meant to be subclassed by your script. See the docs.")

@@ -9,8 +9,8 @@
             "name": "thrustercommand",
             "type": "debugpy",
             "request": "launch",
-            "program": "${workspaceFolder}/scripts/thruster_command.py",
-            "args": ["/dev/ttyUSB0", "0x22", "scripts/thruster-control.eds"],
+            "program": "${workspaceFolder}/halo8thruster/scripts/th2.py",
+            "args": [],
             "console": "integratedTerminal"
         },
                 {
