@@ -11,12 +11,13 @@ import time
 class ThrusterCommand(PPU):
     def __init__(self,port,sid,tui):
         super().__init__(serial_port=port, system_id=sid)
-        self.v = Version(self.com, self.mr)
-        self.cond = Conditioning(self.mr, self.com)
-        if tui: # all the bells and whistles enabled
+        self._tui = tui
+        self._v = Version(self.com, self.mr)
+        self._cond = Conditioning(self.mr, self.com)
+        if self._tui: # all the bells and whistles enabled
             self.c = Console(self.mr, comms=self.com,
-            header = {"thruster state": self.state.thruster_state_read().name},
-            show_raw=True, show_hsi=True, show_trace=True)
+            header = {"thruster state": ""},
+            show_raw=False, show_hsi=True, show_trace=True)
         else: #simple console, no tui
             self.c = Console(self.mr, comms=self.com)
 
@@ -46,22 +47,17 @@ class ThrusterCommand(PPU):
             "args": {"index": IDX_THRUSTER_CMD, "subindex": SUB_SHUTDOWN, "type": "<I", "val":1},
              "help": "shuts down the thruster."},
         "9": {"name": "state", "func": lambda: self.state.thruster_state_read().name, "help": "read thruster state"},
-        "10": {"name": "version", "func": self.v.read_sw, "help": "read sw versions"},
-        "11": {"name": "start cond", "func": self.cond.start_conditioning,"help": "run the conditioning sequence."},
-        "12": {"name": "stop cond", "func": self.cond.stop_conditioning,"help": "stops the condititons sequence"},
-        "13": {"name": "print cond", "func": self.cond.print_conditoning_stats, "help": "show conditioning stats."},
-        "14": {"name": "clear cond", "func": self.cond.erase_conditioning_stats, "help": "erase conditioning stats."},
+        "10": {"name": "version", "func": self._v.read_sw, "help": "read sw versions"},
+        "11": {"name": "start cond", "func": self._cond.start_conditioning,"help": "run the conditioning sequence."},
+        "12": {"name": "stop cond", "func": self._cond.stop_conditioning,"help": "stops the condititons sequence"},
+        "13": {"name": "print cond", "func": self._cond.print_conditoning_stats, "help": "show conditioning stats."},
+        "14": {"name": "clear cond", "func": self._cond.erase_conditioning_stats, "help": "erase conditioning stats."},
         "15": {"name": "telem", "func": self.query_block_hsi, "help": "queries the HSI values using a segmented transfer"},
         "16": {"name": "fault stats", "func": self.query_fault_status, "help": "queries and prints the error stats."},
         "17": {"name": "bit", "func": self.c.get_write_value,
                "args": {"index": IDX_THRUSTER_CMD, "subindex": SUB_BIT, "type": "<I"},
                "help": "runs a specified bit sequence.  check trace for status."},
-        "18": {"name": "status print", "func": self.create_status_print_thread, "help": "print the status of the thruster every second.  Call this again to cancel."},
         }
-
-        #status print ctrl logic
-        self._statusprint_thread = None
-        self._statusprint_running = False
 
         #update the cmd list to the console obj
         self.c.update_cmds(self.cmds)
@@ -74,6 +70,7 @@ class ThrusterCommand(PPU):
             try:
                 status = self.state.thruster_state_read()
                 self.c.update_header("thruster state", status.name)
+                self.c.update_status_args(f"thruster state: {status.name.lower()} ")
                 self.state.trace_read()
                 if cnt % 3 == 0:
                     self.mr.hsi(self.state.block_telem_read())  # swap back to self.state.block_telem_read() for real hardware
@@ -98,27 +95,6 @@ class ThrusterCommand(PPU):
             self.mr.sys(f"{i}:{hex(val)}")
             faults.append(val)
     
-    def create_status_print_thread(self):
-        """
-        """
-        if self._statusprint_thread != None:
-            self.mr.sys("stopping status print.")
-            self.statusprint_running = False
-            self._statusprint_thread.join()
-            self._statusprint_thread = None
-        else:
-            self.mr.sys("printing status every 2 second. call again to cancel.")
-            self._statusprint_thread = Thread(target=self.status_print)
-            self.statusprint_running = True
-            self._statusprint_thread.start()
-
-    def status_print(self):
-        """
-        """
-        while self.statusprint_running:
-            self.mr.sys(f"\nThruster State: {self.state.thruster_state_read().name}\n")
-            time.sleep(2)
-
 def main():
     port, sid, tui = parse_ppu_args("Thruster Command console")
     ThrusterCommand(port, sid, tui)

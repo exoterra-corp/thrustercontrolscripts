@@ -47,6 +47,9 @@ class Console:
         self._prompt_lock = threading.Lock()
         self._running = False
 
+        # a list of functions to call before exiting
+        self._exit_funcs = []
+
         self._table = {
             "0": {"name": "exit", "func": self._exit, "help": "exit the program"},
             "1": {"name": "help", "func": self._help, "help": "show this help"},
@@ -63,6 +66,12 @@ class Console:
             self._app.run()
         else:
             self._run_plain_with_prompt_toolkit()
+
+    def register_exit_func(self, func):
+        """
+        functions can be registered to be called on exit or cntrl-c
+        """
+        self._exit_funcs.append(func)
 
     def update_cmds(self, cmds: dict):
         """
@@ -150,6 +159,8 @@ class Console:
         self._write_help(lambda msg: self._mr.log(LogType.SYS, msg))
 
     def _exit(self, args=None):
+        for f in self._exit_funcs:
+            f()
         self._running = False
         self._mr.close()
         if self._app is not None:
