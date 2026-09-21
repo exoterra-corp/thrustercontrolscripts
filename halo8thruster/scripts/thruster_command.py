@@ -15,11 +15,11 @@ class ThrusterCommand(PPU):
         self._v = Version(self.com, self.mr)
         self._cond = Conditioning(self.mr, self.com)
         if self._tui: # all the bells and whistles enabled
-            self.c = Console(self.mr, comms=self.com,
+            self.c = Console(self.mr, commands={}, comms=self.com,
             header = {"thruster state": ""},
             show_raw=False, show_hsi=True, show_trace=True)
         else: #simple console, no tui
-            self.c = Console(self.mr, comms=self.com)
+            self.c = Console(self.mr, commands={}, comms=self.com)
 
         self.cmds = {
         "2":{"name": "stop", "func": self.state.change,

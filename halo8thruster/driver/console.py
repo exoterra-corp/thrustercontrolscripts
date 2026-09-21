@@ -18,7 +18,7 @@ class Console:
     def __init__(self, 
                  mr_logger, 
                  comms: Comms,
-                 commands: dict = {}, *,
+                 commands, *,
                  header: dict | None = None,
                  show_raw: bool = False,
                  show_hsi: bool = False,

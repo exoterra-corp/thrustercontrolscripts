@@ -12,11 +12,11 @@ class Versions(PPU):
             "3": {"name": "read_hw_version", "func": self.ver.read_hw, "help": "Read hardware version"},
         }
 
-        self.c = Console(self.mr, self.cmds)
+        self.c = Console(self.mr, self.com, self.cmds)
         self.c.start()
 
 def main():
-    port, sid = parse_ppu_args("Read PPU Versions")
+    port, sid, tui = parse_ppu_args("Read PPU Versions")
     Versions()
 
 if __name__ == "__main__":
