@@ -37,11 +37,12 @@ class HSIExcelWindow(HSIExcelFrame):
         self.grid.SetCellValue(row, 0, "VSEPIC (mV)")
         self.grid.SetCellValue(row, 1, "VIN (mV)")
         self.grid.SetCellValue(row, 2, "IOUT (mA)")
-        self.grid.SetCellValue(row, 3, "DAC (counts)")
-        self.grid.SetCellValue(row, 4, "LASTERR")
-        self.grid.SetCellValue(row, 5, "CUR_OFT (counts)")
-        self.grid.SetCellValue(row, 6, "MSG_CNT")
-        self.grid.SetCellValue(row, 7, "CAN_ERR")
+        self.grid.SetCellValue(row, 3, "ANODE I PEAK (mA)")
+        self.grid.SetCellValue(row, 4, "DAC (counts)")
+        self.grid.SetCellValue(row, 5, "LASTERR")
+        self.grid.SetCellValue(row, 6, "CUR_OFT (counts)")
+        self.grid.SetCellValue(row, 7, "MSG_CNT")
+        self.grid.SetCellValue(row, 8, "CAN_ERR")
 
         # setup anode labels
         row += 3

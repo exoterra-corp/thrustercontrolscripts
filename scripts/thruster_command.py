@@ -778,12 +778,12 @@ class ThrusterCommand:
         """
         get_status, this function provides more direct access to the status variables.
         """
-        mode_status = self.read(index, self.mode_status_subindex, "<I")
-        state_status = self.read(index, self.state_status_subindex, "<I")
+        mode_status = None #self.read(index, self.mode_status_subindex, "<I")
+        state_status = None #self.read(index, self.state_status_subindex, "<I")
         self.thruster_status_parsed = self.read(index, self.thruster_status_subindex, "<I")
-        cond_status = self.read(index, self.condition_status_subindex, "<I")
-        thrust_point = self.read(index, self.thrust_point_subindex, "<I")
-        bit_status = self.read(index, self.bit_status_subindex, "<I")
+        cond_status = None #self.read(index, self.condition_status_subindex, "<I")
+        thrust_point = None #self.read(index, self.thrust_point_subindex, "<I")
+        bit_status = None #self.read(index, self.bit_status_subindex, "<I")
 
         if mode_status == None:
             mode_status = 0
@@ -829,19 +829,19 @@ class ThrusterCommand:
         """
         if self.debug:
             self.mr_logger.log(LogType.SYS, "Starting Query Thread")
-        while getattr(self, "thread_run"):
+        #while getattr(self, "thread_run"):
             # self.thread_lock.acquire()
-            if self.nmt_state != "Stopped":
-                statuses = self.get_status(self.th_command_index, True)
-                if statuses[2] is not None:
-                    try:
-                      self.notify_updated_state(int(statuses[2], 16))
-                      self.get_trace_msg()
-                      self.get_block_hsi()
-                    except Exception as e:
-                        self.mr_logger.log(LogType.SYS, f"{e}", )
+            #if self.nmt_state != "Stopped":
+                #statuses = self.get_status(self.th_command_index, True)
+                #if statuses[2] is not None:
+                #    try:
+                #      self.notify_updated_state(int(statuses[2], 16))
+                #      self.get_trace_msg()
+                #      self.get_block_hsi()
+                #    except Exception as e:
+                #        self.mr_logger.log(LogType.SYS, f"{e}", )
             # self.thread_lock.release()
-            time.sleep(self.trace_sleep_time)
+            #time.sleep(self.trace_sleep_time)
 
     def get_block_hsi(self):
         """
@@ -965,6 +965,18 @@ class ThrusterCommand:
                     if len(inp) > 0:
                         self.write(index, subindex, inp, python_type, hex_en)
                         valid = True
+                        if index == 0x4000 and subindex == 2 or subindex == 9:
+                            keep_alive_thread = Thread(target=self.keep_alive, args=(index, subindex, inp, python_type, hex_en))
+                            keep_alive_thread.start()
+
+
+    def keep_alive(self, index, subindex, inp, python_type, hex_en):
+        while True:
+            time.sleep(10)
+            self.write(index, subindex, inp, python_type, hex_en)
+            statuses = self.get_status(self.th_command_index, True)
+            self.notify_updated_state(int(statuses[2], 16))
+            print("keep alive")
 
 
     def write(self, index, subindex, val, python_type, hex_en=True):

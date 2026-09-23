@@ -47,11 +47,12 @@ class HSIDefines:
             "k_v_sepic": {"index": self.keeper_index, "subindex": "ADC0", "type": "<H", "row": 1, "col": 0x0},  # 32bit
             "k_v_in": {"index": self.keeper_index, "subindex": "ADC1", "type": "<H", "row": 1, "col": 0x1},  # 32bit
             "k_i_out": {"index": self.keeper_index, "subindex": "ADC2", "type": "<H", "row": 1, "col": 0x2},
-            "k_dac_out": {"index": self.keeper_index, "subindex": "ADC3", "type": "<H", "row": 1, "col": 0x3},
-            "k_last_err": {"index": self.keeper_index, "subindex": "ADC4", "type": "<H", "row": 1, "col": 0x4},
-            "k_cur_oft": {"index": self.keeper_index, "subindex": "ADC5", "type": "<H", "row": 1, "col": 0x5},
-            "k_msg_cnt": {"index": self.keeper_index, "subindex": "ADC6", "type": "<H", "row": 1, "col": 0x6},
-            "k_can_err": {"index": self.keeper_index, "subindex": "ADC7", "type": "<H", "row": 1, "col": 0x7},
+            "k_anode_i_peak": {"index": self.keeper_index, "subindex": "ADC3", "type": "<H", "row": 1, "col": 0x3},
+            "k_dac_out": {"index": self.keeper_index, "subindex": "ADC4", "type": "<H", "row": 1, "col": 0x4},
+            "k_last_err": {"index": self.keeper_index, "subindex": "ADC5", "type": "<H", "row": 1, "col": 0x5},
+            "k_cur_oft": {"index": self.keeper_index, "subindex": "ADC6", "type": "<H", "row": 1, "col": 0x6},
+            "k_msg_cnt": {"index": self.keeper_index, "subindex": "ADC7", "type": "<H", "row": 1, "col": 0x7},
+            "k_can_err": {"index": self.keeper_index, "subindex": "ADC8", "type": "<H", "row": 1, "col": 0x8},
 
             "mo_v_out": {"index": self.mag_inner_index, "subindex": "ADC0", "type": "<H", "row": 7, "col": 0},
             "mo_i_out": {"index": self.mag_inner_index, "subindex": "ADC1", "type": "<H", "row": 7, "col": 1},
@@ -110,9 +111,10 @@ class HSIDefines:
             {"name": "a_can_err", "type": "<H", "hex": False},
 
             # keeper
-            {"name": "k_v_sepic", "type": "<I", "hex": False},
+            {"name": "k_v_sepic", "type": "<H", "hex": False},
             {"name": "k_v_in", "type": "<H", "hex": False},
             {"name": "k_i_out", "type": "<H", "hex": False},
+            {"name": "k_anode_i_peak", "type": "<H", "hex": False},
             {"name": "k_dac_out", "type": "<H", "hex": False},
             {"name": "k_last_err", "type": "<H", "hex": False},
             {"name": "k_cur_oft", "type": "<H", "hex": False},
