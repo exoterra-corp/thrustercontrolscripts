@@ -972,7 +972,7 @@ class ThrusterCommand:
 
     def keep_alive(self, index, subindex, inp, python_type, hex_en):
         while True:
-            time.sleep(10)
+            time.sleep(1)
             self.write(index, subindex, inp, python_type, hex_en)
             statuses = self.get_status(self.th_command_index, True)
             self.notify_updated_state(int(statuses[2], 16))
