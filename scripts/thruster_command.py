@@ -952,7 +952,10 @@ class ThrusterCommand:
                     cmd = "1" 
                     if index == 0x4000 and subindex == 2 or subindex == 9:
                         inp = input("write ignition setpoint> ")
-
+                    elif index == 0x4000 and subindex == 6:
+                        inp = input("write condition step> ")
+                    elif index == 0x4000 and subindex == 7:
+                        inp = input("which BIT? > ")
                     else:
                         inp = input("write throttle setpoint> ")
 
