@@ -949,17 +949,25 @@ class ThrusterCommand:
             else:
                 while not valid:
                     self.mr_logger.log(LogType.SYS, f"Enter {val_type_str} value to send to ECP - or 'x' to return to previous menu.")
-                    inp = input("write> ")
+                    cmd = "1" 
+                    if index == 0x4000 and subindex == 2 or subindex == 9:
+                        inp = input("write ignition setpoint> ")
+
+                    else:
+                        inp = input("write throttle setpoint> ")
+
+
                     if inp.lower() == "back" or inp.lower() == "x":
                         return
                     # filter for steady state (2) or auto start (9) commands.  If it is either of these commands, they need a duration time
                     if index == 0x4000 and subindex == 2 or subindex == 9:
+                           
                         print("set a burn duration timeout? ( 0 for no, or timeout in seconds (max 65535)):")
                         timeout = input("timeout in seconds>")
                         if timeout.lower() == "back" or timeout.lower() == "x":
                             return
                         # python "shift" of 16 bits
-                        inp = str(int(inp) + (int(timeout)<<16))                     
+                        inp = str(int(cmd) + (int(timeout)<<16) + (int(inp) << 8))                     
                     if len(inp) > 0:
                         self.write(index, subindex, inp, python_type, hex_en)
                         valid = True
