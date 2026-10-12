@@ -780,7 +780,7 @@ class ThrusterCommand:
         state_status = self.read(index, self.state_status_subindex, "<I")
         self.thruster_status_parsed = self.read(index, self.thruster_status_subindex, "<I")
         cond_status = self.read(index, self.condition_status_subindex, "<I")
-        thrust_point = self.read(index, self.thrust_point_subindex, "<I")
+        thrust_point = hex(self.read(index, self.thrust_point_subindex, "<I"))
         bit_status = self.read(index, self.bit_status_subindex, "<I")
 
         if mode_status == None:
