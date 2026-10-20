@@ -829,19 +829,19 @@ class ThrusterCommand:
         """
         if self.debug:
             self.mr_logger.log(LogType.SYS, "Starting Query Thread")
-        #while getattr(self, "thread_run"):
-            # self.thread_lock.acquire()
-            #if self.nmt_state != "Stopped":
-                #statuses = self.get_status(self.th_command_index, True)
-                #if statuses[2] is not None:
-                #    try:
-                #      self.notify_updated_state(int(statuses[2], 16))
-                #      self.get_trace_msg()
-                #      self.get_block_hsi()
-                #    except Exception as e:
-                #        self.mr_logger.log(LogType.SYS, f"{e}", )
+        while getattr(self, "thread_run"):
+            #self.thread_lock.acquire()
+            if self.nmt_state != "Stopped":
+                statuses = self.get_status(self.th_command_index, True)
+                if statuses[2] is not None:
+                    try:
+                      self.notify_updated_state(int(statuses[2], 16))
+                      self.get_trace_msg()
+                      self.get_block_hsi()
+                    except Exception as e:
+                        self.mr_logger.log(LogType.SYS, f"{e}", )
             # self.thread_lock.release()
-            #time.sleep(self.trace_sleep_time)
+            time.sleep(self.trace_sleep_time)
 
     def get_block_hsi(self):
         """
@@ -961,7 +961,7 @@ class ThrusterCommand:
                         if timeout.lower() == "back" or timeout.lower() == "x":
                             return
                         # python "shift" of 16 bits
-                        inp = str(int(inp) + (int(timeout)<<16))                     
+                        inp = str(int(inp) + (int(timeout)<<16) + (3 << 8))                     
                     if len(inp) > 0:
                         self.write(index, subindex, inp, python_type, hex_en)
                         valid = True
@@ -976,7 +976,6 @@ class ThrusterCommand:
             self.write(index, subindex, inp, python_type, hex_en)
             statuses = self.get_status(self.th_command_index, True)
             self.notify_updated_state(int(statuses[2], 16))
-            print("keep alive")
 
 
     def write(self, index, subindex, val, python_type, hex_en=True):
