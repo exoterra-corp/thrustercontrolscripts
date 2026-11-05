@@ -4,6 +4,16 @@
 Full documentation is located in [docs/testscripts_customer.md](docs/testscripts_customer.md).
 
 ## Running the installer
+```
+virtualenv .venv
+source .venv/bin/activate
+
+pip3 install -r requirements.txt
+pip3 install -e .
+
+```
+
+
 
 ### Linux (Ubuntu 22.04)
 ```bash
