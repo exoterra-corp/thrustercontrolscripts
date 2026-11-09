@@ -974,7 +974,17 @@ class ThrusterCommand:
                     if len(inp) > 0:
                         self.write(index, subindex, inp, python_type, hex_en)
                         valid = True
+                        if index == 0x4000 and subindex == 2 or subindex == 9:
+                            keep_alive_thread = Thread(target=self.keep_alive, args=(index, subindex, inp, python_type, hex_en))
+                            keep_alive_thread.start()
 
+
+    def keep_alive(self, index, subindex, inp, python_type, hex_en):
+        while True:
+            time.sleep(5)
+            self.write(index, subindex, inp, python_type, hex_en)
+            statuses = self.get_status(self.th_command_index, True)
+            self.notify_updated_state(int(statuses[2], 16))
 
     def write(self, index, subindex, val, python_type, hex_en=True):
         """
