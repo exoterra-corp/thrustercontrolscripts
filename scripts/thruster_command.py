@@ -147,13 +147,32 @@ class ThrusterCommand:
                    "help": "Writes a UINT-32 to the Thruster Auto Start."},
             "18": {"name": "Classic/Soft Start Select ", "func": self.classic_start_enable,
                    "args": {"index": self.th_command_index, "subindex": "AutoStart", "type": "<I"},
-                   "help": "Writes a UINT-32 to the Thruster Auto Start."}       
+                   "help": "Writes a UINT-32 to the Thruster Auto Start."},      
+            "19": {"name": "Power Control Gain Step Adjust", "func": self.pc_gain_adjust,
+                   "args": {"index": self.th_command_index, "subindex": "AutoStart", "type": "<I"},
+                   "help": "Change the gain of power control."}
         }
         self.trace_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # trace port
         self.hsi_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # hsi port
         self.help(None)
         self.connect_to_ecp()
         self.abort_ignition = False
+
+    def pc_gain_adjust(self, args):
+        psi = 0
+        index = 0x2200
+        subindex = 0xA
+         
+        val = self.node.sdo.upload(index, subindex)
+        val = struct.unpack('<f', val)[0]
+        print("+++ Current Step = ", val, " +++");
+        val = input("New step (max 0.2 PSI)> ")
+        payload = bytearray(struct.pack('<f', float(val)))
+        self.node.sdo.download(index, subindex, payload)
+        print("doing the thing ... ")
+        val_check = self.node.sdo.upload(index, subindex)
+        val_check = struct.unpack('<f', val_check)[0]
+        print("new step = ", val_check, " PSI")
 
     def classic_start_enable(self, args):
         psi = 0
