@@ -995,7 +995,7 @@ class ThrusterCommand:
                         valid = True
                         if index == 0x4000 and subindex == 2 or subindex == 9:
                             keep_alive_thread = Thread(target=self.keep_alive, args=(index, subindex, inp, python_type, hex_en))
-                            keep_alive_thread.start()
+                            #keep_alive_thread.start()
 
 
     def keep_alive(self, index, subindex, inp, python_type, hex_en):
