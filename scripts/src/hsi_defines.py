@@ -110,9 +110,10 @@ class HSIDefines:
             {"name": "a_can_err", "type": "<H", "hex": False},
 
             # keeper
-            {"name": "k_v_sepic", "type": "<I", "hex": False},
+            {"name": "k_v_sepic", "type": "<H", "hex": False},
             {"name": "k_v_in", "type": "<H", "hex": False},
             {"name": "k_i_out", "type": "<H", "hex": False},
+            {"name": "k_anode_i_peak", "type": "<H", "hex": False},
             {"name": "k_dac_out", "type": "<H", "hex": False},
             {"name": "k_last_err", "type": "<H", "hex": False},
             {"name": "k_cur_oft", "type": "<H", "hex": False},

@@ -150,13 +150,22 @@ class ThrusterCommand:
                    "help": "Writes a UINT-32 to the Thruster Auto Start."},      
             "19": {"name": "Power Control Gain Step Adjust", "func": self.pc_gain_adjust,
                    "args": {"index": self.th_command_index, "subindex": "AutoStart", "type": "<I"},
-                   "help": "Change the gain of power control."}
+                   "help": "Change the gain of power control."},
+            "20": {"name": "Unique ID Read", "func": self.UID_read,
+                   "args": {"index": self.th_command_index, "subindex": "AutoStart", "type": "<I"},
+                   "help": "Read the unique ID."},
         }
         self.trace_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # trace port
         self.hsi_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # hsi port
         self.help(None)
         self.connect_to_ecp()
         self.abort_ignition = False
+
+    def UID_read(self, args):
+        index = 0x5022
+        subindex = 0x2
+        val = self.node.sdo.upload(index, subindex)
+        print("UID = ", val.hex())
 
     def pc_gain_adjust(self, args):
         psi = 0
